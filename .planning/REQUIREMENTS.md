@@ -105,17 +105,65 @@ Esplicitamente esclusi da v1. Documentati per prevenire scope creep.
 
 ## Traceability
 
-Popolata durante la creazione della roadmap (ogni requisito → esattamente una fase).
+Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (tutti i v1) | TBD | Pending |
+| CFG-01 | Phase 1 | Pending |
+| CFG-02 | Phase 1 | Pending |
+| CFG-03 | Phase 1 | Pending |
+| CFG-04 | Phase 1 | Pending |
+| TST-01 | Phase 1 | Pending |
+| TST-02 | Phase 1 | Pending |
+| FRM-01 | Phase 2 | Pending |
+| FRM-02 | Phase 2 | Pending |
+| FRM-03 | Phase 2 | Pending |
+| FRM-04 | Phase 2 | Pending |
+| FRM-05 | Phase 2 | Pending |
+| FRM-06 | Phase 2 | Pending |
+| FRM-07 | Phase 2 | Pending |
+| DEC-01 | Phase 3 | Pending |
+| DEC-02 | Phase 3 | Pending |
+| DEC-03 | Phase 3 | Pending |
+| DEC-04 | Phase 3 | Pending |
+| DEC-05 | Phase 3 | Pending |
+| DEC-06 | Phase 3 | Pending |
+| DEC-07 | Phase 3 | Pending |
+| RBT-03 | Phase 3 | Pending |
+| TRK-01 | Phase 4 | Pending |
+| TRK-02 | Phase 4 | Pending |
+| TRK-03 | Phase 4 | Pending |
+| TRK-04 | Phase 4 | Pending |
+| TRK-05 | Phase 4 | Pending |
+| NDI-01 | Phase 5 | Pending |
+| NDI-02 | Phase 5 | Pending |
+| NDI-03 | Phase 5 | Pending |
+| OBS-01 | Phase 5 | Pending |
+| OBS-02 | Phase 5 | Pending |
+| OBS-03 | Phase 5 | Pending |
+| OBS-04 | Phase 5 | Pending |
+| OBS-05 | Phase 5 | Pending |
+| SCR-01 | Phase 5 | Pending |
+| SCR-02 | Phase 5 | Pending |
+| SCR-03 | Phase 5 | Pending |
+| SCR-04 | Phase 5 | Pending |
+| RBT-01 | Phase 5 | Pending |
+| RBT-02 | Phase 5 | Pending |
+| RBT-04 | Phase 5 | Pending |
+| RBT-05 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 41 total
-- Mapped to phases: 0 (roadmap da creare)
-- Unmapped: 41 ⚠️
+- Mapped to phases: 41 (100%)
+- Unmapped: 0 ✓
+
+**Per-phase counts:**
+- Phase 1 — Foundation, Config & Curated Clip Set: 6 (CFG-01..04, TST-01, TST-02)
+- Phase 2 — Framing Scorer (pure logic): 7 (FRM-01..07)
+- Phase 3 — Decision Engine FSM: 8 (DEC-01..07, RBT-03)
+- Phase 4 — YOLO + Per-Camera Tracking on Clips: 5 (TRK-01..05)
+- Phase 5 — Integration (NDI Mock, Orchestrator, OBS, Score UI): 15 (NDI-01..03, OBS-01..05, SCR-01..04, RBT-01, RBT-02, RBT-04, RBT-05)
 
 ---
 *Requirements defined: 2026-06-09*
-*Last updated: 2026-06-09 after initial definition*
+*Last updated: 2026-06-09 after roadmap creation (traceability populated, 41/41 mapped)*

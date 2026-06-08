@@ -41,7 +41,7 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 - **Training/creazione del modello YOLO** — si usa un modello pre-addestrato (classe `dog` COCO o `.pt` custom drop-in via config).
 - **Latenza <50ms end-to-end glass-to-glass** — fisicamente impossibile con questo stack (la sola cattura smartphone è ~57-106ms); riformulata in due budget separati.
 - **Export engine TensorRT FP16 / tuning su GPU di produzione** — appartiene alle fasi hardware (6+); gli engine sono specifici per GPU/driver.
-- **Gestione multi-cane avanzata / re-ID pesante (with_reid)** — rimandata; in v1 si seleziona il track di cane col punteggio migliore per camera.
+- **Re-ID *pesante* (modello ReID dedicato) e gestione multi-cane avanzata** — rimandata. ⚠️ Nota (research): il **ReID *nativo*** di BoT-SORT (`model: auto`, usa le feature del detector, zero pesi extra) è economico ed è **incluso in v1** perché contrasta il problema #1 del dominio; resta fuori scope solo il ReID con modello dedicato/pesante.
 
 ## Context
 
@@ -73,6 +73,10 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 | Punteggi via inserimento manuale → file read-from-file | Tiene gli update fuori dal budget websocket; nessun sistema scoring esterno in v1 | — Pending |
 | obsws-python (ReqClient sincrono) come canale di controllo | Semantica bloccante + timeout, EventClient thread-safe; ideale per un controller | — Pending |
 | Output solo preview in v1 | Sufficiente a validare la regia automatica senza requisiti di rete/bitrate | — Pending |
+| ReID nativo BoT-SORT incluso in v1 (no re-ID pesante) | Gratis (feature del detector, zero pesi) e contrasta il problema #1: cane che esce/rientra/occluso | — Pending |
+| Competitor-lock + zone-gating come feature di prima classe | Lo scorer size+centratura aggancia handler/cani spettatori → selezione del cane "in gara" va progettata, non emergente | — Pending |
+| Curated multi-condition clip set assemblato in P0 | De-risk decisivo: clip pulite mascherano ogni pitfall fino al campo | — Pending |
+| Modello YOLO concreto v1 = yolo26s.pt, classe dog=16 | Small (non nano) per soggetto piccolo/distante; COCO dog sufficiente finché l'eval non prova il contrario | — Pending |
 
 ## Evolution
 

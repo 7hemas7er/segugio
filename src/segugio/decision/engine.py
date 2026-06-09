@@ -231,9 +231,15 @@ class DecisionEngine:
         # Per-tick scratch (set at the top of tick(), read by the guard predicates + the
         # `before` callbacks). Kept on the model so `transitions` callbacks can read them.
         self._best_eligible: str | None = None
-        # The set of cameras alive THIS tick (alive AND finite-scored) and the eligible-only
-        # score map — the feed-death guards (`live_feed_dead`/`has_alive_candidate`) and the
-        # `_emergency_cut` callback read these (they cannot take args via `transitions`).
+        # The set of cameras LIVE THIS tick per the alive map (or all cameras when no map is
+        # supplied) — this is the liveness authority `live_feed_dead()` reads (WR-01). Liveness
+        # is the alive map, NEVER derived from score-row presence: a camera the map reports
+        # alive but that happens to lack a `CameraScore` row this tick (a coast gap / batch
+        # hiccup) is live-but-not-an-eligible-challenger, NOT a dead feed to emergency-cut off.
+        self._alive: set[str] = set()
+        # The set of cameras alive THIS tick AND finite-scored (the eligible candidates) and
+        # the eligible-only score map — `has_alive_candidate` and the `_emergency_cut`/argmax
+        # selection read these (they cannot take args via `transitions`).
         self._alive_eligible: set[str] = set()
         self._score_by_cam: dict[str, float] = {}
         # Whether the action input was set THIS tick (read by the `holding` predicate).
@@ -302,13 +308,18 @@ class DecisionEngine:
     def live_feed_dead(self) -> bool:
         """True iff the current live target is a real camera whose feed died THIS tick (DEC-06).
 
-        SAFE is never "dead" (it is the fallback, not a feed). A camera id that is not in the
-        alive-eligible set (dead, no-liveness-reading, or poisoned score) means the on-air feed
-        has failed — the emergency cut must fire. Read of per-tick scratch only (pure).
+        SAFE is never "dead" (it is the fallback, not a feed). Liveness is read from the alive
+        map (``self._alive``), NOT from score-row presence (WR-01): the alive map is the single
+        liveness authority — the FSM consumes liveness, it never derives it. A live camera that
+        merely lacks a finite ``CameraScore`` row this tick (a coast gap / sparse batch) is NOT
+        a dead feed; it stays on air as the incumbent rather than triggering a spurious
+        emergency cut. A camera the map reports NOT alive (dead, or absent from an explicit map)
+        means the on-air feed has failed — the emergency cut must fire. Pure read of per-tick
+        scratch only.
         """
         if self.target == SAFE_TARGET:
             return False
-        return self.target not in self._alive_eligible
+        return self.target not in self._alive
 
     def has_alive_candidate(self) -> bool:
         """True iff at least one camera is alive with a finite score (an emergency target exists)."""
@@ -422,6 +433,16 @@ class DecisionEngine:
         has_alive_map = alive is not None
         alive = alive or {}
 
+        # Liveness authority (WR-01): the set of cameras LIVE this tick is the alive map (or
+        # ALL declared cameras when no map is supplied) — NOT score-row presence. Keep this
+        # SEPARATE from `_alive_eligible` (which additionally requires a finite score row) so a
+        # live-but-unscored camera is never mistaken for a dead feed by `live_feed_dead()`.
+        self._alive = (
+            {cam for cam, ok in alive.items() if ok}
+            if has_alive_map
+            else set(self.cam_ids)
+        )
+
         # (1) ADVANCE CLOCKS/COUNTERS.
         self.dwell_elapsed += 1
         self.cooldown_remaining = max(0, self.cooldown_remaining - 1)
@@ -454,8 +475,9 @@ class DecisionEngine:
             score_by_cam[cs.cam_id] = float(cs.score)
 
         # Publish the eligible (alive + finite-scored) set + score map as per-tick scratch so
-        # the feed-death guard predicates (`live_feed_dead` / `has_alive_candidate`) and the
-        # `_emergency_cut` callback can read them — `transitions` callbacks take no args.
+        # `has_alive_candidate` and the `_emergency_cut`/argmax selection can read them —
+        # `transitions` callbacks take no args. `live_feed_dead()` keys off `self._alive`
+        # (the liveness map above), NOT this score-derived set (WR-01).
         self._score_by_cam = score_by_cam
         self._alive_eligible = set(score_by_cam.keys())
 

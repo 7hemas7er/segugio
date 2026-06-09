@@ -189,6 +189,30 @@ def test_all_cameras_dead_cuts_to_safe(thresholds) -> None:
     assert d.reason == "feed_emergency"
 
 
+def test_live_incumbent_with_no_score_row_is_not_emergency_cut(thresholds) -> None:
+    """A live (per alive map) incumbent that simply lacks a score row this tick is NOT cut off.
+
+    Regression for WR-01: liveness is the alive map, NEVER score-row presence. On a tick where
+    the live incumbent (``cam_a``) is reported ``alive=True`` but its ``CameraScore`` row is
+    omitted (a plausible coast gap / sparse batch), the engine must KEEP airing cam_a — not
+    mistake the missing score row for a dead feed and emergency-cut to a modestly-scored
+    challenger. The DEC-06 emergency cut fires only when the alive map says the feed is dead.
+    """
+    eng = _engine(thresholds)
+    t = _acquire(eng, _CAM_A, other=_CAM_B)
+    assert eng.target == _CAM_A
+
+    # cam_a is ALIVE per the map but has NO score row this tick; cam_b is a modest challenger.
+    d = eng.tick(
+        [_sc(_CAM_B, 0.30, t)],  # cam_a deliberately absent from the score list
+        alive={_CAM_A: True, _CAM_B: True},
+    )
+    assert d.target == _CAM_A, (
+        "a live-but-unscored incumbent was emergency-cut as if its feed died (WR-01)"
+    )
+    assert d.reason != "feed_emergency", "no emergency cut should fire off a live incumbent"
+
+
 def test_recovery_out_of_safe_reacquires_promptly(thresholds) -> None:
     """A total blackout → SAFE, then a single camera recovers → re-acquisition fires PROMPTLY.
 

@@ -187,3 +187,56 @@ def test_all_cameras_dead_cuts_to_safe(thresholds) -> None:
     )
     assert d.target == SAFE_TARGET
     assert d.reason == "feed_emergency"
+
+
+def test_recovery_out_of_safe_reacquires_promptly(thresholds) -> None:
+    """A total blackout → SAFE, then a single camera recovers → re-acquisition fires PROMPTLY.
+
+    Regression for the SAFE-carries-a-spurious-cooldown bug (CR-01): SAFE is a fallback, not
+    an incumbent to protect, so — exactly as it carries no dwell — it must carry NO cooldown.
+    After a total blackout drops the FSM to SAFE, the moment a healthy camera recovers and
+    sustains the debounce window it must be aired within ~1 tick of qualifying, NOT held off
+    the air for the full cooldown window (~1s @ 30fps) while the show lingers on the SAFE/wide
+    scene. The bug aired SAFE for ~cooldown_ticks-1 extra ticks after recovery.
+    """
+    eng = _engine(thresholds)
+    t = _acquire(eng, _CAM_B, other=_CAM_A)
+    assert eng.target == _CAM_B
+
+    # Total blackout → SAFE (no alive candidate). Before the fix this also armed a fresh
+    # cooldown_ticks countdown on the SAFE target.
+    d = eng.tick(
+        [_sc(_CAM_A, 0.50, t), _sc(_CAM_B, 0.60, t)],
+        alive={_CAM_A: False, _CAM_B: False},
+    )
+    assert d.target == SAFE_TARGET
+    t += 1
+
+    # cam_a recovers at a strong, steady score. It must qualify (clear the margin from the
+    # SAFE 0.0 incumbent, sustain debounce_N) and be aired PROMPTLY — within one tick of
+    # clearing debounce, not delayed until the spurious SAFE cooldown drains.
+    reacquired_at = None
+    for i in range(eng.cooldown_ticks + eng.debounce_N + 5):
+        d = eng.tick(
+            [_sc(_CAM_A, 0.95, t), _sc(_CAM_B, 0.05, t)],
+            alive={_CAM_A: True, _CAM_B: False},
+        )
+        if d.target == _CAM_A and reacquired_at is None:
+            reacquired_at = i
+            assert d.reason == "auto_switch"
+        t += 1
+
+    assert reacquired_at is not None, "never re-acquired a recovered camera out of SAFE"
+    # Re-acquisition must fire as soon as the challenger clears debounce_N — NOT be blocked
+    # for the (buggy) spurious SAFE cooldown. A correct engine fires the cut the tick the
+    # streak reaches debounce_N (i == debounce_N - 1, since the streak counts from 1 on the
+    # first qualifying tick). The bug delayed it to ~cooldown_ticks - 1 (~1s of wasted SAFE
+    # airtime). Require it to land within one tick of clearing debounce — never near the
+    # cooldown horizon.
+    prompt_window = eng.debounce_N + 1
+    assert reacquired_at < prompt_window, (
+        f"re-acquisition out of SAFE was delayed to i={reacquired_at} "
+        f"(expected < {prompt_window}, debounce_N={eng.debounce_N}, "
+        f"cooldown_ticks={eng.cooldown_ticks}) — SAFE carried a spurious cooldown that "
+        f"held the show on SAFE for ~1s after recovery (CR-01)"
+    )

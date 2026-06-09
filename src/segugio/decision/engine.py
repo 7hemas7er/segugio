@@ -271,7 +271,17 @@ class DecisionEngine:
         return self.dwell_elapsed >= self.min_dwell_ticks
 
     def cooldown_clear(self) -> bool:
-        """True iff no post-cut cooldown is in effect."""
+        """True iff no post-cut cooldown is in effect.
+
+        SAFE has no incumbent camera to protect (it is the fallback, not a feed), so — exactly
+        as it carries no dwell obligation (``dwell_elapsed_ok``) — it must carry NO cooldown
+        either. Without this exemption, dropping to SAFE after a blackout arms a fresh
+        ``cooldown_ticks`` countdown that blocks re-acquisition for ~1s after a camera recovers,
+        lingering the show on the SAFE/wide scene (CR-01). The cut OUT of SAFE the instant a
+        challenger qualifies is the whole point of the fallback.
+        """
+        if self.target == SAFE_TARGET:
+            return True
         return self.cooldown_remaining == 0
 
     def holding(self) -> bool:

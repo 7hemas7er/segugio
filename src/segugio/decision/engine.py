@@ -88,18 +88,23 @@ _TRANSITIONS = [
     # alive camera, bypassing dwell/cooldown. Fires ABOVE the normal auto_switch (RESEARCH
     # §Pattern 3 priority). `_emergency_cut` resets the new target's clocks so it then gets
     # NORMAL protection (Pitfall 4). NOTE: NO `holding` guard here — death wins over hold.
+    # Source is `auto` ONLY (WR-05): `tick()` never fires this from OVERRIDE — while in
+    # OVERRIDE the in-override reconciliation (the `elif self.mode_is_override` branch in
+    # `tick()`) owns the forced-but-dead → SAFE/best-live fallback, so the `override` source
+    # was vestigial and is dropped to match actual reachability.
     {
         "trigger": "feed_emergency",
-        "source": ["auto", "override"],
+        "source": ["auto"],
         "dest": "auto",
         "conditions": ["live_feed_dead", "has_alive_candidate"],
         "before": "_emergency_cut",
     },
     # Feed-death emergency with NO alive candidate → route to the SAFE sentinel. The whole
     # robustness constraint ("nessun crash ammesso", SAFE fallback) hinges on this edge.
+    # Source is `auto` ONLY (WR-05), mirroring the edge above.
     {
         "trigger": "feed_emergency",
-        "source": ["auto", "override"],
+        "source": ["auto"],
         "dest": "safe",
         "conditions": ["live_feed_dead"],
         "unless": ["has_alive_candidate"],
@@ -572,13 +577,15 @@ class DecisionEngine:
         in_override_no_command = self.mode_is_override and not override_fired
 
         # 3b) Feed-death emergency: a dead LIVE feed must never stay on air (DEC-06). Fires from
-        # `auto`/`override` only; its guards gate the cut. Bypasses dwell/cooldown. Skipped when
-        # the override tier handled this tick (a force/release fired, or we are reconciling a
-        # held override) — the override tier already enforces the alive-or-SAFE invariant.
+        # the `auto` state ONLY (WR-05) — its guards gate the cut and it bypasses dwell/cooldown.
+        # While in OVERRIDE the in-override reconciliation (the `elif self.mode_is_override`
+        # branch above) already enforces the alive-or-SAFE invariant, so feed_emergency is never
+        # fired from OVERRIDE; gating the call on `state == "auto"` makes that explicit AND keeps
+        # tick() exception-free (firing a trigger from a non-source state would raise — T-3-04).
         forced_this_tick = (
             override is not None and override.force_cam is not None and override_fired
         )
-        if self.state in ("auto", "override") and not forced_this_tick and not in_override_no_command:
+        if self.state == "auto" and not forced_this_tick and not in_override_no_command:
             self.feed_emergency()
         emergency_fired = (not forced_this_tick) and self.target != prev_target and not (
             in_override_no_command

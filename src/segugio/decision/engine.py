@@ -94,6 +94,7 @@ _TRANSITIONS = [
         "source": ["auto", "safe"],
         "dest": "auto",
         "conditions": ["challenger_qualified", "dwell_elapsed_ok", "cooldown_clear"],
+        "unless": ["holding"],  # an active hold makes the normal cut a no-op (DEC-03/04)
         "before": "_promote_challenger",
     },
 ]
@@ -121,9 +122,24 @@ class DecisionEngine:
         thresholds: the validated ``Thresholds`` (``hysteresis_margin`` / ``debounce_N`` /
             ``min_dwell`` seconds / ``cooldown`` seconds).
         fps: injected frames-per-second for the seconds→ticks conversion (default 30.0).
+        hold_length_s: per-discipline occlusion-hold length in SECONDS
+            (``Config.field.framing_defaults.hold_length_s``; disc_dog 2.5 / agility 1.5).
+            Converted ONCE to ticks here via ``ticks_from_seconds`` (DEC-04 bound).
+        action_hold_cap_ticks: MANDATORY safety max-cap (in ticks) for the action hold — once
+            reached the hold force-releases even if the input is still set (no stuck-hold freeze).
+        occlusion_hold_cap_ticks: MANDATORY safety max-cap (in ticks) for the occlusion hold;
+            the effective occlusion bound is ``min(occlusion_hold_ticks, this cap)``.
     """
 
-    def __init__(self, cameras, thresholds, fps: float = 30.0) -> None:
+    def __init__(
+        self,
+        cameras,
+        thresholds,
+        fps: float = 30.0,
+        hold_length_s: float = 2.5,
+        action_hold_cap_ticks: int = 90,
+        occlusion_hold_cap_ticks: int = 90,
+    ) -> None:
         # Insertion-ordered camera id list (config declaration order) — the deterministic
         # no-incumbent tiebreak order (D-07). Mirrors the scorer's ordered-dict precedent.
         self.cam_ids: list[str] = [cam.id for cam in cameras]
@@ -136,12 +152,30 @@ class DecisionEngine:
         self.min_dwell_ticks: int = ticks_from_seconds(thresholds.min_dwell, fps)
         self.cooldown_ticks: int = ticks_from_seconds(thresholds.cooldown, fps)
 
+        # Hold bounds (DEC-03/DEC-04). The occlusion hold auto-expires after the per-discipline
+        # hold_length_s (converted to ticks once). EVERY hold carries a MANDATORY tick max-cap
+        # so a stuck/forgotten hold can never freeze the show (the guardrail). The effective
+        # occlusion bound is the MIN of the hold_length_s bound and its cap.
+        self.occlusion_hold_ticks: int = ticks_from_seconds(hold_length_s, fps)
+        self.action_hold_cap_ticks: int = int(action_hold_cap_ticks)
+        self.occlusion_hold_cap_ticks: int = int(occlusion_hold_cap_ticks)
+        self._occlusion_effective_ticks: int = min(
+            self.occlusion_hold_ticks, self.occlusion_hold_cap_ticks
+        )
+
         # Integer clocks / counters on the model (advanced at the top of tick()). Plain ints
         # — transitions manages states + guard dispatch, NOT these counters (RESEARCH P2).
         self.dwell_elapsed: int = 0
         self.cooldown_remaining: int = 0
         self.challenger_id: str | None = None
         self.challenger_streak: int = 0
+
+        # Hold clocks (integer ticks, advanced at the top of tick()). `action_hold_age` counts
+        # UP while the action input is set (force-released at the cap); `occlusion_hold_remaining`
+        # counts DOWN from the effective bound on the rising edge of the occlusion input.
+        self.action_hold_age: int = 0
+        self.occlusion_hold_remaining: int = 0
+        self._prev_occlusion: bool = False  # for rising-edge detection
 
         # The live aired target — a camera id or the SAFE sentinel. Assigned ONLY inside a
         # transition callback after construction.
@@ -155,6 +189,8 @@ class DecisionEngine:
         # `_emergency_cut` callback read these (they cannot take args via `transitions`).
         self._alive_eligible: set[str] = set()
         self._score_by_cam: dict[str, float] = {}
+        # Whether the action input was set THIS tick (read by the `holding` predicate).
+        self._action_held_this_tick: bool = False
 
         # Build the machine LAST so `initial="safe"` does not collide with attribute setup.
         # auto_transitions=False → no generated `to_<state>()` methods to clash with our
@@ -190,6 +226,21 @@ class DecisionEngine:
     def cooldown_clear(self) -> bool:
         """True iff no post-cut cooldown is in effect."""
         return self.cooldown_remaining == 0
+
+    def holding(self) -> bool:
+        """True iff an action or occlusion hold is ACTIVE this tick (DEC-03/DEC-04).
+
+        Action-active = the action input is set AND its age has not reached the max-cap
+        (force-release at the cap). Occlusion-active = its countdown has not yet reached 0.
+        Wired as ``unless=["holding"]`` on the normal ``auto_switch`` ONLY — NEVER on the
+        ``feed_emergency`` edges (death wins over hold). Reads the per-tick scratch advanced
+        at the top of ``tick()``; a pure read (no mutation).
+        """
+        action_active = self._action_held_this_tick and (
+            self.action_hold_age <= self.action_hold_cap_ticks
+        )
+        occlusion_active = self.occlusion_hold_remaining > 0
+        return action_active or occlusion_active
 
     def live_feed_dead(self) -> bool:
         """True iff the current live target is a real camera whose feed died THIS tick (DEC-06).
@@ -269,6 +320,22 @@ class DecisionEngine:
         self.dwell_elapsed += 1
         self.cooldown_remaining = max(0, self.cooldown_remaining - 1)
 
+        # (1b) ADVANCE HOLD CLOCKS (DEC-03/DEC-04). Holds are first-class per-tick inputs
+        # (D-02), never inferred from score dynamics. Action: count age UP while set, reset on
+        # clear (force-release is via the cap in the `holding` predicate). Occlusion: arm the
+        # countdown on a RISING edge to the effective (capped) bound, then decrement to floor 0.
+        holds = holds or HoldInput()
+        self._action_held_this_tick = bool(holds.action)
+        if holds.action:
+            self.action_hold_age += 1
+        else:
+            self.action_hold_age = 0
+        if holds.occlusion and not self._prev_occlusion:
+            self.occlusion_hold_remaining = self._occlusion_effective_ticks  # rising edge → arm
+        else:
+            self.occlusion_hold_remaining = max(0, self.occlusion_hold_remaining - 1)
+        self._prev_occlusion = bool(holds.occlusion)
+
         # (2) ELIGIBLE CANDIDATE SELECTION (pure). A camera is eligible iff its score is
         # finite/in-range AND (when an alive map is given) alive.get(cam_id, False). Build a
         # score map so the max(...) below is over eligible cameras only.
@@ -328,18 +395,28 @@ class DecisionEngine:
             self.feed_emergency()
         emergency_fired = self.target != prev_target
 
-        # 3b) Normal auto-switch: fires from `auto`/`safe`; its conditions gate the cut. Skipped
-        # if the emergency tier already moved the target this tick (one decision per tick).
+        # 3b) Normal auto-switch: fires from `auto`/`safe`; its conditions gate the cut (incl.
+        # `unless=holding`). Skipped if the emergency tier already moved the target this tick
+        # (one decision per tick). Capture whether a hold SUPPRESSED an otherwise-qualified cut.
+        suppressed_by_hold = False
         if not emergency_fired:
+            if (
+                self.holding()
+                and self.challenger_qualified()
+                and self.dwell_elapsed_ok()
+                and self.cooldown_clear()
+            ):
+                # The challenger would have cut were it not for the active hold (DEC-03/04).
+                suppressed_by_hold = True
             self.auto_switch()
 
         changed = self.target != prev_target
-        if not changed:
-            reason = "none"
-        elif emergency_fired:
-            reason = "feed_emergency"
+        if changed:
+            reason = "feed_emergency" if emergency_fired else "auto_switch"
+        elif suppressed_by_hold:
+            reason = "hold"
         else:
-            reason = "auto_switch"
+            reason = "none"
 
         # (4) EMIT the frozen Decision. Mode tracks the FSM state (safe/auto/override).
         return Decision(

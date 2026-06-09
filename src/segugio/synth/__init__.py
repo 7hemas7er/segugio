@@ -9,6 +9,7 @@ Pure-logic, numpy-only; heavy-import-free so any phase can import it (the 01-01
 import-smoke test guards this surface).
 """
 
+from .detection_stream import detection_stream
 from .feed_death import FeedEvent, feed_death
 from .score_stream import SCENARIOS, ScoreSample, score_stream
 
@@ -18,4 +19,5 @@ __all__ = [
     "SCENARIOS",
     "FeedEvent",
     "feed_death",
+    "detection_stream",
 ]

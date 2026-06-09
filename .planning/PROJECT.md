@@ -13,19 +13,18 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 ### Validated
 
 - [x] Framing scorer: score normalizzato (centratura + dimensione + confidence) resolution-independent, con smoothing EMA per camera — *validato in Phase 2 (FRM-01..07): scorer puro e I/O-free, zone-gating, lead-room, coast/TTL, conf-norm per camera; 124 test verdi su sequenze sintetiche, copertura framing 99%.*
+- [x] Decision engine: FSM (`transitions`) come unica fonte di verità sulla camera live, con isteresi a due soglie + min_dwell + debounce + cooldown, feed-death emergency cut, action/occlusion hold con max-cap obbligatorio, tiebreaker deterministico, override manuale + auto-resume — *validato in Phase 3 (DEC-01..07, RBT-03): switch solo da transizioni guardate, zero cut spuri su ping-pong/tie, mai aria su feed morto, determinismo byte-identico; 167 test verdi su stream sintetici score + feed-death, copertura `segugio.decision` 100%; blocker CR-01 (cooldown spurio in uscita da SAFE) trovato in code review e corretto con test di regressione.*
 
 ### Active
 
 <!-- Milestone v1: software completo su dati sintetici (Fasi 0-4). Testabile senza hardware. -->
 
 - [ ] Configurazione centrale YAML (numero camere, zone del campo, soglie di switching, alpha EMA, hysteresis_margin, min_dwell, debounce_N, cooldown, watchdog_timeout) con validazione
-- [ ] Decision engine: macchina a stati (FSM) come unica fonte di verità su "quale camera è live", con isteresi + min_dwell + debounce + cooldown + feed-alive (mai doppio cut, mai flicker, mai cut su feed morto)
 - [ ] Integrazione modello YOLO **pre-addestrato** (path + indice classe da config, nessun training) su GPU CUDA, con **un tracker per camera** (persist=True), su video registrati come pseudo-camere
 - [ ] OBS controller via obs-websocket v5 (obsws-python): cut scena (SetCurrentProgramScene), PIP/multi-view (SetSceneItemTransform + SetSceneItemEnabled con sceneItemId cachato), testi (SetInputSettings), reconnect, EventClient
 - [ ] Score manager: **inserimento manuale** dei punteggi (UI/CLI) → scrittura atomica su file letto da una text source OBS "read from file"
 - [ ] NDI ingest via cyndilib (FrameSync → numpy BGR), in parallelo a OBS, + **sorgente NDI sintetica/mock** per test senza telefoni
 - [ ] Feed watchdog: liveness per-feed basata sul timestamp dell'ultimo frame (NON sullo stato sorgente NDI), con grazia anti-jitter → fallback automatico
-- [ ] **Override manuale + auto-resume**: un operatore può forzare una camera; poi il sistema rientra in automatico
 - [ ] Orchestrator: tick a rate fisso, wiring dei moduli, fault isolation (try/except + restart supervisionati), shutdown su scena **SAFE**, mai crash
 - [ ] Loop decisionale AI (frame → YOLO → score → FSM → comando OBS) sotto ~150ms (ideale <80ms)
 - [ ] Deliverable: struttura progetto, codice Python, istruzioni setup OBS (scene, sorgenti NDI, websocket), requirements, README
@@ -95,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-09 — Phase 2 complete (framing scorer, pure logic). Next: Phase 3 — Decision Engine FSM.*
+*Last updated: 2026-06-09 — Phase 3 complete (decision engine FSM: hysteresis/dwell/debounce/cooldown, feed-death cut, holds, tiebreaker, override + auto-resume). Next: Phase 4 — YOLO + per-camera tracking on recorded clips.*

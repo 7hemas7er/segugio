@@ -27,6 +27,10 @@ tests/fixtures/**/*.mkv
 tests/fixtures/**/*.m4v
 tests/fixtures/**/*.webm
 
+# Condition-tag sidecars live next to the local footage (annotation inputs); the
+# committed manifest captures their conditions, so the sidecars stay local too.
+tests/fixtures/**/*.tags
+
 # Keep the catalogue + provenance docs tracked even though binaries are ignored.
 !tests/fixtures/README.md
 !tests/fixtures/clip_manifest.yaml

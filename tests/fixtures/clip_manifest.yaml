@@ -1,0 +1,17 @@
+clips:
+- file: disc_dog/gara_full.mp4
+  discipline: disc_dog
+  conditions:
+  - jump_sprint_blur
+  - distant
+  - handler_prominent
+  - backlit_dusk
+  source: user_footage
+  license: user_consent_README
+  notes: ''
+  metadata:
+    width: 1920
+    height: 1080
+    fps: 49.508
+    frames: 1770864
+    duration_s: 35769.25

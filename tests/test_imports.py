@@ -17,7 +17,13 @@ import pytest
 
 HEAVY_MODULES = ["torch", "ultralytics", "cyndilib", "obsws_python"]
 
-PHASE1_SURFACE = ["segugio", "segugio.config", "segugio.synth", "segugio.logging"]
+PHASE1_SURFACE = [
+    "segugio",
+    "segugio.config",
+    "segugio.synth",
+    "segugio.logging",
+    "segugio.framing",  # 02-04: the pure framing scorer joins the proven lazy-import surface
+]
 
 
 def _force_heavy_absent(monkeypatch: pytest.MonkeyPatch) -> None:

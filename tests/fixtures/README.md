@@ -18,7 +18,8 @@ Record provenance per clip in the table below (mirror it in the generated
 
 | Clip (relative to this dir) | Source        | License / Consent                              |
 | --------------------------- | ------------- | ---------------------------------------------- |
-| `disc_dog/gara_full.mp4` — full-day FIDASC competition (~10h, 1080p50, single fixed cam); held local, symlinked from the owner's drive | user_footage | Owner consent on file (project owner) |
+| `disc_dog/gara_full.mp4` — full-day FIDASC competition (~10h, 1080p50, single fixed cam); held local, symlinked from the owner's drive (master source, **left untagged** so it is never selected per-condition) | user_footage | Owner consent on file (project owner) |
+| `disc_dog/{sprint_blur,handler_close,distant,crowd_distractor,warm_jump,dusk_distant}_01.mp4` — ~30s per-condition cuts of `gara_full.mp4` (made with `opencv VideoWriter`, no ffmpeg) | user_footage | Same consent as `gara_full.mp4` |
 | `disc_dog/<name>.mp4`       | user_footage  | Owner consent on file (describe / link here)   |
 | `agility/<name>.mp4`        | user_footage  | Owner consent on file (describe / link here)   |
 | `disc_dog/<name>.mp4`       | pexels        | Pexels License (CC0-like, commercial OK)       |

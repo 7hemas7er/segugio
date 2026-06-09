@@ -1,11 +1,47 @@
 clips:
-- file: disc_dog/gara_full.mp4
+- file: disc_dog/crowd_distractor_01.mp4
   discipline: disc_dog
   conditions:
-  - jump_sprint_blur
-  - distant
   - handler_prominent
+  source: user_footage
+  license: user_consent_README
+  notes: ''
+  metadata:
+    width: 1920
+    height: 1080
+    fps: 49.508
+    frames: 1485
+    duration_s: 30.0
+- file: disc_dog/distant_01.mp4
+  discipline: disc_dog
+  conditions:
+  - distant
+  source: user_footage
+  license: user_consent_README
+  notes: ''
+  metadata:
+    width: 1920
+    height: 1080
+    fps: 49.508
+    frames: 1485
+    duration_s: 30.0
+- file: disc_dog/dusk_distant_01.mp4
+  discipline: disc_dog
+  conditions:
+  - distant
   - backlit_dusk
+  source: user_footage
+  license: user_consent_README
+  notes: ''
+  metadata:
+    width: 1920
+    height: 1080
+    fps: 49.508
+    frames: 1485
+    duration_s: 30.0
+- file: disc_dog/gara_full.mp4
+  discipline: disc_dog
+  conditions: []
   source: user_footage
   license: user_consent_README
   notes: ''
@@ -15,3 +51,43 @@ clips:
     fps: 49.508
     frames: 1770864
     duration_s: 35769.25
+- file: disc_dog/handler_close_01.mp4
+  discipline: disc_dog
+  conditions:
+  - handler_prominent
+  source: user_footage
+  license: user_consent_README
+  notes: ''
+  metadata:
+    width: 1920
+    height: 1080
+    fps: 49.508
+    frames: 1485
+    duration_s: 30.0
+- file: disc_dog/sprint_blur_01.mp4
+  discipline: disc_dog
+  conditions:
+  - jump_sprint_blur
+  source: user_footage
+  license: user_consent_README
+  notes: ''
+  metadata:
+    width: 1920
+    height: 1080
+    fps: 49.508
+    frames: 1485
+    duration_s: 30.0
+- file: disc_dog/warm_jump_01.mp4
+  discipline: disc_dog
+  conditions:
+  - jump_sprint_blur
+  - handler_prominent
+  source: user_footage
+  license: user_consent_README
+  notes: ''
+  metadata:
+    width: 1920
+    height: 1080
+    fps: 49.508
+    frames: 1485
+    duration_s: 30.0

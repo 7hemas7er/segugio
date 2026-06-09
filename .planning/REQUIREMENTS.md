@@ -28,7 +28,7 @@
 - [x] **FRM-02**: Il punteggio è smussato con EMA per camera (alpha da config)
 - [x] **FRM-03**: **Zone-gating** — il punteggio è pesato per la zona di campo in cui si trova il cane (`framing_weights`)
 - [x] **FRM-04**: **Lead-room** — la posizione ideale è spostata verso la direzione di movimento del cane
-- [ ] **FRM-05**: **Coast/TTL** — durante brevi drop di detection (blur su salti/sprint) il punteggio non collassa subito, per non tagliare via dal climax
+- [x] **FRM-05**: **Coast/TTL** — durante brevi drop di detection (blur su salti/sprint) il punteggio non collassa subito, per non tagliare via dal climax
 - [x] **FRM-06**: La confidence è normalizzata per camera per evitare che la regia favorisca la camera più luminosa
 - [x] **FRM-07**: Il framing scorer è puro (nessun I/O) e unit-testabile su sequenze di detection sintetiche
 
@@ -119,7 +119,7 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | FRM-02 | Phase 2 | Complete |
 | FRM-03 | Phase 2 | Complete |
 | FRM-04 | Phase 2 | Complete |
-| FRM-05 | Phase 2 | Pending |
+| FRM-05 | Phase 2 | Complete |
 | FRM-06 | Phase 2 | Complete |
 | FRM-07 | Phase 2 | Complete |
 | DEC-01 | Phase 3 | Pending |

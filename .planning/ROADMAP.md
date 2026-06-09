@@ -68,7 +68,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-03-PLAN.md — Coast/TTL dropout path (hold-then-lost, never collapse to 0) + MultiCamScorer fan-out (FRM-05) [Wave 3]
+- [x] 02-03-PLAN.md — Coast/TTL dropout path (hold-then-lost, never collapse to 0) + MultiCamScorer fan-out (FRM-05) [Wave 3]
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -151,7 +151,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
-| 2. Framing Scorer (pure logic) | 2/4 | In Progress|  |
+| 2. Framing Scorer (pure logic) | 3/4 | In Progress|  |
 | 3. Decision Engine FSM | 0/4 | Not started | - |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |

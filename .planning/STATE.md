@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-06-09T15:43:42.438Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-06-09T15:52:13.885Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 20
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 02 (framing-scorer-pure-logic) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-09
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [████████░░] 75%
 | Phase 01 P04 | 3min | 2 tasks | 4 files |
 | Phase 02 P01 | 14min | 3 tasks | 19 files |
 | Phase 02 P02 | 9min | 2 tasks tasks | 6 files files |
+| Phase 02 P03 | 4min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Recent decisions affecting current work:
 - [Phase ?]: test
 - [Phase 02]: framing-scorer pure substrate: frozen DetectionSignal/CameraScore/ScorerStatus + 8 numpy-only terms (centeredness, non-monotonic size band over sqrt(area) [D-02], centeredness-dominant base_score [D-01], lead_room, zone gate, EMA z-score conf_norm with sqrt(var+eps), plausibility_ok); ScorerParams 19 bounded seeds incl. positive eps wired additively into Config.scoring + both YAMLs (w_c+w_s+w_conf==1 validator); detection_stream raw-detection generator (None=dropout); FRM-01+guard green, 6 tests skip-scaffolded for 02-02/03/04 — 02-01 plan complete
 - [Phase 02]: 02-02 CameraScorer present-detection path: stateful per-camera object composes the 8 pure terms into a fixed-alpha EMA-smoothed CameraScore — cold start s_0=raw_0 (D-05), lead-room ideal shifts TOWARD motion via finite-diff velocity over vel_window history with track-id-swap reset (D-06), zone gate x framing_weights[role][zone], per-camera conf z-score; fail-safe (NaN/inf->coast, np.clip on exit), clock-free, rng-free. Coast/TTL else-branch is a minimal 02-03 seam. FRM-02/03/04/06 green. — D-07 motion-adaptive alpha deferred; fixed-alpha construction seam is the hook. Phase-3 cross-dependency: alpha tuned jointly with debounce_N/min_dwell/hysteresis_margin.
+- [Phase 02]: 02-03 coast/TTL dropout path (FRM-05) + MultiCamScorer fan-out: absent-detection branch counts ttl down (D-03 hold-last-then-drop) — ema HELD + status coasting while ema is not None and ttl>0, else ema=0.0 + status lost; never feeds raw=0 into the EMA. Re-acquisition before TTL resumes tracking continuously from the held value (D-04, no cold-start re-seed); NO long hold_length_s path (Phase-3 FSM scope). MultiCamScorer drives one CameraScorer per camera in deterministic order, coasting on a missing camera via .get() (T-2-01). ttl_ticks_from_seconds(ttl_seconds,fps)=ceil helper; scorer stays clock-free/rng-free. FRM-05 green; suite 116 passed, 1 skipped (only 02-04 purity left). — Coast/TTL is the single most important robustness invariant — never collapse to 0 on a miss (PITFALL 3, the worst time to cut is the blur at a catch/jump apex); the long expected-occlusion hold is deliberately deferred to the Phase-3 FSM per the D-04 hard scope line.
 
 ### Pending Todos
 
@@ -98,6 +100,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T15:43:42.423Z
-Stopped at: Phase 2 context gathered
+Last session: 2026-06-09T15:52:13.871Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None

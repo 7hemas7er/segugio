@@ -36,10 +36,10 @@
 
 - [x] **DEC-01**: Una macchina a stati (FSM) è l'unica fonte di verità su quale camera è live; nessun comando OBS parte fuori da una transizione guardata
 - [x] **DEC-02**: Lo switching applica isteresi (dead-band a due soglie), min_dwell (2-3s), debounce (N win consecutivi) e cooldown post-cut — niente flicker né doppio cut
-- [ ] **DEC-03**: Stato "azione in corso → tieni": durante un'azione (catch/salto rilevato) la FSM ritarda il cut
-- [ ] **DEC-04**: Hold da occlusione attesa (tunnel/contatti agility, da config-zone): la FSM non taglia via quando il cane è in un'occlusione prevista
-- [ ] **DEC-05**: Tiebreaker deterministico per camere con punteggio quasi pari (no ping-pong)
-- [ ] **DEC-06**: Feed-alive guard — una camera con feed morto non è mai selezionata come live né come challenger
+- [x] **DEC-03**: Stato "azione in corso → tieni": durante un'azione (catch/salto rilevato) la FSM ritarda il cut
+- [x] **DEC-04**: Hold da occlusione attesa (tunnel/contatti agility, da config-zone): la FSM non taglia via quando il cane è in un'occlusione prevista
+- [x] **DEC-05**: Tiebreaker deterministico per camere con punteggio quasi pari (no ping-pong)
+- [x] **DEC-06**: Feed-alive guard — una camera con feed morto non è mai selezionata come live né come challenger
 - [ ] **DEC-07**: La FSM è unit-testabile su stream di punteggi + eventi di feed-death sintetici (ping-pong/tie/dropout/recovery)
 
 ### NDI Ingest (NDI)
@@ -124,10 +124,10 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | FRM-07 | Phase 2 | Complete |
 | DEC-01 | Phase 3 | Complete |
 | DEC-02 | Phase 3 | Complete |
-| DEC-03 | Phase 3 | Pending |
-| DEC-04 | Phase 3 | Pending |
-| DEC-05 | Phase 3 | Pending |
-| DEC-06 | Phase 3 | Pending |
+| DEC-03 | Phase 3 | Complete |
+| DEC-04 | Phase 3 | Complete |
+| DEC-05 | Phase 3 | Complete |
+| DEC-06 | Phase 3 | Complete |
 | DEC-07 | Phase 3 | Pending |
 | RBT-03 | Phase 3 | Pending |
 | TRK-01 | Phase 4 | Pending |

@@ -97,7 +97,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — Feed-alive guard + feed-death emergency cut (DEC-06), action-hold + occlusion-hold with mandatory max-caps (DEC-03/DEC-04), deterministic tiebreaker (DEC-05) [Wave 2]
+- [x] 03-02-PLAN.md — Feed-alive guard + feed-death emergency cut (DEC-06), action-hold + occlusion-hold with mandatory max-caps (DEC-03/DEC-04), deterministic tiebreaker (DEC-05) [Wave 2]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -163,6 +163,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
-| 3. Decision Engine FSM | 1/4 | In Progress|  |
+| 3. Decision Engine FSM | 2/4 | In Progress|  |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |

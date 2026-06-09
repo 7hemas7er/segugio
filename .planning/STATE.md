@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-06-09T19:59:28.921Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-06-09T20:12:51.899Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 9
-  percent: 40
+  completed_plans: 10
+  percent: 83
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 03 (decision-engine-fsm) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-09
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [████████░░] 75%
 | Phase 02 P03 | 4min | 2 tasks | 3 files |
 | Phase 02 P04 | 6min | 2 tasks tasks | 2 files files |
 | Phase 03 P01 | 6min | 3 tasks tasks | 16 files files |
+| Phase 03 P02 | 9min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-03 coast/TTL dropout path (FRM-05) + MultiCamScorer fan-out: absent-detection branch counts ttl down (D-03 hold-last-then-drop) — ema HELD + status coasting while ema is not None and ttl>0, else ema=0.0 + status lost; never feeds raw=0 into the EMA. Re-acquisition before TTL resumes tracking continuously from the held value (D-04, no cold-start re-seed); NO long hold_length_s path (Phase-3 FSM scope). MultiCamScorer drives one CameraScorer per camera in deterministic order, coasting on a missing camera via .get() (T-2-01). ttl_ticks_from_seconds(ttl_seconds,fps)=ceil helper; scorer stays clock-free/rng-free. FRM-05 green; suite 116 passed, 1 skipped (only 02-04 purity left). — Coast/TTL is the single most important robustness invariant — never collapse to 0 on a miss (PITFALL 3, the worst time to cut is the blur at a catch/jump apex); the long expected-occlusion hold is deliberately deferred to the Phase-3 FSM per the D-04 hard scope line.
 - [Phase 02]: 02-04 FRM-07 purity gate locked: same DetectionSignal seq (present->coast->lost->recovery) -> byte-identical CameraScore list (test_purity_determinism); word-boundary source-grep rejects any time/np.random/I-O/heavy import in framing/*.py (test_no_io_imports_in_framing, distinguishes real imports from docstring prose); segugio.framing added to PHASE1_SURFACE + explicit import-with-heavy-absent test. Coverage gate closed at 99% (scorer/signals/terms/__init__ 100%; only params.py:80 weight-sum config-load validator intentionally uncovered). Suite 124 passed, 0 skipped — Phase 2 complete, ready for verify-work. — FRM-07 is the phase's defining property: determinism is what makes the scorer unit-testable in isolation (same input stream -> same output every run/worker, the contract Phase-3 FSM and Phase-4 wiring depend on); the lazy-import boundary lets import segugio.framing work CPU-only with no GPU/NDI runtime present.
 - [Phase ?]: [Phase 03 / 03-01]: transitions reclassified heavy→light and installed; segugio.decision on the lazy-import surface; DecisionEngine = transitions.Machine wrapper, target changes only in guarded before-callbacks (DEC-01); hysteresis margin+debounce_N + min_dwell + cooldown integer clocks (fps injected) → ≤1 transition on ping_pong/tie (DEC-02); SAFE sentinel (A4), status advisory (A1); NaN/inf fail-safe never raises. Seams for 03-02 holds/feed-death + 03-03 override
+- [Phase ?]: [Phase 03 / 03-02]: feed-death emergency cut (DEC-06) — two feed_emergency guarded transitions (best-alive/SAFE) fired ABOVE auto_switch, bypass dwell/cooldown then re-protect the new target (D-01); hard invariant alive[target] or SAFE every tick
+- [Phase ?]: [Phase 03 / 03-02]: action+occlusion holds (DEC-03/04) — holding() unless on auto_switch ONLY (death wins over hold); occlusion bound=ticks_from_seconds(hold_length_s,fps); EVERY hold mandatory tick max-capped (force-release/auto-expiry)
+- [Phase ?]: [Phase 03 / 03-02]: deterministic tiebreaker (DEC-05) — incumbent-wins inside the hysteresis dead-band; no-incumbent → first config-declared camera (strict-max over cam_ids, scores-order independent); no role-priority
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T19:58:56.616Z
-Stopped at: Phase 3 context gathered
+Last session: 2026-06-09T20:12:51.868Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None

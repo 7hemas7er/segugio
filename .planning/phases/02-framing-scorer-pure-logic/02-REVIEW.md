@@ -28,7 +28,11 @@ findings:
   warning: 5
   info: 4
   total: 10
-status: issues_found
+resolved:
+  critical: 1
+  info: 2
+remaining_advisory: 7
+status: resolved
 ---
 
 # Phase 2: Code Review Report
@@ -36,7 +40,26 @@ status: issues_found
 **Reviewed:** 2026-06-09T18:10:00Z
 **Depth:** standard
 **Files Reviewed:** 19
-**Status:** issues_found
+**Status:** resolved (blocker fixed; remaining items advisory/tracked)
+
+## Resolution (2026-06-09, post-review)
+
+- **CR-01 (BLOCKER) — FIXED.** `scorer.py` now resets the EMA cold-start sentinel to
+  `None` (not `0.0`) on `lost`, so any re-acquisition after TTL expiry cold-starts at
+  `s_0 = raw_0` (D-05) instead of `alpha*raw` from a stale `0.0`. Empirically verified:
+  the re-acquired well-framed camera now emits `0.94` (was `0.282`).
+- **IN-01 — FIXED.** `test_new_track_after_lost_cold_starts` strengthened from `score > 0.0`
+  to `score == approx(raw_0)` + `score != approx(alpha*raw_0)` — a true regression guard
+  for CR-01 (confirmed: it FAILS against the old behavior, passes with the fix).
+- **IN-02 — FIXED.** TTL countdown floored at 0 (`max(0, ttl-1)`) — no unbounded negative
+  drift while `lost`.
+- **Remaining (advisory, tracked — non-blocking):** WR-01 (aspect_lo<aspect_hi config
+  validator), WR-02 (negative w/h is already caught by the `h<=0` guard — clarity nit, not a
+  real escape), WR-03 (streaming z-score pre/post-update variance — a defensible design
+  choice, not a functional bug), WR-04 (warmup→normalized boundary step), WR-05 (velocity
+  history straddles coast gaps — self-heals within `vel_window`), IN-03/IN-04 (doc/style).
+  These do not affect the phase's must-haves or core value and are left for a future polish
+  pass rather than expanding this phase's scope.
 
 ## Summary
 

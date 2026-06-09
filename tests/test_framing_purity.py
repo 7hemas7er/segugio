@@ -252,12 +252,24 @@ def test_velocity_guards_nonpositive_tick_span(scorer_params) -> None:
 
 
 def test_new_track_after_lost_cold_starts(scorer_params) -> None:
-    """A NEW track_id arriving AFTER `lost` cold-starts the EMA (no stale-EMA carry-over).
+    """A re-acquisition AFTER `lost` cold-starts the EMA to raw_0 (no stale-EMA carry-over).
 
     The D-04 boundary: recovery WITHIN the TTL continues the held EMA, but once the scorer
-    has gone `lost` (TTL expired, ema set to 0.0) a present detection with a NEW track id
-    re-seeds the EMA from raw_0 (the cold-start path), not from the stale value.
+    has gone `lost` (TTL expired, ema sentinel reset to None) a present detection re-seeds
+    the EMA from raw_0 (the cold-start path, D-05) — NOT alpha*raw blended from a stale 0.0.
+    Regression guard for CR-01: a re-acquired, well-framed camera must emit its true framing
+    score immediately so the selector can switch to it, not a suppressed alpha*raw that
+    ramps up over ~1/alpha ticks.
     """
+    # The cold-start raw_0 a FRESH scorer emits for the identical recovery detection. With
+    # warmup=10, the recovery (the 6th conf sample: 5 present + this one) is still inside the
+    # conf-norm passthrough window, exactly like a fresh scorer's first sample — so the raw
+    # is identical and this is the precise value a correct cold-start must reproduce.
+    cold = _scorer().update(
+        DetectionSignal(0, CAM_ID, 0.5, 0.5, 0.30, 0.30, 0.7, 2), 0
+    ).score
+    assert cold > 0.0
+
     sc = _scorer()
     # Track 1: warm up, then drop out long enough to go `lost` (TTL_TICKS misses).
     for t in range(5):
@@ -274,4 +286,7 @@ def test_new_track_after_lost_cold_starts(scorer_params) -> None:
         DetectionSignal(recover_tick, CAM_ID, 0.5, 0.5, 0.30, 0.30, 0.7, 2), recover_tick
     )
     assert out.status.value == "tracking"
-    assert out.score > 0.0  # cold-started from raw_0 (a well-centered ideal-size detection).
+    # Cold-started from raw_0 — the FULL raw, NOT alpha*raw (the CR-01 stale-EMA-carry bug,
+    # which would emit ALPHA * cold ≈ 0.3*raw and suppress the re-acquired camera).
+    assert out.score == pytest.approx(cold)
+    assert out.score != pytest.approx(ALPHA * cold)

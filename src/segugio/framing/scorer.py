@@ -203,15 +203,20 @@ class CameraScorer:
             #
             # D-04 scope line: this is ONLY the short blur/miss gap. The long
             # expected-occlusion hold (tunnels / contact equipment) is a Phase-3 FSM
-            # concern and is deliberately NOT implemented here. Recovery before
-            # expiry resumes the present-branch with `self.ema is not None`, so the EMA
-            # continues from the held value (no cold-start re-seed); only a NEW track_id
-            # after `lost` cold-starts.
-            self.ttl -= 1
+            # concern and is deliberately NOT implemented here. Recovery WITHIN the TTL
+            # resumes the present-branch with `self.ema is not None`, so the EMA continues
+            # from the held value (no cold-start re-seed). Once `lost`, the held value is
+            # stale (the gap exceeded the coast window) so the sentinel is reset to None and
+            # ANY re-acquisition cold-starts at s_0 = raw_0 (D-05) — not alpha*raw from a
+            # stale 0.0 (CR-01: a re-acquired, well-framed camera must score its true raw
+            # immediately, not ramp up over ~1/alpha ticks).
+            self.ttl = max(0, self.ttl - 1)  # floored: no unbounded negative drift while lost
             if self.ema is not None and self.ttl > 0:
                 self.status = ScorerStatus.coasting  # HOLD self.ema — do NOT touch it.
             else:
-                self.ema = 0.0
+                # Reset the cold-start sentinel; the emitted score is still 0.0 because the
+                # return below clips `ema if ema is not None else 0.0`.
+                self.ema = None
                 self.status = ScorerStatus.lost
 
         return CameraScore(

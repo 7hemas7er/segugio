@@ -29,13 +29,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Switching the `discipline` selector (disc dog / agility) in config changes overlay field set and framing defaults with zero code edits
   3. `tests/fixtures/` contains the curated clip set spanning multi-dog, handler-prominent, tunnel/contact occlusion, jump/sprint blur, distant, backlit/dusk and midfield-equidistant conditions for both disc dog and agility, with a license README
   4. Synthetic generators produce deterministic score-stream and feed-death sequences that the scorer, FSM and watchdog can be unit-tested against without any clip or hardware
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 01-01 · Wave 2 parallel: 01-02, 01-03, 01-04)
 
 Plans:
-- [ ] 01-01: Project structure, dependencies (requirements), logging, repo scaffolding
-- [ ] 01-02: Central `config.yaml` schema + startup validation (cameras, roles, zones, framing_weights, thresholds, model/class, discipline selector)
-- [ ] 01-03: Curated multi-condition clip set sourcing + `tests/fixtures/README.md` license documentation
-- [ ] 01-04: Synthetic generators (score-stream, feed-death) for hardware-free unit testing
+- [ ] 01-01-PLAN.md — Package scaffolding (`src/segugio/`), pinned `requirements.txt` + `pyproject.toml`, loguru bootstrap, pytest substrate (conftest fixtures), lazy-import smoke test [Wave 1]
+- [ ] 01-02-PLAN.md — Central config contract: pydantic v2 models (cameras/roles, normalized zones, `framing_weights[role][zone]`, thresholds, model path/class), discipline discriminated-union swap, fail-fast loader, disc+agility example configs [Wave 2]
+- [ ] 01-03-PLAN.md — Curated clip-set substrate: opencv cataloguer (footage path at execution time), queryable manifest + condition-coverage gap report, `tests/fixtures/README.md` license/consent, external-dir + committed-manifest pattern [Wave 2]
+- [ ] 01-04-PLAN.md — Deterministic synthetic generators: seeded score-stream (ping-pong/tie/dropout/recovery) + feed-death timelines for hardware-free unit testing of scorer/FSM/watchdog [Wave 2]
 
 ### Phase 2: Framing Scorer (pure logic)
 **Goal**: A pure, I/O-free framing scorer turns per-detection signals into a smoothed, resolution-independent per-camera score that already encodes the domain's hardest framing decisions (zone-gating, size target-band, lead-room, coast/TTL, confidence normalization), provably correct on synthetic detection sequences before any detector is wired in.
@@ -119,7 +119,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation, Config & Curated Clip Set | 0/4 | Not started | - |
+| 1. Foundation, Config & Curated Clip Set | 0/4 | Planned | - |
 | 2. Framing Scorer (pure logic) | 0/4 | Not started | - |
 | 3. Decision Engine FSM | 0/4 | Not started | - |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |

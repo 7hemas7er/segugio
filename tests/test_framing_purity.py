@@ -38,7 +38,7 @@ import pytest
 from segugio.config import Role
 from segugio.config.models import Camera, Zone
 from segugio.framing.scorer import CameraScorer
-from segugio.framing.signals import CameraScore
+from segugio.framing.signals import CameraScore, DetectionSignal
 from segugio.synth import detection_stream
 from tests.conftest import SEED
 
@@ -177,3 +177,101 @@ def test_framing_imports_with_heavy_absent(monkeypatch: pytest.MonkeyPatch) -> N
     # The pure scorer surface is reachable with the heavy runtime absent.
     assert hasattr(module, "CameraScorer")
     assert hasattr(module, "MultiCamScorer")
+
+
+# --------------------------------------------------------------------------- #
+# Phase coverage gate — small focused assertions on the remaining real        #
+# behavior branches the FRM-01..06 suites did not happen to hit.              #
+# --------------------------------------------------------------------------- #
+
+
+def test_zone_overlap_picks_highest_weight(scorer_params) -> None:
+    """zone_of: on OVERLAPPING zones, pick the HIGHEST framing_weights match (terms.py:130-131).
+
+    A point inside two zones must resolve to the higher-weight zone (the CONTEXT
+    Claude's-Discretion overlap rule), not just first-match. Two zones both covering
+    (0.5, 0.5); ``hi`` carries the larger weight → it wins.
+    """
+    from segugio.framing.terms import zone_of
+
+    camera = Camera(
+        id=CAM_ID,
+        role=Role.main_wide,
+        obs_scene="WIDE",
+        is_safe=True,
+        zones=[
+            Zone(name="lo", rect=[0.0, 0.0, 1.0, 1.0]),
+            Zone(name="hi", rect=[0.0, 0.0, 1.0, 1.0]),
+        ],
+    )
+    weights = {Role.main_wide: {"lo": 0.8, "hi": 1.6}}
+    assert zone_of(0.5, 0.5, camera, weights) == "hi"  # highest-weight match on overlap.
+    # A missing weight key falls back to the neutral 1.0 for the comparison (never raises).
+    assert zone_of(0.5, 0.5, camera, {Role.main_wide: {}}) in ("lo", "hi")
+
+
+def test_zero_height_detection_is_implausible(scorer_params) -> None:
+    """plausibility_ok: a zero/negative-height box is implausible (terms.py:199 guard).
+
+    Guards the aspect-ratio division (``w / h``) AND treats a degenerate box as
+    "no detection" — the scorer must coast on it rather than raise.
+    """
+    from segugio.framing.terms import plausibility_ok
+
+    zero_h = DetectionSignal(0, CAM_ID, 0.5, 0.5, 0.30, 0.0, 0.7, 1)
+    assert plausibility_ok(zero_h, scorer_params) is False  # caught by the min-area gate.
+
+    # Degenerate box reaching the explicit `h <= 0` guard (terms.py:199): a malformed
+    # tracker row with NEGATIVE w AND negative h has a POSITIVE area (> min_area), so it
+    # slips past the conf-floor and min-area gates and must be caught by the height guard
+    # — which also guards the aspect-ratio division `w / h` from a zero/negative divisor.
+    neg_box = DetectionSignal(0, CAM_ID, 0.5, 0.5, -0.20, -0.01, 0.7, 1)
+    assert neg_box.w * neg_box.h >= scorer_params.min_area  # positive area slips the gates.
+    assert plausibility_ok(neg_box, scorer_params) is False  # caught by `h <= 0` (line 199).
+
+    # End-to-end: a zero-height detection flows into the coast path (status not tracking),
+    # and the scorer never raises on it.
+    sc = _scorer()
+    out = sc.update(zero_h, 0)
+    assert out.status.value in ("coasting", "lost")  # treated as no-detection → coast.
+
+
+def test_velocity_guards_nonpositive_tick_span(scorer_params) -> None:
+    """CameraScorer._velocity returns (0,0) on a non-positive tick span (scorer.py:146 guard).
+
+    Two present detections stamped at the SAME tick give ``dt == 0``; the divisor guard
+    must return zero velocity (no lead) rather than dividing by zero (threat T-2-01). The
+    scorer never raises and the score stays in [0,1].
+    """
+    sc = _scorer()
+    sc.update(DetectionSignal(0, CAM_ID, 0.5, 0.5, 0.30, 0.30, 0.7, 1), 0)
+    # Same tick again (same track id → history is appended, not cleared) → dt == 0.
+    out = sc.update(DetectionSignal(0, CAM_ID, 0.6, 0.5, 0.30, 0.30, 0.7, 1), 0)
+    assert sc._velocity() == (0.0, 0.0)  # non-positive span → no velocity (guarded divisor).
+    assert 0.0 <= out.score <= 1.0
+
+
+def test_new_track_after_lost_cold_starts(scorer_params) -> None:
+    """A NEW track_id arriving AFTER `lost` cold-starts the EMA (no stale-EMA carry-over).
+
+    The D-04 boundary: recovery WITHIN the TTL continues the held EMA, but once the scorer
+    has gone `lost` (TTL expired, ema set to 0.0) a present detection with a NEW track id
+    re-seeds the EMA from raw_0 (the cold-start path), not from the stale value.
+    """
+    sc = _scorer()
+    # Track 1: warm up, then drop out long enough to go `lost` (TTL_TICKS misses).
+    for t in range(5):
+        sc.update(DetectionSignal(t, CAM_ID, 0.5, 0.5, 0.30, 0.30, 0.7, 1), t)
+    for i in range(TTL_TICKS):
+        last = sc.update(None, 5 + i)
+    assert last.status.value == "lost"
+    assert last.score == 0.0
+
+    # Track 2 (NEW track id) after lost: the present branch clears history (track swap) and
+    # re-seeds the EMA from raw_0 — tracking resumes from the cold-start raw, not from 0.0.
+    recover_tick = 5 + TTL_TICKS
+    out = sc.update(
+        DetectionSignal(recover_tick, CAM_ID, 0.5, 0.5, 0.30, 0.30, 0.7, 2), recover_tick
+    )
+    assert out.status.value == "tracking"
+    assert out.score > 0.0  # cold-started from raw_0 (a well-centered ideal-size detection).

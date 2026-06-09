@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-06-09T00:36:00.398Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-06-09T00:45:39.681Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 01 (foundation-config-curated-clip-set) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-09
 
-Progress: [███░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███░░░░░░░] 25%
 
 *Updated after each plan completion*
 | Phase 01 P01 | 4 | 2 tasks | 12 files |
+| Phase 01 P02 | 5min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,7 @@ Recent decisions affecting current work:
 - [Phase 4]: Model pin yolo26s.pt, dog=16 (verified via model.names); native-ReID BoT-SORT included in v1
 - [Phase 5]: Full wiring (NDI mock + orchestrator + OBS + manual score UI) is the integration phase that closes the milestone
 - [Phase ?]: [Phase 1 / 01-01]: src-layout package editable-installed; lazy-import boundary enforced by an import-smoke test (heavy deps forced absent); shared conftest fixtures seeded_rng/tmp_config/valid_config_dict seed all downstream Phase-1 tests
+- [Phase ?]: [Phase 1 / 01-02]: typed pydantic v2 Config root; discipline = DiscDogProfile|AgilityProfile discriminated union on field.sport (zero-code-edit overlay/framing swap, CFG-03); loader uses yaml.safe_load only + fails fast with SystemExit(2) on any read/parse/validation error (CFG-01); model defaults yolo26s.pt/16 (CFG-04)
 
 ### Pending Todos
 
@@ -87,6 +89,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T00:35:51.853Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-06-09T00:45:39.659Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

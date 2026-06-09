@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Package scaffolding (`src/segugio/`), pinned `requirements.txt` + `pyproject.toml`, loguru bootstrap, pytest substrate (conftest fixtures), lazy-import smoke test [Wave 1]
-- [ ] 01-02-PLAN.md — Central config contract: pydantic v2 models (cameras/roles, normalized zones, `framing_weights[role][zone]`, thresholds, model path/class), discipline discriminated-union swap, fail-fast loader, disc+agility example configs [Wave 2]
+- [x] 01-02-PLAN.md — Central config contract: pydantic v2 models (cameras/roles, normalized zones, `framing_weights[role][zone]`, thresholds, model path/class), discipline discriminated-union swap, fail-fast loader, disc+agility example configs [Wave 2]
 - [ ] 01-03-PLAN.md — Curated clip-set substrate: opencv cataloguer (footage path at execution time), queryable manifest + condition-coverage gap report, `tests/fixtures/README.md` license/consent, external-dir + committed-manifest pattern [Wave 2]
 - [ ] 01-04-PLAN.md — Deterministic synthetic generators: seeded score-stream (ping-pong/tie/dropout/recovery) + feed-death timelines for hardware-free unit testing of scorer/FSM/watchdog [Wave 2]
 
@@ -119,7 +119,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation, Config & Curated Clip Set | 1/4 | In Progress|  |
+| 1. Foundation, Config & Curated Clip Set | 2/4 | In Progress|  |
 | 2. Framing Scorer (pure logic) | 0/4 | Not started | - |
 | 3. Decision Engine FSM | 0/4 | Not started | - |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |

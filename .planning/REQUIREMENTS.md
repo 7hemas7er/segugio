@@ -9,10 +9,10 @@
 
 ### Configuration (CFG)
 
-- [ ] **CFG-01**: Esiste un file di config YAML centrale, validato all'avvio, con: numero camere e loro ruolo, zone del campo, disciplina, e tutte le soglie (alpha EMA, hysteresis_margin, min_dwell, debounce_N, cooldown, watchdog_timeout, track_buffer)
-- [ ] **CFG-02**: Le zone del campo sono modellate come rettangoli normalizzati [0..1] per camera (named bands: near/mid/far/stage) con una matrice `framing_weights[role][zone]`
-- [ ] **CFG-03**: Un selettore di disciplina (disc dog / agility) cambia i campi dell'overlay e i default di framing senza modifiche al codice
-- [ ] **CFG-04**: Path del modello YOLO e indice classe sono configurabili (default `yolo26s.pt`, `dog=16`), sostituibili con un `.pt` custom senza toccare il codice
+- [x] **CFG-01**: Esiste un file di config YAML centrale, validato all'avvio, con: numero camere e loro ruolo, zone del campo, disciplina, e tutte le soglie (alpha EMA, hysteresis_margin, min_dwell, debounce_N, cooldown, watchdog_timeout, track_buffer)
+- [x] **CFG-02**: Le zone del campo sono modellate come rettangoli normalizzati [0..1] per camera (named bands: near/mid/far/stage) con una matrice `framing_weights[role][zone]`
+- [x] **CFG-03**: Un selettore di disciplina (disc dog / agility) cambia i campi dell'overlay e i default di framing senza modifiche al codice
+- [x] **CFG-04**: Path del modello YOLO e indice classe sono configurabili (default `yolo26s.pt`, `dog=16`), sostituibili con un `.pt` custom senza toccare il codice
 
 ### Tracking & Detection (TRK)
 
@@ -109,10 +109,10 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CFG-01 | Phase 1 | Pending |
-| CFG-02 | Phase 1 | Pending |
-| CFG-03 | Phase 1 | Pending |
-| CFG-04 | Phase 1 | Pending |
+| CFG-01 | Phase 1 | Complete |
+| CFG-02 | Phase 1 | Complete |
+| CFG-03 | Phase 1 | Complete |
+| CFG-04 | Phase 1 | Complete |
 | TST-01 | Phase 1 | Pending |
 | TST-02 | Phase 1 | Complete |
 | FRM-01 | Phase 2 | Pending |

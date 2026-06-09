@@ -1,5 +1,25 @@
-"""segugio.config — typed, fail-fast config contract (filled by plan 01-02).
+"""segugio.config — typed, fail-fast config contract (plan 01-02).
 
-Placeholder package root for the pydantic v2 config models + loader. Plan 01-02
-adds models.py, loader.py, and discipline.py here. Must remain heavy-import-free.
+The pydantic v2 config models + loader every later module consumes. Re-exports the
+load-bearing public surface (``Config``, ``load_config``, ``Role``); the full schema
+(``Camera``, ``Zone``, ``ModelConfig``, ``Thresholds``) lives in ``.models`` and the
+discipline discriminated union in ``.discipline``. Heavy-import-free by design.
 """
+
+from .discipline import AgilityProfile, DiscDogProfile, FieldProfile, FramingDefaults
+from .loader import load_config
+from .models import Camera, Config, ModelConfig, Role, Thresholds, Zone
+
+__all__ = [
+    "load_config",
+    "Config",
+    "Role",
+    "Camera",
+    "Zone",
+    "ModelConfig",
+    "Thresholds",
+    "FieldProfile",
+    "DiscDogProfile",
+    "AgilityProfile",
+    "FramingDefaults",
+]

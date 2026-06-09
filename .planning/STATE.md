@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-06-09T23:20:36.126Z"
+last_updated: "2026-06-09T23:29:29.910Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 15
   percent: 60
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 04 (yolo-per-camera-tracking-on-recorded-clips) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-09
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -68,6 +68,7 @@ Progress: [█████████░] 88%
 | Phase 03 P04 | 5min | 2 tasks tasks | 2 files files |
 | Phase 04 P01 | 4min | 2 tasks | 11 files |
 | Phase 04 P02 | 6min | 2 tasks tasks | 4 files files |
+| Phase 04 P03 | 6min | 2 tasks tasks | 8 files files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 03 / 03-04]: two reusable hard-safety-invariant helpers (assert_no_decision_outside_guard DEC-01, assert_never_airs_dead_feed DEC-06) over (decision, alive_map) pairs, applied in all three combined scenarios (force→release→resume, hold-through-occlusion→release, live-feed-death-mid-hold death-wins); segugio.decision 100% coverage
 - [Phase ?]: [Phase 04 / 04-01]: tracking substrate — lazy-import segugio.tracking surface (pure TrackingParams + signals_from_boxes, cv2 forced absent in smoke test); TrackingParams additive sub-model (TRK-04/05 seeds) wired into Config.tracking; signals_from_boxes PURE TRK-03 mapper (Results-row -> frozen DetectionSignal, float/int cast, ids=None coast); multi_track_stream deterministic N-track substrate + linear_left crossing path for 04-02; gpu marker + tracking_params/crop_geometry fixtures; 178 tests green (+11, zero regression)
 - [Phase ?]: [Phase 04 / 04-02]: subject-selection brain — PURE CompetitorLock (TRK-04, zone-gate AND motion-energy acquire D-03, sticky continuity D-04, per-camera independence D-05, NaN fail-safe) + PURE PlausibilityGate (TRK-05, inter-frame teleport/size-jump reject -> None coast D-06 without poisoning prev, distinct from Phase-2 intra-frame guard D-07, reset() for re-acquire); both stdlib-only/clock-free/rng-free, unit-tested on multi_track_stream; 192 tests green (+14, zero regression)
+- [Phase ?]: [Phase 04 / 04-03]: heavy-edge per-camera tracker — PerCameraTracker (TRK-01) one YOLO().track(persist=True, end2end=False, classes=[dog_idx], tracker=botsort_dog.yaml) per cam_id (never a frame list, #13107); resolve_dog_index by name (CFG-04, never hardcodes 16); assert_native_reid_engaged (TRK-02) HARD gate RAISES on the silent yolo26n-cls.pt cls fallback; ClipFrameSource (D-01) cv2 decode + overlapping L/C/R pseudo-camera crops with injected emitted-frame tick + empty-frame guard; botsort_dog.yaml (with_reid:True/model:auto/track_buffer:60); gpu autouse-skip wired in conftest.py + gpu eval skeleton SKIPs here; heavy deps lazy — import boundary holds with ultralytics/torch/cv2 absent; 195 passed +2 gpu-skip, zero regression
 
 ### Pending Todos
 
@@ -121,6 +123,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T23:20:14.936Z
+Last session: 2026-06-09T23:29:19.236Z
 Stopped at: Completed 04-01-PLAN.md
 Resume file: None

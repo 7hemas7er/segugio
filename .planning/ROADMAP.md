@@ -131,7 +131,7 @@ Plans:
 **Wave 2** *(parallel; blocked on Wave 1 — zero file overlap)*
 
 - [x] 04-02-PLAN.md — The brain: PURE `CompetitorLock` (TRK-04: zone-gate AND motion-energy, sticky, per-camera) + `PlausibilityGate` (TRK-05: inter-frame teleport/size-jump → coast), unit-tested on synthetic multi-track streams [Wave 2]
-- [ ] 04-03-PLAN.md — The heavy edge: `PerCameraTracker` (TRK-01: one `model.track(persist=True)` per cam, dog-by-name) + `assert_native_reid_engaged` HARD gate (TRK-02, `end2end=False`) + `ClipFrameSource` crops (D-01) + `botsort_dog.yaml` + gpu-skip + gpu eval skeleton [Wave 2]
+- [x] 04-03-PLAN.md — The heavy edge: `PerCameraTracker` (TRK-01: one `model.track(persist=True)` per cam, dog-by-name) + `assert_native_reid_engaged` HARD gate (TRK-02, `end2end=False`) + `ClipFrameSource` crops (D-01) + `botsort_dog.yaml` + gpu-skip + gpu eval skeleton [Wave 2]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -172,5 +172,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
-| 4. YOLO + Per-Camera Tracking on Clips | 2/4 | In Progress|  |
+| 4. YOLO + Per-Camera Tracking on Clips | 3/4 | In Progress|  |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |

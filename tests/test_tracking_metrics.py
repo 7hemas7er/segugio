@@ -145,8 +145,9 @@ def test_signal_dump_reconstructs_per_tick_locked_id() -> None:
     """The ``signal_dump`` is a per-tick ``(tick, track_id-or-None)`` list for the regression net."""
     stream = [_sig(0, 1), _sig(1, 1), None, _sig(3, 2)]
     dump = compute_metrics(stream)["signal_dump"]
-    assert dump == [(0, 1), (1, 1), (2, None), (3, None)]
-    # ^ tick is the POSITION in the stream (the emitted-frame index), None where coasted.
+    assert dump == [(0, 1), (1, 1), (2, None), (3, 2)]
+    # ^ tick is the POSITION in the stream (the emitted-frame index); the locked track_id
+    #   where present (id 2 at tick 3 — a switch from id 1), None where coasted (tick 2).
 
 
 def test_signal_dump_length_matches_stream() -> None:

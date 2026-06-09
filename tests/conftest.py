@@ -28,6 +28,26 @@ SEED = 1234
 FPS = 30.0
 
 
+def pytest_collection_modifyitems(config, items) -> None:
+    """SKIP every ``@pytest.mark.gpu`` item when the GPU eval gate is unmet (D-09).
+
+    The gate LOGIC lives in ``tests/conftest_tracking.gpu_available`` (isolated + import-
+    guarded so collection never imports torch on a CPU box). pytest only auto-loads files
+    literally named ``conftest.py`` as plugins, so the session hook itself must live here.
+    Imported in-body so this conftest stays heavy-import-free at module load. Touches ONLY
+    ``gpu``-marked items — the pure CPU suite is untouched.
+    """
+    from conftest_tracking import gpu_available
+
+    ok, reason = gpu_available()
+    if ok:
+        return  # GPU + weights present — let the gpu tests run (hard ReID gate included)
+    skip_gpu = pytest.mark.skip(reason=f"gpu eval skipped: {reason} (D-09)")
+    for item in items:
+        if "gpu" in item.keywords:
+            item.add_marker(skip_gpu)
+
+
 @pytest.fixture
 def seeded_rng() -> np.random.Generator:
     """A fresh, deterministically-seeded ``numpy.random.Generator``.

@@ -22,6 +22,7 @@ and drives the shipped ``feed_death`` substrate for the force→die→recover li
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from segugio.config import Role
 from segugio.config.models import Camera, Zone
@@ -88,6 +89,23 @@ def _acquire_auto(eng: DecisionEngine, cam: str, *, other: str, t0: int = 0) -> 
 # --------------------------------------------------------------------------- #
 # Focused unit tests                                                           #
 # --------------------------------------------------------------------------- #
+
+
+def test_ambiguous_override_cmd_rejected_at_construction() -> None:
+    """A contradictory ``OverrideCmd(force_cam=..., release=True)`` raises at construction (WR-04).
+
+    Force and release are mutually-exclusive operator intents. A command setting BOTH is
+    malformed and must be rejected at the input boundary (construction) — surfacing the
+    contradiction loudly rather than letting ``tick()`` silently apply the force branch and
+    discard the release. Validating here keeps ``tick()`` exception-free (T-3-04).
+    """
+    with pytest.raises(ValueError, match="contradictory"):
+        OverrideCmd(force_cam=_CAM_B, release=True)
+
+    # The two valid, unambiguous shapes still construct cleanly (no false positive).
+    assert OverrideCmd(force_cam=_CAM_B).force_cam == _CAM_B
+    assert OverrideCmd(release=True).release is True
+    assert OverrideCmd() == OverrideCmd()  # the no-op (both unset) is still valid
 
 
 def test_force_is_immediate(thresholds) -> None:

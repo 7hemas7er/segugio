@@ -91,7 +91,11 @@ class OverrideCmd:
     Discriminates force-vs-release: ``force_cam`` set (non-``None``) means "force this
     camera now" (immediate, bypasses dwell/debounce/cooldown — D-05); ``release=True`` means
     "return to auto" (auto-resume only after full qualification — D-06). Both unset is a
-    no-op. Frozen + ``==``-comparable.
+    no-op. The two are MUTUALLY EXCLUSIVE — setting both is a contradictory command and is
+    rejected at construction (WR-04) rather than silently resolved by ``tick()``'s
+    force-wins branch ordering. Validating at the input BOUNDARY (construction) keeps the
+    FSM's ``tick()`` exception-free (T-3-04: a malformed operator command never reaches the
+    engine). Frozen + ``==``-comparable.
 
     The 03-03 override edges consume this record exactly as defined here — the 03-01 shape was
     confirmed sufficient (force-vs-release is cleanly discriminated; no extension was needed).
@@ -99,3 +103,17 @@ class OverrideCmd:
 
     force_cam: str | None = None
     release: bool = False
+
+    def __post_init__(self) -> None:
+        """Reject the contradictory force-AND-release combination at construction (WR-04).
+
+        A force and a release are mutually-exclusive operator intents; a command that sets
+        both is malformed (an operator-UI bug). Raising here — at the input boundary — surfaces
+        the contradiction loudly instead of letting ``tick()`` silently pick the force branch,
+        and keeps ``tick()`` itself exception-free (the validation never runs inside the FSM).
+        """
+        if self.force_cam is not None and self.release:
+            raise ValueError(
+                "OverrideCmd is contradictory: set EITHER force_cam (force a camera) OR "
+                "release=True (return to auto), never both"
+            )

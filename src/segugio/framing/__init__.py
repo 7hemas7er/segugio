@@ -9,13 +9,14 @@ sub-model), never torch / ultralytics / cyndilib, so ``import segugio.framing`` 
 on a machine with the heavy runtime absent (the FRM-07 lazy-import boundary).
 
 Plan 02-01 establishes the substrate symbols; 02-02 adds the stateful ``CameraScorer``
-(present-detection path) re-exported below; ``MultiCamScorer`` is added by 02-03.
+(present-detection path) re-exported below; 02-03 adds the coast/TTL dropout path,
+``MultiCamScorer`` (the per-camera fan-out), and the ``ttl_ticks_from_seconds`` helper.
 """
 
 from __future__ import annotations
 
 from .params import ScorerParams
-from .scorer import CameraScorer
+from .scorer import CameraScorer, MultiCamScorer, ttl_ticks_from_seconds
 from .signals import CameraScore, DetectionSignal, ScorerStatus
 
 __all__ = [
@@ -24,4 +25,6 @@ __all__ = [
     "ScorerStatus",
     "ScorerParams",
     "CameraScorer",
+    "MultiCamScorer",
+    "ttl_ticks_from_seconds",
 ]

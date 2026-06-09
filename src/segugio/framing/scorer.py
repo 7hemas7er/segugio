@@ -14,11 +14,18 @@ CONTEXT decision:
   * D-07 motion-adaptive α is DEFERRED — the single fixed ``alpha`` read at construction is
     the clean hook a future upgrade plugs into. No velocity-coupled α is computed here.
 
-This plan (02-02) implements the **present-detection branch** of ``update`` (the four
-behaviors that fire when a plausible detection IS present each tick: EMA, zone-multiplier,
-lead-room, conf-norm). The dropout/coast branch (FRM-05, TTL countdown) is owned by 02-03;
-here it is a minimal placeholder that holds the last EMA without the TTL countdown, marked
-with a ``# 02-03: coast/TTL`` seam comment.
+The **present-detection branch** of ``update`` (02-02) implements the four behaviors that
+fire when a plausible detection IS present each tick: EMA, zone-multiplier, lead-room,
+conf-norm. The **dropout/coast branch** (FRM-05, the TTL countdown; 02-03) holds the EMA
+(status ``coasting``) through the short blur gap, then drops to 0 + ``lost`` at TTL
+expiry — never feeding ``raw=0`` into the EMA (D-03). A re-acquisition before expiry
+resumes ``tracking`` continuously from the held value (D-04, no cold-start re-seed). The
+long expected-occlusion hold (tunnels / contact equipment) is a Phase-3 FSM concern and is
+deliberately NOT implemented here (D-04 hard scope line).
+
+``MultiCamScorer`` (02-03) fans the per-tick detections out to one ``CameraScorer`` per
+camera and returns one ``CameraScore`` per camera, in a deterministic camera order; a
+camera missing from the per-tick map degrades to its own coast path (never a KeyError).
 
 Fail-safe, not fail-loud (CONTEXT ``<specifics>`` + the threat register): the scorer never
 raises on data the validated ``Config`` already passed. A NaN/inf detection is treated as
@@ -54,7 +61,18 @@ if TYPE_CHECKING:  # type-only imports — no runtime cost, no config↔framing 
     from .params import ScorerParams
     from .signals import DetectionSignal
 
-__all__ = ["CameraScorer"]
+__all__ = ["CameraScorer", "MultiCamScorer", "ttl_ticks_from_seconds"]
+
+
+def ttl_ticks_from_seconds(ttl_seconds: float, fps: float) -> int:
+    """Convert a ``ttl_seconds`` coast window to whole ticks at ``fps`` (clock-free).
+
+    Pure stdlib (``math.ceil``) — the scorer itself stays clock-free by taking
+    ``ttl_ticks`` directly; this helper is the orchestrator/test convenience that maps the
+    config's ``ScorerParams.ttl_seconds`` (bounded ``gt 0``) to a positive integer tick
+    count. ``ceil`` guarantees at least one coast tick for any positive ``ttl_seconds``.
+    """
+    return int(math.ceil(ttl_seconds * fps))
 
 
 def _is_finite_detection(det: "DetectionSignal") -> bool:
@@ -176,11 +194,25 @@ class CameraScorer:
             self.ttl = self.ttl_ticks
             self.status = ScorerStatus.tracking
         else:
-            # 02-03: coast/TTL — replace this placeholder with the coast/TTL countdown
-            # (hold the EMA for ttl_ticks → status coasting; then ema=0.0 → status lost).
-            # This plan only needs update() callable on an absent detection: hold the last
-            # EMA and status (no countdown, no behavior asserted here). Never feed raw=0.
-            self.status = self.status
+            # FRM-05 coast/TTL (D-03 hold-last-then-drop): on a missing / implausible /
+            # NaN-inf detection, count the TTL down by one tick. While the EMA still holds
+            # a real value AND the TTL has not expired, COAST — freeze the EMA at its last
+            # value (NEVER feed raw=0 into the recurrence; that is the "never collapse at
+            # the catch/jump apex" invariant, PITFALL 3) and mark `coasting`. Once the TTL
+            # reaches 0 (or there is no EMA to hold), drop the score to 0.0 and mark `lost`.
+            #
+            # D-04 scope line: this is ONLY the short blur/miss gap. The long
+            # expected-occlusion hold (tunnels / contact equipment) is a Phase-3 FSM
+            # concern and is deliberately NOT implemented here. Recovery before
+            # expiry resumes the present-branch with `self.ema is not None`, so the EMA
+            # continues from the held value (no cold-start re-seed); only a NEW track_id
+            # after `lost` cold-starts.
+            self.ttl -= 1
+            if self.ema is not None and self.ttl > 0:
+                self.status = ScorerStatus.coasting  # HOLD self.ema — do NOT touch it.
+            else:
+                self.ema = 0.0
+                self.status = ScorerStatus.lost
 
         return CameraScore(
             tick,
@@ -188,3 +220,53 @@ class CameraScorer:
             float(np.clip(self.ema if self.ema is not None else 0.0, 0.0, 1.0)),
             self.status,
         )
+
+
+class MultiCamScorer:
+    """Fan a per-tick detection map out to one ``CameraScorer`` per camera (FRM-05).
+
+    The orchestrator (Phase 5) and the FSM tests (Phase 3) drive every camera each tick;
+    this holds one independent ``CameraScorer`` per camera and, on ``update``, fans the
+    per-tick ``dets_by_cam`` map out to them, returning one ``CameraScore`` per camera in a
+    fixed, deterministic camera order (insertion order of ``cameras``). A camera absent
+    from the per-tick map (or mapped to ``None``) flows into THAT camera's coast path via
+    ``dets_by_cam.get(cam_id)`` — it never raises a ``KeyError`` (threat T-2-01).
+
+    Pure and deterministic: no clock, no RNG. The same sequence of ``dets_by_cam`` maps
+    produces the same sequence of ``list[CameraScore]`` every run (FRM-07).
+
+    Args:
+        cameras: the iterable of Phase-1 ``Camera`` objects (defines the output order).
+        params, framing_weights, alpha, lead_gain, ttl_ticks: forwarded unchanged to each
+            per-camera ``CameraScorer`` (every camera shares the same tuning seeds).
+    """
+
+    def __init__(
+        self,
+        cameras,
+        params: "ScorerParams",
+        framing_weights,
+        alpha: float,
+        lead_gain: float,
+        ttl_ticks: int,
+    ) -> None:
+        # dict preserves insertion order → deterministic per-tick output ordering.
+        self.scorers: dict = {
+            cam.id: CameraScorer(
+                cam, params, framing_weights, alpha, lead_gain, ttl_ticks
+            )
+            for cam in cameras
+        }
+
+    def update(
+        self, dets_by_cam: "dict[str, DetectionSignal | None]", tick: int
+    ) -> list[CameraScore]:
+        """Score one tick across all cameras → one ``CameraScore`` per camera (in order).
+
+        A camera missing from ``dets_by_cam`` (or mapped to ``None``) coasts: the
+        ``.get(cam_id)`` returns ``None`` and the per-camera scorer takes its coast branch.
+        """
+        return [
+            scorer.update(dets_by_cam.get(cam_id), tick)
+            for cam_id, scorer in self.scorers.items()
+        ]

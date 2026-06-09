@@ -610,27 +610,31 @@ def detection_stream(rng: np.random.Generator, cam_id: str, n_ticks: int, *,
 
 **If this table is empty:** it is not — eleven assumptions, all LOW/MEDIUM, none blocking. The MEDIUM ones (A2, A3, A4, A5, A6, A7) are all *tuning values* that the clip set in Phase 3/4 will calibrate; the *formula shapes* they sit inside are HIGH-confidence.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **The existing `score_stream` is NOT the scorer's input — a new detection generator is needed.**
    - What we know: `segugio.synth.score_stream` emits `ScoreSample(tick, cam_id, score)` — *final* per-camera scores for testing the Phase-3 FSM. The scorer's input is *raw per-detection signals* (`cx, cy, w, h, conf, track_id`).
    - What's unclear: nothing — confirmed by reading the source. The question is only *where* the new generator lives.
    - Recommendation: add `segugio.synth.detection_stream` (NEW, alongside `score_stream`/`feed_death`), emitting `list[DetectionSignal | None]` with knobs for motion path, size ramp, confidence bias (for the FRM-06 anti-bias test), and dropout windows (for coast). In-scope for Phase 2. Re-export from `segugio.synth.__init__`.
+   - RESOLVED: a NEW `detection_stream` generator is planned in 02-01 Task 3 (added alongside `score_stream`/`feed_death`, re-exported from `segugio.synth.__init__`).
 
 2. **How does the scorer get `fps` to convert TTL seconds → ticks while staying pure?**
    - What we know: TTL is naturally specified in seconds (config), but the scorer counts ticks (no clock allowed).
    - What's unclear: whether to pass `fps` at construction, pass `ttl_ticks` precomputed, or store `ttl_ticks` in config directly.
    - Recommendation: scorer constructor takes `fps` (or `ttl_ticks`); the orchestrator/test supplies it. Keeps the scorer clock-free and deterministic. Confirm at discuss whether config stores `ttl_seconds` (human-friendly) + fps elsewhere, or `ttl_ticks` directly.
+   - RESOLVED: the `CameraScorer` takes a precomputed `ttl_ticks` at construction (02-02 Task 1 constructor `__init__(..., ttl_ticks)`), keeping the scorer clock-free; 02-03 exercises the countdown.
 
 3. **Where do the new scorer parameters live in the config schema?**
    - What we know: `Thresholds` has `alpha`; `FramingDefaults` has `lead_room`. The scorer needs more: `sigma_c, ideal_size, sigma_s, w_c/w_s/w_conf, lead_max, v_deadzone, ttl_seconds, beta, z_clip, warmup, conf_floor, min_area, aspect_lo/hi, out_of_bounds_factor`.
    - What's unclear: nesting — a new top-level `scoring:` block? under `thresholds:`? per-discipline under `FramingDefaults`?
    - Recommendation: a new additive pydantic sub-model (e.g. `ScorerParams`) referenced from `Config` (top-level `scoring:` block), with the *per-discipline* knobs (`lead_room`, maybe `ideal_size`) staying in `FramingDefaults`. This extends the Phase-1 contract additively (no breaking change) and keeps everything in the one validated `Config`. The exact split is a small planner/discuss decision; the *principle* (all in validated config, none hardcoded) is locked.
+   - RESOLVED: an additive `ScorerParams` pydantic sub-model on `Config` (`config.scoring`) holds the 19 seed fields (incl. `eps`); per-discipline `lead_room` stays in `FramingDefaults` — planned in 02-01 Task 1 and reflected in both example YAMLs.
 
 4. **Fixed-α vs motion-adaptive α for v1?**
    - What we know: SUMMARY/PITFALLS recommend motion-adaptive α eventually; a single fixed α can't be both snappy on a sprint and calm at rest.
    - What's unclear: whether to ship the adaptive form in Phase 2 or defer.
    - Recommendation: **ship fixed-α v1** (α from config), expose a clean hook, and defer motion-adaptive α as an explicit item — it interacts with lead-room and is best tuned after the fixed baseline is validated on the clip set. Confirm at discuss.
+   - RESOLVED: fixed-α v1 confirmed by CONTEXT.md D-07 (motion-adaptive α deferred); α read from `Thresholds.alpha`, cold-start `s_0=raw_0` per D-05, composed in 02-02.
 
 ## Environment Availability
 

@@ -133,6 +133,33 @@ def scorer_params():
 
 
 @pytest.fixture
+def tracking_params():
+    """Seeded ``TrackingParams`` defaults the Phase-4 tracking tests use (TRK-04/05 seeds).
+
+    Mirrors ``scorer_params``: imported in-body to keep this conftest heavy-import-free;
+    ``TrackingParams()`` validates every bounded seed at construction.
+    """
+    from segugio.tracking.params import TrackingParams
+
+    return TrackingParams()
+
+
+@pytest.fixture
+def crop_geometry():
+    """Overlapping L/C/R normalized crop rects (D-01 multi-camera framing geometry).
+
+    ``[x0, y0, x1, y1]`` in [0,1] per camera, with the L/C/R windows OVERLAPPING (cam_l and
+    cam_c share [0.225, 0.55]; cam_c and cam_r share [0.45, 0.775]) — the geometry the 04-03
+    ``frame_source`` (crop extraction) and the eval consume. Static data, no import needed.
+    """
+    return {
+        "cam_l": [0.0, 0.0, 0.55, 1.0],
+        "cam_c": [0.225, 0.0, 0.775, 1.0],
+        "cam_r": [0.45, 0.0, 1.0, 1.0],
+    }
+
+
+@pytest.fixture
 def thresholds():
     """Validated ``Thresholds`` the Phase-3 FSM reads (mirrors ``scorer_params``).
 

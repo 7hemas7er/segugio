@@ -1,0 +1,32 @@
+# --- Python build / cache artifacts ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- virtualenvs ---
+.venv/
+venv/
+env/
+
+# --- test fixture video binaries (external-dir + committed-manifest pattern) ---
+# Real competition footage is large and may be license-restricted (consent/copyright),
+# so binaries stay local and un-committed. Only the manifest + README carry provenance.
+tests/fixtures/**/*.mp4
+tests/fixtures/**/*.mov
+tests/fixtures/**/*.avi
+tests/fixtures/**/*.mkv
+tests/fixtures/**/*.m4v
+tests/fixtures/**/*.webm
+
+# Keep the catalogue + provenance docs tracked even though binaries are ignored.
+!tests/fixtures/README.md
+!tests/fixtures/clip_manifest.yaml

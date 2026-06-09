@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "segugio"
+version = "0.1.0"
+description = "Automatic operator-free multi-camera video direction for disc dog and agility competitions."
+requires-python = ">=3.12"
+# Runtime deps — mirror requirements.txt runtime pins. Phase 1 imports only these.
+# torch is intentionally absent (transitive via ultralytics; CUDA build is Phase 4).
+dependencies = [
+    "pydantic==2.13.4",
+    "pyyaml==6.0.3",
+    "numpy==2.4.6",
+    "loguru==0.7.3",
+]
+
+[project.optional-dependencies]
+# Dev / test tooling.
+dev = [
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+]
+# Heavy / lazy stack — DECLARED but imported lazily inside later-phase modules only.
+# Installed on the CUDA/NDI box; never imported at a Phase-1 module top level.
+heavy = [
+    "ultralytics==8.4.62",
+    "cyndilib==0.1.1",
+    "obsws-python==1.8.0",
+    "transitions==0.9.3",
+    "watchdog==6.0.0",
+    "opencv-python==4.13.0.92",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,26 @@
+# Segugio — pinned dependency manifest (required deliverable per brief).
+# Versions verified on PyPI 2026-06-09. See .planning/phases/01-.../01-RESEARCH.md.
+#
+# Phase 1 imports ONLY the runtime + dev sets below. The heavy/lazy section is
+# DECLARED here (the brief requires the full stack pinned) but those packages are
+# imported lazily inside later-phase modules — never at a Phase-1 module top level.
+# torch is intentionally NOT pinned: it is pulled transitively by ultralytics, and
+# the correct CUDA build is a Phase-4 concern (see RESEARCH.md A3).
+
+# --- runtime (Phase 1 imports these; config + generators run with NO GPU/NDI) ---
+pydantic==2.13.4
+pyyaml==6.0.3
+numpy==2.4.6
+loguru==0.7.3
+
+# --- dev / test ---
+pytest==9.0.3
+pytest-cov==7.1.0
+
+# --- heavy / lazy (declared, NOT imported at Phase-1 module top level) ---
+ultralytics==8.4.62
+cyndilib==0.1.1
+obsws-python==1.8.0
+transitions==0.9.3
+watchdog==6.0.0
+opencv-python==4.13.0.92

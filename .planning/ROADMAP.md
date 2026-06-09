@@ -64,7 +64,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02-PLAN.md — CameraScorer present-detection path: base score + EMA + zone-gating + lead-room + per-camera conf-normalization (FRM-02/03/04/06) [Wave 2]
+- [x] 02-02-PLAN.md — CameraScorer present-detection path: base score + EMA + zone-gating + lead-room + per-camera conf-normalization (FRM-02/03/04/06) [Wave 2]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -151,7 +151,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
-| 2. Framing Scorer (pure logic) | 1/4 | In Progress|  |
+| 2. Framing Scorer (pure logic) | 2/4 | In Progress|  |
 | 3. Decision Engine FSM | 0/4 | Not started | - |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |

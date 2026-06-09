@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-06-09T15:33:33.725Z"
+last_updated: "2026-06-09T15:43:42.438Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 20
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 02 (framing-scorer-pure-logic) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-09
 
-Progress: [██████░░░░] 63%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [██████░░░░] 63%
 | Phase 01 P03 | 5min | 2 tasks | 6 files |
 | Phase 01 P04 | 3min | 2 tasks | 4 files |
 | Phase 02 P01 | 14min | 3 tasks | 19 files |
+| Phase 02 P02 | 9min | 2 tasks tasks | 6 files files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 1 / 01-04]: deterministic synth substrate — score_stream (ping_pong/tie/dropout/recovery) + feed_death (death/recovery liveness) driven by an INJECTED numpy.random.Generator (pure base curve + single rng.normal jitter draw); frozen ScoreSample/FeedEvent dataclasses; same seed -> byte-identical output; no global RNG, no wall-clock; numpy+dataclasses only; TST-02 complete
 - [Phase ?]: test
 - [Phase 02]: framing-scorer pure substrate: frozen DetectionSignal/CameraScore/ScorerStatus + 8 numpy-only terms (centeredness, non-monotonic size band over sqrt(area) [D-02], centeredness-dominant base_score [D-01], lead_room, zone gate, EMA z-score conf_norm with sqrt(var+eps), plausibility_ok); ScorerParams 19 bounded seeds incl. positive eps wired additively into Config.scoring + both YAMLs (w_c+w_s+w_conf==1 validator); detection_stream raw-detection generator (None=dropout); FRM-01+guard green, 6 tests skip-scaffolded for 02-02/03/04 — 02-01 plan complete
+- [Phase 02]: 02-02 CameraScorer present-detection path: stateful per-camera object composes the 8 pure terms into a fixed-alpha EMA-smoothed CameraScore — cold start s_0=raw_0 (D-05), lead-room ideal shifts TOWARD motion via finite-diff velocity over vel_window history with track-id-swap reset (D-06), zone gate x framing_weights[role][zone], per-camera conf z-score; fail-safe (NaN/inf->coast, np.clip on exit), clock-free, rng-free. Coast/TTL else-branch is a minimal 02-03 seam. FRM-02/03/04/06 green. — D-07 motion-adaptive alpha deferred; fixed-alpha construction seam is the hook. Phase-3 cross-dependency: alpha tuned jointly with debounce_N/min_dwell/hysteresis_margin.
 
 ### Pending Todos
 
@@ -96,6 +98,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T15:28:24.835Z
+Last session: 2026-06-09T15:43:42.423Z
 Stopped at: Phase 2 context gathered
 Resume file: None

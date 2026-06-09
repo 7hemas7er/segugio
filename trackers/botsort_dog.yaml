@@ -1,0 +1,30 @@
+# botsort_dog.yaml — Segugio's BoT-SORT override for per-camera disc-dog tracking (TRK-02).
+#
+# Native-feature ReID at ZERO extra weight cost: `with_reid: True` + `model: auto` makes the
+# detector's own features the ReID embedding (a passthrough lambda encoder), so no separate
+# ReID model is downloaded — BUT this native path engages ONLY when the YOLO `.track()` call
+# passes `end2end=False`. yolo26s.pt defaults to `end2end=True`, which fails the native-ReID
+# hook condition and SILENTLY swaps in a downloaded `yolo26n-cls.pt` classifier as the ReID
+# encoder. `reid_check.assert_native_reid_engaged()` is the HARD startup gate that detects that
+# fallback and RAISES (see src/segugio/tracking/reid_check.py).
+#
+# `track_buffer: 60` DUPLICATES `Thresholds.track_buffer` (src/segugio/config/models.py:109,
+# seeded in tests/conftest.py). This is a two-place coupling: BoT-SORT reads THIS yaml value,
+# the config carries the same number for the rest of the pipeline. Keep them in sync (or
+# template this yaml from config at startup) — 60 frames ≈ 2s @ ~30Hz survives a typical
+# tunnel / off-frame stretch (a disc dog can be hidden 1-2s; the default 30 ≈ 1s is too short).
+#
+# Source: STACK.md custom BoT-SORT config + 04-RESEARCH.md lines 405-420. Lives in a top-level
+# trackers/ dir so Ultralytics `check_yaml` resolves the bare name "botsort_dog.yaml".
+tracker_type: botsort
+with_reid: True            # native-feature ReID (no external ReID weights)
+model: auto                # detector's own features as embeddings — engages ONLY with end2end=False
+track_buffer: 60           # survive ~2s occlusion / off-frame @ ~30Hz (= Thresholds.track_buffer)
+track_high_thresh: 0.25
+track_low_thresh: 0.1
+new_track_thresh: 0.25
+match_thresh: 0.8
+proximity_thresh: 0.5
+appearance_thresh: 0.8
+gmc_method: sparseOptFlow  # static crops: consider None to save CPU (no accuracy loss for fixed cams)
+fuse_score: True

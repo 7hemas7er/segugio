@@ -353,8 +353,12 @@ class DecisionEngine:
         self._score_by_cam = score_by_cam
         self._alive_eligible = set(score_by_cam.keys())
 
-        # Deterministic best-eligible: iterate in config order, keep the strict-max (first
-        # camera in declaration order wins an exact tie — D-07 no-incumbent fallback ordering).
+        # Deterministic best-eligible (DEC-05 no-incumbent tiebreak): iterate in CONFIG
+        # DECLARATION order and keep the STRICT-max (`>`, never `>=`), so two exactly-equal
+        # scores always resolve to the EARLIER-declared camera. This is independent of the
+        # per-tick scores list order (the loop is over `self.cam_ids`, not over `scores`).
+        # Config declaration order is the ONLY no-incumbent fallback rule — no role-priority
+        # concept is introduced (D-07).
         best_eligible: str | None = None
         best_score = -1.0
         for cam_id in self.cam_ids:
@@ -366,6 +370,11 @@ class DecisionEngine:
         # Update the challenger / debounce streak from THIS tick's scores. The incumbent's
         # score is the live target's score (0.0 for SAFE — anything clears the margin from
         # cold start, but still must sustain debounce_N ticks before the cut).
+        #
+        # DEC-05 incumbent-wins tiebreak: the strict `> incumbent_score + hysteresis_margin`
+        # test means a near-exact score tie INSIDE the dead-band (a challenger that does NOT
+        # exceed the incumbent by the full margin) registers NO challenger → no cut → the
+        # incumbent is retained. The hysteresis dead-band IS the incumbent-wins tiebreak.
         incumbent_score = score_by_cam.get(self.target, 0.0)
         challenger = best_eligible
         if (

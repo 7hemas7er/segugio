@@ -30,9 +30,28 @@ Per-decision traceability (this plan, 03-01 — the core auto-switching FSM):
     makes that camera an ineligible candidate (never challenger, never target);
     ``tick()`` never raises.
 
-Later plans extend (do NOT rewrite) this surface: 03-02 adds the ``feed_emergency`` edge +
-hold guards (the seams ``_eligible`` / candidate selection leave open); 03-03 adds
-``force`` / ``release`` (the ``override`` state is already declared).
+Per-decision traceability (03-03 — the OVERRIDE operational mode, RBT-03):
+
+  * D-05 (force is immediate): an ``OverrideCmd(force_cam=X)`` fires the ``force`` trigger —
+    the TOP priority tier, above feed-death emergency. ``_apply_force`` airs camera X at once,
+    bypassing ``min_dwell`` / ``debounce_N`` / ``cooldown`` (an operator command, not switch
+    noise), and records X in the sticky ``self.override_cam`` (distinct from the aired
+    ``self.target``). Forcing an already-DEAD camera still enters OVERRIDE and sets
+    ``override_cam`` but airs SAFE / best-live — never the dead feed (DEC-06 under override).
+  * D-03 (override persists through feed-death): while in OVERRIDE with no new command, each
+    tick reconciles the aired target to liveness — ``target = override_cam`` while it is alive,
+    else best-alive-or-SAFE — WITHOUT leaving OVERRIDE. So a forced camera's feed-death shows
+    SAFE / best-live, and the FSM snaps back to the forced camera the instant it recovers.
+  * D-04 (manual release only): there is NO auto-expire. Override ends ONLY on an explicit
+    ``OverrideCmd(release=True)`` (or a new ``force`` to a different camera).
+  * D-06 (non-flickery auto-resume): ``release`` fires ``_begin_resume_qualification`` — it
+    clears ``override_cam``, re-enters AUTO, and ZEROES the challenger streak so the auto
+    candidate must win the full ``auto_switch`` guard (hysteresis + ``debounce_N`` +
+    ``min_dwell``) FRESH. It does NOT snap ``self.target`` to argmax; the last aired target
+    (or SAFE) holds until a candidate genuinely qualifies — no re-introduced flicker.
+
+Earlier plans built (do NOT rewrite) this surface: 03-01 the core auto-switching FSM; 03-02
+the ``feed_emergency`` edge + hold guards + the deterministic tiebreaker.
 
 Imports only ``transitions`` + stdlib ``math`` + the pure ``segugio.framing`` surface — no
 torch / ultralytics / cyndilib / obsws at module top level (the Phase-1 lazy-import boundary).
@@ -96,6 +115,28 @@ _TRANSITIONS = [
         "conditions": ["challenger_qualified", "dwell_elapsed_ok", "cooldown_clear"],
         "unless": ["holding"],  # an active hold makes the normal cut a no-op (DEC-03/04)
         "before": "_promote_challenger",
+    },
+    # Override FORCE (RBT-03 / D-05): an operator command applied IMMEDIATELY — it bypasses
+    # min_dwell/debounce_N/cooldown (it is operator intent, not auto-switch noise). The TOP
+    # priority tier (RESEARCH §Pattern 3), fired ABOVE feed-death emergency. `source="*"` so a
+    # force can land from any mode (incl. SAFE / mid-override re-force to a different camera).
+    # `_apply_force` is the ONLY place the target changes on a force; it also sets the sticky
+    # `override_cam`. Forcing a DEAD camera still enters OVERRIDE but airs SAFE/best-live (D-05).
+    {
+        "trigger": "force",
+        "source": "*",
+        "dest": "override",
+        "before": "_apply_force",
+    },
+    # Override RELEASE (RBT-03 / D-06): manual-only exit (D-04, no auto-expire). Clears the
+    # sticky `override_cam` and re-enters AUTO, then BEGINS auto-resume qualification — it does
+    # NOT snap the target to argmax (Pitfall 6). The next cut fires only when a candidate wins
+    # the normal `auto_switch` guard fresh (full hysteresis + debounce_N + min_dwell).
+    {
+        "trigger": "release",
+        "source": "override",
+        "dest": "auto",
+        "before": "_begin_resume_qualification",
     },
 ]
 
@@ -180,6 +221,12 @@ class DecisionEngine:
         # The live aired target — a camera id or the SAFE sentinel. Assigned ONLY inside a
         # transition callback after construction.
         self.target: str = SAFE_TARGET
+
+        # The operator's STICKY forced camera id (RBT-03 / D-03), distinct from the aired
+        # `target`. Set on `force`, cleared on `release`. While forced-but-dead the aired
+        # `target` falls to SAFE/best-live (DEC-06) but `override_cam` is RETAINED so the FSM
+        # snaps back the instant the forced feed recovers — all without leaving OVERRIDE mode.
+        self.override_cam: str | None = None
 
         # Per-tick scratch (set at the top of tick(), read by the guard predicates + the
         # `before` callbacks). Kept on the model so `transitions` callbacks can read them.
@@ -291,6 +338,55 @@ class DecisionEngine:
         self.dwell_elapsed = 0
         self.cooldown_remaining = self.cooldown_ticks
 
+    # ----- override (RBT-03) callbacks + helper ---------------------------------------- #
+
+    @property
+    def mode_is_override(self) -> bool:
+        """True iff the FSM is currently in the OVERRIDE operational mode (convenience read)."""
+        return self.state == "override"
+
+    def _best_alive_or_safe(self) -> str:
+        """The best alive+finite candidate (config-order argmax), or the SAFE sentinel if none.
+
+        Reuses the 03-02 DEC-06 best-alive/SAFE selection (`self._best_eligible`, the per-tick
+        config-declaration-order strict-max over eligible scores). This is the SAME fallback the
+        forced-but-dead window airs (D-03) and a dead-camera force airs (D-05): a dead feed is
+        never selected, so the result is alive-or-SAFE by construction (DEC-06 invariant).
+        """
+        return self._best_eligible if self._best_eligible is not None else SAFE_TARGET
+
+    def _apply_force(self, cmd: OverrideCmd) -> None:
+        """Force a camera live IMMEDIATELY (RBT-03 / D-05) and set the sticky `override_cam`.
+
+        The operator's command is applied at once — it bypasses min_dwell/debounce_N/cooldown
+        (a force is intent, not auto-switch noise). The forced id is recorded in `override_cam`
+        (sticky until release). If the forced camera is ALIVE this tick it is aired and its
+        clocks reset so it is then NORMALLY protected going forward; if it is DEAD the aired
+        `target` falls to best-alive-or-SAFE (DEC-06 — a dead feed is never aired) while
+        `override_cam` is still set, so the FSM snaps back the instant it recovers (D-03).
+        """
+        self.override_cam = cmd.force_cam
+        new = (
+            self.override_cam
+            if self.override_cam in self._alive_eligible
+            else self._best_alive_or_safe()
+        )
+        if new != self.target:
+            self.target = new
+            self._on_target_change()
+
+    def _begin_resume_qualification(self, cmd: OverrideCmd) -> None:
+        """Leave OVERRIDE and BEGIN auto-resume qualification — NO snap to argmax (D-06 / Pitfall 6).
+
+        Clears the sticky `override_cam` and resets the challenger counter so the auto candidate
+        must win the full `auto_switch` guard FRESH (hysteresis + debounce_N + min_dwell) before
+        the next cut. Critically does NOT set `self.target` from argmax — the last aired target
+        (or SAFE) HOLDS until a candidate genuinely qualifies, so no flicker is re-introduced.
+        """
+        self.override_cam = None
+        self.challenger_id = None
+        self.challenger_streak = 0
+
     # ----- the single per-tick entry point --------------------------------------------- #
 
     def tick(
@@ -392,23 +488,66 @@ class DecisionEngine:
             self.challenger_id = None
             self.challenger_streak = 0
 
-        # (3) FIRE GUARDED TRIGGERS in fixed priority order (RESEARCH §Pattern 3): feed-death
-        # emergency ABOVE the normal auto_switch (override/hold tiers land in 03-03/later in
-        # 03-02). Each `before` callback is the ONLY path that changes self.target — a failed
-        # guard is a silent no-op. We capture which tier moved the target to derive the reason.
+        # (3) FIRE GUARDED TRIGGERS in fixed priority order (RESEARCH §Pattern 3), highest
+        # authority first: OVERRIDE (force/release) → feed-death emergency → normal auto_switch
+        # (the `holding` unless-guard sits on auto_switch). Each `before` callback is the ONLY
+        # path that changes self.target — a failed/absent trigger is a silent no-op. We capture
+        # which tier moved the target to derive the reason.
         prev_target = self.target
 
-        # 3a) Feed-death emergency: a dead LIVE feed must never stay on air (DEC-06). Fires
-        # from `auto`/`override` only; its guards gate the cut. Bypasses dwell/cooldown.
-        if self.state in ("auto", "override"):
-            self.feed_emergency()
-        emergency_fired = self.target != prev_target
+        # 3a) OVERRIDE tier (RBT-03), the TOP priority. Two parts:
+        #   (i) an explicit operator command THIS tick fires `force`/`release` (D-05/D-06);
+        #   (ii) with NO new command, if we are already in OVERRIDE, run the per-tick
+        #        forced-but-dead reconciliation (D-03): air `override_cam` while it is alive,
+        #        else best-alive-or-SAFE — WITHOUT leaving OVERRIDE. A dead forced feed is never
+        #        aired (DEC-06). This reconciliation is what snaps back on recovery.
+        override_fired = False
+        override_dead_fallback = False
+        if override is not None and override.force_cam is not None:
+            self.force(override)  # immediate force (D-05); _apply_force takes the cmd
+            override_fired = True
+        elif override is not None and override.release:
+            self.release(override)  # manual release (D-06); begins resume qualification
+            override_fired = True
+        elif self.mode_is_override:
+            # No new command while in OVERRIDE → reconcile the aired target to liveness (D-03).
+            desired = (
+                self.override_cam
+                if self.override_cam in self._alive_eligible
+                else self._best_alive_or_safe()
+            )
+            if desired != self.target:
+                # Reuse the same clock-resetting target-change path; a forced-but-dead fallback
+                # or a snap-back is still a target change that gets normal protection going fwd.
+                self.target = desired
+                self._on_target_change()
+            override_dead_fallback = self.override_cam not in self._alive_eligible
 
-        # 3b) Normal auto-switch: fires from `auto`/`safe`; its conditions gate the cut (incl.
-        # `unless=holding`). Skipped if the emergency tier already moved the target this tick
-        # (one decision per tick). Capture whether a hold SUPPRESSED an otherwise-qualified cut.
+        # A force/release fired this tick → the override tier owns the decision (one decision
+        # per tick). After a `release` the FSM is back in AUTO so `in_override_no_command` is
+        # False and we fall through to the auto tiers — but the resume cannot fire on the
+        # release tick itself (_begin_resume_qualification just zeroed the challenger streak).
+        in_override_no_command = self.mode_is_override and not override_fired
+
+        # 3b) Feed-death emergency: a dead LIVE feed must never stay on air (DEC-06). Fires from
+        # `auto`/`override` only; its guards gate the cut. Bypasses dwell/cooldown. Skipped when
+        # the override tier handled this tick (a force/release fired, or we are reconciling a
+        # held override) — the override tier already enforces the alive-or-SAFE invariant.
+        forced_this_tick = (
+            override is not None and override.force_cam is not None and override_fired
+        )
+        if self.state in ("auto", "override") and not forced_this_tick and not in_override_no_command:
+            self.feed_emergency()
+        emergency_fired = (not forced_this_tick) and self.target != prev_target and not (
+            in_override_no_command
+        )
+
+        # 3c) Normal auto-switch: fires from `auto`/`safe`; its conditions gate the cut (incl.
+        # `unless=holding`). Skipped if a higher tier already moved the target this tick (one
+        # decision per tick). Capture whether a hold SUPPRESSED an otherwise-qualified cut.
         suppressed_by_hold = False
-        if not emergency_fired:
+        higher_tier_fired = forced_this_tick or emergency_fired or in_override_no_command
+        if not higher_tier_fired:
             if (
                 self.holding()
                 and self.challenger_qualified()
@@ -420,7 +559,15 @@ class DecisionEngine:
             self.auto_switch()
 
         changed = self.target != prev_target
-        if changed:
+        if forced_this_tick:
+            # A force is the operator command; report it as an override decision even if the
+            # aired target did not change (e.g. forcing the already-live camera) — the MODE
+            # changed to override, which is the operator-visible event.
+            reason = "override"
+        elif in_override_no_command and changed:
+            # A forced-but-dead fallback or a snap-back to the recovered forced camera.
+            reason = "override_dead_fallback" if override_dead_fallback else "override"
+        elif changed:
             reason = "feed_emergency" if emergency_fired else "auto_switch"
         elif suppressed_by_hold:
             reason = "hold"

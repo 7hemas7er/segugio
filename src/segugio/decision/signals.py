@@ -87,7 +87,10 @@ class OverrideCmd:
     Discriminates force-vs-release: ``force_cam`` set (non-``None``) means "force this
     camera now" (immediate, bypasses dwell/debounce/cooldown — D-05); ``release=True`` means
     "return to auto" (auto-resume only after full qualification — D-06). Both unset is a
-    no-op. Frozen + ``==``-comparable; the override edges land in 03-03.
+    no-op. Frozen + ``==``-comparable.
+
+    The 03-03 override edges consume this record exactly as defined here — the 03-01 shape was
+    confirmed sufficient (force-vs-release is cleanly discriminated; no extension was needed).
     """
 
     force_cam: str | None = None

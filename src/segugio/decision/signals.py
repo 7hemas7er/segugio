@@ -63,7 +63,11 @@ class Decision:
     tick: int
     target: str  # a camera id, or the "SAFE" sentinel
     mode: Mode
-    reason: str  # "auto_switch" | "feed_emergency" | "hold" | "override" | "none"
+    reason: str  # one of: "auto_switch" | "feed_emergency" | "hold" | "override" |
+    #              "override_dead_fallback" | "none". ("override_dead_fallback" is the
+    #              forced-but-dead / snap-back reconciliation while held in OVERRIDE — a
+    #              distinct event from a plain "override" so a Phase-5 orchestrator that
+    #              maps reasons → OBS actions can handle it explicitly. See engine.tick().)
 
 
 @dataclass(frozen=True)

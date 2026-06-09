@@ -18,7 +18,7 @@
 
 - [ ] **TRK-01**: Il sistema integra un modello YOLO pre-addestrato su GPU CUDA con **un tracker per camera** (`persist=True`), eseguito su video registrati come pseudo-camere
 - [ ] **TRK-02**: Il tracking usa BoT-SORT con **ReID nativo** (`with_reid: True, model: auto`) e `track_buffer` esteso; l'avvio verifica che il ReID nativo sia effettivamente attivo
-- [ ] **TRK-03**: Per ogni detection il sistema estrae segnali normalizzati (centro cx/cy, dimensione w/h, confidence, track id) filtrati sulla classe cane
+- [x] **TRK-03**: Per ogni detection il sistema estrae segnali normalizzati (centro cx/cy, dimensione w/h, confidence, track id) filtrati sulla classe cane
 - [ ] **TRK-04**: **Competitor-lock** — il sistema seleziona il track del cane "in gara" in modo robusto a handler, cani spettatori e persone (non sceglie semplicemente il più grande/centrale)
 - [ ] **TRK-05**: Un gate di plausibilità (teleport/size-jump) scarta cambi di track implausibili
 
@@ -132,7 +132,7 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | RBT-03 | Phase 3 | Complete |
 | TRK-01 | Phase 4 | Pending |
 | TRK-02 | Phase 4 | Pending |
-| TRK-03 | Phase 4 | Pending |
+| TRK-03 | Phase 4 | Complete |
 | TRK-04 | Phase 4 | Pending |
 | TRK-05 | Phase 4 | Pending |
 | NDI-01 | Phase 5 | Pending |

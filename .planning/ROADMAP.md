@@ -126,7 +126,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Substrate: lazy-import `segugio.tracking` package, additive `TrackingParams` sub-model (TRK-04/05 seeds), PURE `signals_from_boxes` mapper (TRK-03), multi-track `detection_stream` extension, Wave-0 infra (gpu marker, conftest fixtures, import-smoke + signals-map tests) [Wave 1]
+- [x] 04-01-PLAN.md — Substrate: lazy-import `segugio.tracking` package, additive `TrackingParams` sub-model (TRK-04/05 seeds), PURE `signals_from_boxes` mapper (TRK-03), multi-track `detection_stream` extension, Wave-0 infra (gpu marker, conftest fixtures, import-smoke + signals-map tests) [Wave 1]
 
 **Wave 2** *(parallel; blocked on Wave 1 — zero file overlap)*
 
@@ -172,5 +172,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
-| 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |
+| 4. YOLO + Per-Camera Tracking on Clips | 1/4 | In Progress|  |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |

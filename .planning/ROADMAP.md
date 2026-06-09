@@ -87,14 +87,14 @@ Plans:
   4. A manual override forces a specific camera; after the override is released and the auto candidate has won full hysteresis + dwell, the FSM resumes automatic selection (RBT-03)
   5. The full FSM is unit-tested against synthetic score + feed-death streams covering ping-pong, tie, dropout, recovery, override and occlusion scenarios (DEC-07)
 
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 03-01 · Wave 2: 03-02 · Wave 3: 03-03 · Wave 4: 03-04 — strictly serial; each plan extends the shared `engine.py`/`signals.py` of the prior)
 
 Plans:
 
-- [ ] 03-01: Core FSM (states + guarded transitions) as single source of truth + hysteresis/min_dwell/debounce/cooldown
-- [ ] 03-02: Feed-alive guard, action-suppression hold, expected-occlusion hold, deterministic tiebreaker
-- [ ] 03-03: Manual override + auto-resume transition logic
-- [ ] 03-04: Unit-test suite over synthetic score + feed-death streams (ping-pong/tie/dropout/recovery/override/occlusion)
+- [ ] 03-01-PLAN.md — Wave-0 setup (reclassify `transitions` to light deps, create `segugio/decision/` package, conftest fixtures + `_as_camera_scores` adapter) + the `Decision`/`HoldInput`/`OverrideCmd`/`Mode` contracts + `ticks_from_seconds` + core `DecisionEngine`: guarded transitions, two-threshold hysteresis + min_dwell + debounce_N + cooldown (DEC-01, DEC-02) [Wave 1]
+- [ ] 03-02-PLAN.md — Feed-alive guard + feed-death emergency cut (DEC-06), action-hold + occlusion-hold with mandatory max-caps (DEC-03/DEC-04), deterministic tiebreaker (DEC-05) [Wave 2]
+- [ ] 03-03-PLAN.md — Manual override + auto-resume: force (immediate), forced-but-dead fallback, manual-release-only, resume requires full hysteresis+min_dwell (RBT-03) [Wave 3]
+- [ ] 03-04-PLAN.md — DEC-07 determinism gate over synthetic score + feed-death streams + combined high-value cross-scenario suite (force→release→resume, hold-through-occlusion→release, live-feed-death-mid-hold) with the two hard safety invariants as shared assertions [Wave 4]
 
 ### Phase 4: YOLO + Per-Camera Tracking on Recorded Clips
 

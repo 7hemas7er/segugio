@@ -1,0 +1,74 @@
+# Segugio — reference configuration (agility / standard course)
+#
+# The agility counterpart to config.example.yaml. Structurally identical (same
+# camera roles, same zone bands, same schema) — the ONE meaningful difference for
+# the discipline-swap test is `field.sport`. Loading both files and comparing
+# `field.overlay_fields` / `field.framing_defaults` proves CFG-03 from real files:
+# switching the discipline is a YAML value change, zero code edits.
+#
+# Zones are normalized [0..1] image rects [x0, y0, x1, y1] with x0<x1, y0<y1.
+
+# ---- field / discipline profile -------------------------------------------- #
+field:
+  sport: agility             # <- the swap: selects the agility overlay-field set
+  event: agility_standard
+
+# ---- cameras --------------------------------------------------------------- #
+# Same 4-camera rig; for agility the main_wide covers the whole ring, long the
+# far half, low the contact/jump moments, handler_side the handler-side obstacles.
+cameras:
+  - id: cam_wide
+    role: main_wide
+    obs_scene: "CAM Wide"
+    is_safe: true
+    ndi_source: "PHONE-WIDE (NDI HX3)"
+    zones:
+      - { name: near, rect: [0.0, 0.55, 1.0, 1.0] }
+      - { name: mid,  rect: [0.0, 0.30, 1.0, 0.55] }
+      - { name: far,  rect: [0.0, 0.0,  1.0, 0.30] }
+
+  - id: cam_long
+    role: long
+    obs_scene: "CAM Long"
+    ndi_source: "PHONE-LONG (NDI HX3)"
+    zones:
+      - { name: far, rect: [0.0, 0.0,  1.0, 0.60] }
+      - { name: mid, rect: [0.0, 0.60, 1.0, 1.0] }
+
+  - id: cam_low
+    role: low
+    obs_scene: "CAM Low"
+    ndi_source: "PHONE-LOW (NDI HX3)"
+    zones:
+      - { name: near, rect: [0.0, 0.0, 1.0, 1.0] }
+
+  - id: cam_handler
+    role: handler_side
+    obs_scene: "CAM Handler"
+    ndi_source: "PHONE-HANDLER (NDI HX3)"
+    zones:
+      - { name: stage, rect: [0.20, 0.25, 0.80, 1.0] }
+
+# ---- role x zone framing weights ------------------------------------------- #
+# Agility-appropriate: long covers the far half of the ring; low fires on
+# near jumps/contacts; handler_side covers the working side. main_wide neutral.
+framing_weights:
+  main_wide:    { near: 1.00, mid: 1.00, far: 1.00, stage: 1.00 }
+  long:         { near: 0.70, mid: 1.05, far: 1.40 }
+  low:          { near: 1.35, mid: 0.75, far: 0.35 }
+  handler_side: { stage: 1.40, near: 1.15, mid: 0.85, far: 0.55 }
+
+# ---- switching thresholds -------------------------------------------------- #
+thresholds:
+  alpha: 0.3
+  hysteresis_margin: 0.1
+  min_dwell: 2.0
+  debounce_N: 3
+  cooldown: 1.0
+  watchdog_timeout: 0.8
+  track_buffer: 60
+
+# ---- YOLO model ------------------------------------------------------------ #
+model:
+  path: yolo26s.pt
+  class_index: 16

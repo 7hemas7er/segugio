@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-06-09T15:10:06.436Z"
-last_activity: 2026-06-09 -- Phase 02 planning complete
+last_updated: "2026-06-09T15:33:33.725Z"
+last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 5
   percent: 20
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 2 — framing scorer (pure logic)
+**Current focus:** Phase 02 — framing-scorer-pure-logic
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (framing-scorer-pure-logic) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-09 -- Phase 02 planning complete
+Last activity: 2026-06-09
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 63%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 01 P02 | 5min | 2 tasks | 7 files |
 | Phase 01 P03 | 5min | 2 tasks | 6 files |
 | Phase 01 P04 | 3min | 2 tasks | 4 files |
+| Phase 02 P01 | 14min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 1 / 01-02]: typed pydantic v2 Config root; discipline = DiscDogProfile|AgilityProfile discriminated union on field.sport (zero-code-edit overlay/framing swap, CFG-03); loader uses yaml.safe_load only + fails fast with SystemExit(2) on any read/parse/validation error (CFG-01); model defaults yolo26s.pt/16 (CFG-04)
 - [Phase ?]: [Phase 1 / 01-03]: clip-set substrate — opencv-free segugio.fixtures query API (load_manifest/select_clips/coverage_report/resolve_clip_path + 7x2 CONDITIONS/DISCIPLINES checklist) + tools/catalog_clips.py dev cataloguer (argparse footage dir at execution time, lazy cv2 probe, no ffprobe) emitting clip_manifest.yaml + condition-coverage gap report; external-dir + committed-manifest (binaries gitignored, README documents license/consent + no-hardcoded-path ingest); TST-01 complete
 - [Phase ?]: [Phase 1 / 01-04]: deterministic synth substrate — score_stream (ping_pong/tie/dropout/recovery) + feed_death (death/recovery liveness) driven by an INJECTED numpy.random.Generator (pure base curve + single rng.normal jitter draw); frozen ScoreSample/FeedEvent dataclasses; same seed -> byte-identical output; no global RNG, no wall-clock; numpy+dataclasses only; TST-02 complete
+- [Phase ?]: test
+- [Phase 02]: framing-scorer pure substrate: frozen DetectionSignal/CameraScore/ScorerStatus + 8 numpy-only terms (centeredness, non-monotonic size band over sqrt(area) [D-02], centeredness-dominant base_score [D-01], lead_room, zone gate, EMA z-score conf_norm with sqrt(var+eps), plausibility_ok); ScorerParams 19 bounded seeds incl. positive eps wired additively into Config.scoring + both YAMLs (w_c+w_s+w_conf==1 validator); detection_stream raw-detection generator (None=dropout); FRM-01+guard green, 6 tests skip-scaffolded for 02-02/03/04 — 02-01 plan complete
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T14:13:27.111Z
+Last session: 2026-06-09T15:28:24.835Z
 Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-framing-scorer-pure-logic/02-CONTEXT.md
+Resume file: None

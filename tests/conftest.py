@@ -23,6 +23,10 @@ import pytest
 # Fixed module-level seed — the determinism baseline every TST-02 consumer inherits.
 SEED = 1234
 
+# Injected frames-per-second — the seconds→ticks bridge the Phase-3 DecisionEngine and
+# ticks_from_seconds use (RESEARCH A2: fps is injected as an argument, NEVER a config field).
+FPS = 30.0
+
 
 @pytest.fixture
 def seeded_rng() -> np.random.Generator:
@@ -126,3 +130,34 @@ def scorer_params():
     from segugio.config import ScorerParams
 
     return ScorerParams()
+
+
+@pytest.fixture
+def thresholds():
+    """Validated ``Thresholds`` the Phase-3 FSM reads (mirrors ``scorer_params``).
+
+    Built from the canonical happy-path config (``hysteresis_margin: 0.1, min_dwell: 2.0,
+    debounce_N: 3, cooldown: 1.0``). Imported in-body to keep this conftest heavy-import-free.
+    """
+    from segugio.config import Config
+
+    return Config.model_validate(_VALID_CONFIG).thresholds
+
+
+def _as_camera_scores(samples, status_default=None):
+    """Wrap each ``ScoreSample`` (no status field) as a ``CameraScore`` (RESEARCH Pitfall 2).
+
+    ``score_stream`` emits ``ScoreSample(tick, cam_id, score)`` with NO status; the FSM's
+    public input contract is ``CameraScore`` (which carries a ``status``). This 3-line adapter
+    lets the DEC-07 substrate reuse the shipped scenarios while the engine consumes the real
+    production type. ``status_default`` defaults to ``ScorerStatus.tracking`` (advisory only
+    in v1 — the FSM keys hysteresis/debounce on ``score``, RESEARCH A1). In-body lazy import
+    keeps this conftest heavy-import-free.
+    """
+    from segugio.framing.signals import CameraScore, ScorerStatus
+
+    if status_default is None:
+        status_default = ScorerStatus.tracking
+    return [
+        CameraScore(s.tick, s.cam_id, s.score, status_default) for s in samples
+    ]

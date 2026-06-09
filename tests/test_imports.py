@@ -23,6 +23,7 @@ PHASE1_SURFACE = [
     "segugio.synth",
     "segugio.logging",
     "segugio.framing",  # 02-04: the pure framing scorer joins the proven lazy-import surface
+    "segugio.decision",  # 03-01: the pure FSM joins the proven lazy-import surface (transitions is light)
 ]
 
 

@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 3 context gathered
-last_updated: "2026-06-09T19:30:42.871Z"
-last_activity: 2026-06-09 -- Phase 03 planning complete
+last_updated: "2026-06-09T19:59:28.921Z"
+last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 8
+  completed_plans: 9
   percent: 40
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 3 — decision engine fsm
+**Current focus:** Phase 03 — decision-engine-fsm
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
+Phase: 03 (decision-engine-fsm) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-09 -- Phase 03 planning complete
+Last activity: 2026-06-09
 
-Progress: [██████████] 100%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 | Phase 02 P02 | 9min | 2 tasks tasks | 6 files files |
 | Phase 02 P03 | 4min | 2 tasks | 3 files |
 | Phase 02 P04 | 6min | 2 tasks tasks | 2 files files |
+| Phase 03 P01 | 6min | 3 tasks tasks | 16 files files |
 
 ## Accumulated Context
 
@@ -83,6 +84,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-02 CameraScorer present-detection path: stateful per-camera object composes the 8 pure terms into a fixed-alpha EMA-smoothed CameraScore — cold start s_0=raw_0 (D-05), lead-room ideal shifts TOWARD motion via finite-diff velocity over vel_window history with track-id-swap reset (D-06), zone gate x framing_weights[role][zone], per-camera conf z-score; fail-safe (NaN/inf->coast, np.clip on exit), clock-free, rng-free. Coast/TTL else-branch is a minimal 02-03 seam. FRM-02/03/04/06 green. — D-07 motion-adaptive alpha deferred; fixed-alpha construction seam is the hook. Phase-3 cross-dependency: alpha tuned jointly with debounce_N/min_dwell/hysteresis_margin.
 - [Phase 02]: 02-03 coast/TTL dropout path (FRM-05) + MultiCamScorer fan-out: absent-detection branch counts ttl down (D-03 hold-last-then-drop) — ema HELD + status coasting while ema is not None and ttl>0, else ema=0.0 + status lost; never feeds raw=0 into the EMA. Re-acquisition before TTL resumes tracking continuously from the held value (D-04, no cold-start re-seed); NO long hold_length_s path (Phase-3 FSM scope). MultiCamScorer drives one CameraScorer per camera in deterministic order, coasting on a missing camera via .get() (T-2-01). ttl_ticks_from_seconds(ttl_seconds,fps)=ceil helper; scorer stays clock-free/rng-free. FRM-05 green; suite 116 passed, 1 skipped (only 02-04 purity left). — Coast/TTL is the single most important robustness invariant — never collapse to 0 on a miss (PITFALL 3, the worst time to cut is the blur at a catch/jump apex); the long expected-occlusion hold is deliberately deferred to the Phase-3 FSM per the D-04 hard scope line.
 - [Phase 02]: 02-04 FRM-07 purity gate locked: same DetectionSignal seq (present->coast->lost->recovery) -> byte-identical CameraScore list (test_purity_determinism); word-boundary source-grep rejects any time/np.random/I-O/heavy import in framing/*.py (test_no_io_imports_in_framing, distinguishes real imports from docstring prose); segugio.framing added to PHASE1_SURFACE + explicit import-with-heavy-absent test. Coverage gate closed at 99% (scorer/signals/terms/__init__ 100%; only params.py:80 weight-sum config-load validator intentionally uncovered). Suite 124 passed, 0 skipped — Phase 2 complete, ready for verify-work. — FRM-07 is the phase's defining property: determinism is what makes the scorer unit-testable in isolation (same input stream -> same output every run/worker, the contract Phase-3 FSM and Phase-4 wiring depend on); the lazy-import boundary lets import segugio.framing work CPU-only with no GPU/NDI runtime present.
+- [Phase ?]: [Phase 03 / 03-01]: transitions reclassified heavy→light and installed; segugio.decision on the lazy-import surface; DecisionEngine = transitions.Machine wrapper, target changes only in guarded before-callbacks (DEC-01); hysteresis margin+debounce_N + min_dwell + cooldown integer clocks (fps injected) → ≤1 transition on ping_pong/tie (DEC-02); SAFE sentinel (A4), status advisory (A1); NaN/inf fail-safe never raises. Seams for 03-02 holds/feed-death + 03-03 override
 
 ### Pending Todos
 
@@ -103,6 +105,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T18:51:44.701Z
+Last session: 2026-06-09T19:58:56.616Z
 Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-decision-engine-fsm/03-CONTEXT.md
+Resume file: None

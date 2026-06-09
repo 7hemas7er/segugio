@@ -93,7 +93,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Wave-0 setup (reclassify `transitions` to light deps, create `segugio/decision/` package, conftest fixtures + `_as_camera_scores` adapter) + the `Decision`/`HoldInput`/`OverrideCmd`/`Mode` contracts + `ticks_from_seconds` + core `DecisionEngine`: guarded transitions, two-threshold hysteresis + min_dwell + debounce_N + cooldown (DEC-01, DEC-02) [Wave 1]
+- [x] 03-01-PLAN.md — Wave-0 setup (reclassify `transitions` to light deps, create `segugio/decision/` package, conftest fixtures + `_as_camera_scores` adapter) + the `Decision`/`HoldInput`/`OverrideCmd`/`Mode` contracts + `ticks_from_seconds` + core `DecisionEngine`: guarded transitions, two-threshold hysteresis + min_dwell + debounce_N + cooldown (DEC-01, DEC-02) [Wave 1]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -163,6 +163,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
-| 3. Decision Engine FSM | 0/4 | Not started | - |
+| 3. Decision Engine FSM | 1/4 | In Progress|  |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-06-09T20:24:45.862Z"
+status: verifying
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-06-09T20:34:40.906Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
-  percent: 40
+  completed_plans: 12
+  percent: 60
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 Phase: 03 (decision-engine-fsm) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-09
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [█████████░] 92%
 | Phase 03 P01 | 6min | 3 tasks tasks | 16 files files |
 | Phase 03 P02 | 9min | 3 tasks | 4 files |
 | Phase 03 P03 | 7min | 2 tasks tasks | 3 files files |
+| Phase 03 P04 | 5min | 2 tasks tasks | 2 files files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 03 / 03-03]: OVERRIDE mode (RBT-03) — force/release guarded transitions as the TOP-priority tier above feed-death emergency; sticky override_cam (operator intent) distinct from the aired target (D-03)
 - [Phase ?]: [Phase 03 / 03-03]: force is immediate (bypasses dwell/debounce/cooldown, D-05); forced-but-dead airs SAFE/best-live never the dead feed and snaps back on recovery while staying in OVERRIDE (D-03, reuses DEC-06 selection)
 - [Phase ?]: [Phase 03 / 03-03]: release is manual-only (D-04, no auto-expire) and auto-resume reuses the normal auto_switch guard — zeroes the streak, no argmax snap, full hysteresis+min_dwell qualification (D-06, Pitfall 6)
+- [Phase ?]: [Phase 03 / 03-04]: DEC-07 determinism gate — same seed + scenario → byte-identical list[Decision] across all four SCENARIOS over the FULL tick(scores, alive, holds, override) contract; fresh-engine _run driver + == over frozen output (FRM-07 analogue)
+- [Phase ?]: [Phase 03 / 03-04]: two reusable hard-safety-invariant helpers (assert_no_decision_outside_guard DEC-01, assert_never_airs_dead_feed DEC-06) over (decision, alive_map) pairs, applied in all three combined scenarios (force→release→resume, hold-through-occlusion→release, live-feed-death-mid-hold death-wins); segugio.decision 100% coverage
 
 ### Pending Todos
 
@@ -113,6 +116,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T20:24:45.829Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-06-09T20:34:40.877Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None

@@ -40,7 +40,7 @@
 - [x] **DEC-04**: Hold da occlusione attesa (tunnel/contatti agility, da config-zone): la FSM non taglia via quando il cane è in un'occlusione prevista
 - [x] **DEC-05**: Tiebreaker deterministico per camere con punteggio quasi pari (no ping-pong)
 - [x] **DEC-06**: Feed-alive guard — una camera con feed morto non è mai selezionata come live né come challenger
-- [ ] **DEC-07**: La FSM è unit-testabile su stream di punteggi + eventi di feed-death sintetici (ping-pong/tie/dropout/recovery)
+- [x] **DEC-07**: La FSM è unit-testabile su stream di punteggi + eventi di feed-death sintetici (ping-pong/tie/dropout/recovery)
 
 ### NDI Ingest (NDI)
 
@@ -128,7 +128,7 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | DEC-04 | Phase 3 | Complete |
 | DEC-05 | Phase 3 | Complete |
 | DEC-06 | Phase 3 | Complete |
-| DEC-07 | Phase 3 | Pending |
+| DEC-07 | Phase 3 | Complete |
 | RBT-03 | Phase 3 | Complete |
 | TRK-01 | Phase 4 | Pending |
 | TRK-02 | Phase 4 | Pending |

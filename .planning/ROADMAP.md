@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation, Config & Curated Clip Set** - Project scaffolding, validated central YAML config (the contract every module consumes), the multi-condition clip set, and synthetic stream generators (completed 2026-06-09)
 - [x] **Phase 2: Framing Scorer (pure logic)** - Resolution-independent per-camera framing score with EMA, zone-gating, lead-room, coast/TTL and per-camera confidence normalization — pure and unit-testable (completed 2026-06-09)
-- [ ] **Phase 3: Decision Engine FSM** - The single source of truth on "which camera is live": hysteresis, dwell, debounce, cooldown, feed-alive guard, action-hold, occlusion-hold, tiebreaker, override + auto-resume
+- [x] **Phase 3: Decision Engine FSM** - The single source of truth on "which camera is live": hysteresis, dwell, debounce, cooldown, feed-alive guard, action-hold, occlusion-hold, tiebreaker, override + auto-resume (completed 2026-06-09)
 - [ ] **Phase 4: YOLO + Per-Camera Tracking on Recorded Clips** - Pre-trained YOLO on CUDA with one BoT-SORT tracker per camera (native ReID), competitor-lock and plausibility gate, validated on the curated clips
 - [ ] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement
 
@@ -105,7 +105,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03-04-PLAN.md — DEC-07 determinism gate over synthetic score + feed-death streams + combined high-value cross-scenario suite (force→release→resume, hold-through-occlusion→release, live-feed-death-mid-hold) with the two hard safety invariants as shared assertions [Wave 4]
+- [x] 03-04-PLAN.md — DEC-07 determinism gate over synthetic score + feed-death streams + combined high-value cross-scenario suite (force→release→resume, hold-through-occlusion→release, live-feed-death-mid-hold) with the two hard safety invariants as shared assertions [Wave 4]
 
 ### Phase 4: YOLO + Per-Camera Tracking on Recorded Clips
 
@@ -163,6 +163,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
-| 3. Decision Engine FSM | 3/4 | In Progress|  |
+| 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |

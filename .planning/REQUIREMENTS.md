@@ -73,7 +73,7 @@
 
 ### Test Fixtures (TST)
 
-- [ ] **TST-01**: Esiste un **curated clip set** multi-condizione (multi-cane, handler prominente, occlusioni tunnel/contatti, blur, cane distante, controluce/dusk, camere equidistanti) per disc dog e agility
+- [x] **TST-01**: Esiste un **curated clip set** multi-condizione (multi-cane, handler prominente, occlusioni tunnel/contatti, blur, cane distante, controluce/dusk, camere equidistanti) per disc dog e agility
 - [x] **TST-02**: Generatori sintetici (score-stream, feed-death) permettono test hardware-free di scorer, FSM e watchdog
 
 ## v2 Requirements
@@ -113,7 +113,7 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | CFG-02 | Phase 1 | Complete |
 | CFG-03 | Phase 1 | Complete |
 | CFG-04 | Phase 1 | Complete |
-| TST-01 | Phase 1 | Pending |
+| TST-01 | Phase 1 | Complete |
 | TST-02 | Phase 1 | Complete |
 | FRM-01 | Phase 2 | Pending |
 | FRM-02 | Phase 2 | Pending |

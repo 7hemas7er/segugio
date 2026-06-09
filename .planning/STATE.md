@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-06-09T23:29:29.910Z"
+status: verifying
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-06-09T23:41:03.601Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 16
-  completed_plans: 15
-  percent: 60
+  completed_plans: 16
+  percent: 80
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 Phase: 04 (yolo-per-camera-tracking-on-recorded-clips) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-09
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [█████████░] 94%
 | Phase 04 P01 | 4min | 2 tasks | 11 files |
 | Phase 04 P02 | 6min | 2 tasks tasks | 4 files files |
 | Phase 04 P03 | 6min | 2 tasks tasks | 8 files files |
+| Phase 04 P04 | 6min | 2 tasks tasks | 4 files files |
 
 ## Accumulated Context
 
@@ -103,6 +104,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 04 / 04-01]: tracking substrate — lazy-import segugio.tracking surface (pure TrackingParams + signals_from_boxes, cv2 forced absent in smoke test); TrackingParams additive sub-model (TRK-04/05 seeds) wired into Config.tracking; signals_from_boxes PURE TRK-03 mapper (Results-row -> frozen DetectionSignal, float/int cast, ids=None coast); multi_track_stream deterministic N-track substrate + linear_left crossing path for 04-02; gpu marker + tracking_params/crop_geometry fixtures; 178 tests green (+11, zero regression)
 - [Phase ?]: [Phase 04 / 04-02]: subject-selection brain — PURE CompetitorLock (TRK-04, zone-gate AND motion-energy acquire D-03, sticky continuity D-04, per-camera independence D-05, NaN fail-safe) + PURE PlausibilityGate (TRK-05, inter-frame teleport/size-jump reject -> None coast D-06 without poisoning prev, distinct from Phase-2 intra-frame guard D-07, reset() for re-acquire); both stdlib-only/clock-free/rng-free, unit-tested on multi_track_stream; 192 tests green (+14, zero regression)
 - [Phase ?]: [Phase 04 / 04-03]: heavy-edge per-camera tracker — PerCameraTracker (TRK-01) one YOLO().track(persist=True, end2end=False, classes=[dog_idx], tracker=botsort_dog.yaml) per cam_id (never a frame list, #13107); resolve_dog_index by name (CFG-04, never hardcodes 16); assert_native_reid_engaged (TRK-02) HARD gate RAISES on the silent yolo26n-cls.pt cls fallback; ClipFrameSource (D-01) cv2 decode + overlapping L/C/R pseudo-camera crops with injected emitted-frame tick + empty-frame guard; botsort_dog.yaml (with_reid:True/model:auto/track_buffer:60); gpu autouse-skip wired in conftest.py + gpu eval skeleton SKIPs here; heavy deps lazy — import boundary holds with ultralytics/torch/cv2 absent; 195 passed +2 gpu-skip, zero regression
+- [Phase ?]: [Phase 04 / 04-04]: offline clip eval (D-08) — PURE compute_metrics (id_switch_count counts across coast gaps to catch silent BoT-SORT ID swaps; lock_held_fraction; coast_count; signal_dump; cv2-free, deterministic) + heavy run_clip_eval wiring ClipFrameSource -> PerCameraTracker -> signals_from_boxes -> CompetitorLock -> PlausibilityGate -> per-camera DetectionSignal|None (the MultiCamScorer.update consumer shape); render_overlay (cv2 in-function) draws boxes/track-ids/locked-highlight/zones; HARD assert_native_reid_engaged before the loop; explicit UNVERIFIED lines (D-02); gpu overlay/metrics test SKIPs here; 208 passed +3 skip, zero regression; Phase 4 complete
 
 ### Pending Todos
 
@@ -123,6 +125,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T23:29:19.236Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-06-09T23:41:03.586Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None

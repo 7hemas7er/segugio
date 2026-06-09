@@ -65,6 +65,27 @@ _TRANSITIONS = [
         "dest": "safe",
         "before": "_set_target_safe",
     },
+    # Feed-death emergency (DEC-06, D-01): the LIVE feed died → cut THIS tick to the best
+    # alive camera, bypassing dwell/cooldown. Fires ABOVE the normal auto_switch (RESEARCH
+    # §Pattern 3 priority). `_emergency_cut` resets the new target's clocks so it then gets
+    # NORMAL protection (Pitfall 4). NOTE: NO `holding` guard here — death wins over hold.
+    {
+        "trigger": "feed_emergency",
+        "source": ["auto", "override"],
+        "dest": "auto",
+        "conditions": ["live_feed_dead", "has_alive_candidate"],
+        "before": "_emergency_cut",
+    },
+    # Feed-death emergency with NO alive candidate → route to the SAFE sentinel. The whole
+    # robustness constraint ("nessun crash ammesso", SAFE fallback) hinges on this edge.
+    {
+        "trigger": "feed_emergency",
+        "source": ["auto", "override"],
+        "dest": "safe",
+        "conditions": ["live_feed_dead"],
+        "unless": ["has_alive_candidate"],
+        "before": "_set_target_safe",
+    },
     # Normal auto-switch: fires ONLY if the challenger cleared hysteresis + sustained
     # debounce_N AND dwell elapsed AND cooldown clear. `_promote_challenger` is the ONLY
     # place the target changes on a normal cut (DEC-01).
@@ -129,6 +150,11 @@ class DecisionEngine:
         # Per-tick scratch (set at the top of tick(), read by the guard predicates + the
         # `before` callbacks). Kept on the model so `transitions` callbacks can read them.
         self._best_eligible: str | None = None
+        # The set of cameras alive THIS tick (alive AND finite-scored) and the eligible-only
+        # score map — the feed-death guards (`live_feed_dead`/`has_alive_candidate`) and the
+        # `_emergency_cut` callback read these (they cannot take args via `transitions`).
+        self._alive_eligible: set[str] = set()
+        self._score_by_cam: dict[str, float] = {}
 
         # Build the machine LAST so `initial="safe"` does not collide with attribute setup.
         # auto_transitions=False → no generated `to_<state>()` methods to clash with our
@@ -165,7 +191,36 @@ class DecisionEngine:
         """True iff no post-cut cooldown is in effect."""
         return self.cooldown_remaining == 0
 
+    def live_feed_dead(self) -> bool:
+        """True iff the current live target is a real camera whose feed died THIS tick (DEC-06).
+
+        SAFE is never "dead" (it is the fallback, not a feed). A camera id that is not in the
+        alive-eligible set (dead, no-liveness-reading, or poisoned score) means the on-air feed
+        has failed — the emergency cut must fire. Read of per-tick scratch only (pure).
+        """
+        if self.target == SAFE_TARGET:
+            return False
+        return self.target not in self._alive_eligible
+
+    def has_alive_candidate(self) -> bool:
+        """True iff at least one camera is alive with a finite score (an emergency target exists)."""
+        return len(self._alive_eligible) > 0
+
     # ----- transition callbacks (the ONLY places `self.target` changes) ---------------- #
+
+    def _emergency_cut(self) -> None:
+        """Cut the live target to the best alive camera (DEC-06 / D-01), then re-protect it.
+
+        Bypasses dwell/cooldown on the cut itself (this callback runs from the `feed_emergency`
+        guard, which does NOT read those clocks), but resets BOTH clocks for the NEW target so a
+        competing higher score one tick later cannot steal it (Pitfall 4 — the emergency target
+        then receives normal min_dwell/cooldown protection). The best-alive camera is the
+        already-computed config-order argmax over eligible (alive + finite) scores.
+        """
+        new = self._best_eligible
+        if new is not None and new != self.target:
+            self.target = new
+            self._on_target_change()
 
     def _set_target_safe(self) -> None:
         """Set the live target to the SAFE sentinel (cold start / no eligible candidate)."""
@@ -225,6 +280,12 @@ class DecisionEngine:
                 continue  # dead / no-liveness-reading → ineligible (DEC-06 fail-safe)
             score_by_cam[cs.cam_id] = float(cs.score)
 
+        # Publish the eligible (alive + finite-scored) set + score map as per-tick scratch so
+        # the feed-death guard predicates (`live_feed_dead` / `has_alive_candidate`) and the
+        # `_emergency_cut` callback can read them — `transitions` callbacks take no args.
+        self._score_by_cam = score_by_cam
+        self._alive_eligible = set(score_by_cam.keys())
+
         # Deterministic best-eligible: iterate in config order, keep the strict-max (first
         # camera in declaration order wins an exact tie — D-07 no-incumbent fallback ordering).
         best_eligible: str | None = None
@@ -255,15 +316,30 @@ class DecisionEngine:
             self.challenger_id = None
             self.challenger_streak = 0
 
-        # (3) FIRE GUARDED TRIGGERS (fixed priority; this plan: just auto_switch). The
-        # `before` callback is the ONLY path that changes self.target — a failed guard is a
-        # silent no-op. We capture whether the target changed to derive the reason.
+        # (3) FIRE GUARDED TRIGGERS in fixed priority order (RESEARCH §Pattern 3): feed-death
+        # emergency ABOVE the normal auto_switch (override/hold tiers land in 03-03/later in
+        # 03-02). Each `before` callback is the ONLY path that changes self.target — a failed
+        # guard is a silent no-op. We capture which tier moved the target to derive the reason.
         prev_target = self.target
-        # auto_switch fires from `auto` or `safe`; its conditions gate the actual change.
-        self.auto_switch()
+
+        # 3a) Feed-death emergency: a dead LIVE feed must never stay on air (DEC-06). Fires
+        # from `auto`/`override` only; its guards gate the cut. Bypasses dwell/cooldown.
+        if self.state in ("auto", "override"):
+            self.feed_emergency()
+        emergency_fired = self.target != prev_target
+
+        # 3b) Normal auto-switch: fires from `auto`/`safe`; its conditions gate the cut. Skipped
+        # if the emergency tier already moved the target this tick (one decision per tick).
+        if not emergency_fired:
+            self.auto_switch()
 
         changed = self.target != prev_target
-        reason = "auto_switch" if changed else "none"
+        if not changed:
+            reason = "none"
+        elif emergency_fired:
+            reason = "feed_emergency"
+        else:
+            reason = "auto_switch"
 
         # (4) EMIT the frozen Decision. Mode tracks the FSM state (safe/auto/override).
         return Decision(

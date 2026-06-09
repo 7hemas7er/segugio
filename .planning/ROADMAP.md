@@ -120,14 +120,22 @@ Plans:
   4. On multi-dog / handler-prominent clips the competitor-lock selects the in-competition dog rather than the largest/most-central blob, and a plausibility (teleport/size-jump) gate rejects implausible track switches
   5. Detection + tracking is exercised on the curated multi-dog, pairs, occlusion and distance clips, demonstrating subject continuity through crossings and re-entries
 
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 04-01 · Wave 2 parallel: 04-02, 04-03 · Wave 3: 04-04)
 
 Plans:
 
-- [ ] 04-01: YOLO load on CUDA + class resolution via `model.names`; one tracker per camera over recorded pseudo-cameras
-- [ ] 04-02: BoT-SORT native-ReID config (`botsort_dog.yaml`) + startup ReID-engagement verification
-- [ ] 04-03: Normalized per-detection signal extraction (cx/cy, w/h, conf, id) feeding the scorer
-- [ ] 04-04: Competitor-lock + plausibility/teleport gate, validated on multi-dog/handler/occlusion clips
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Substrate: lazy-import `segugio.tracking` package, additive `TrackingParams` sub-model (TRK-04/05 seeds), PURE `signals_from_boxes` mapper (TRK-03), multi-track `detection_stream` extension, Wave-0 infra (gpu marker, conftest fixtures, import-smoke + signals-map tests) [Wave 1]
+
+**Wave 2** *(parallel; blocked on Wave 1 — zero file overlap)*
+
+- [ ] 04-02-PLAN.md — The brain: PURE `CompetitorLock` (TRK-04: zone-gate AND motion-energy, sticky, per-camera) + `PlausibilityGate` (TRK-05: inter-frame teleport/size-jump → coast), unit-tested on synthetic multi-track streams [Wave 2]
+- [ ] 04-03-PLAN.md — The heavy edge: `PerCameraTracker` (TRK-01: one `model.track(persist=True)` per cam, dog-by-name) + `assert_native_reid_engaged` HARD gate (TRK-02, `end2end=False`) + `ClipFrameSource` crops (D-01) + `botsort_dog.yaml` + gpu-skip + gpu eval skeleton [Wave 2]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-04-PLAN.md — The eval (D-08): PURE metric counters (ID-switch / %lock-held / coast) + heavy-edge overlay render + the clip eval driver wiring the full TRK-01..05 pipeline + UNVERIFIED logging (D-02) [Wave 3]
 
 ### Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI
 

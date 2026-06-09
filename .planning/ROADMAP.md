@@ -12,7 +12,7 @@ Segugio v1 delivers an operator-less multi-camera auto-director for dog sports (
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation, Config & Curated Clip Set** - Project scaffolding, validated central YAML config (the contract every module consumes), the multi-condition clip set, and synthetic stream generators
+- [x] **Phase 1: Foundation, Config & Curated Clip Set** - Project scaffolding, validated central YAML config (the contract every module consumes), the multi-condition clip set, and synthetic stream generators (completed 2026-06-09)
 - [ ] **Phase 2: Framing Scorer (pure logic)** - Resolution-independent per-camera framing score with EMA, zone-gating, lead-room, coast/TTL and per-camera confidence normalization — pure and unit-testable
 - [ ] **Phase 3: Decision Engine FSM** - The single source of truth on "which camera is live": hysteresis, dwell, debounce, cooldown, feed-alive guard, action-hold, occlusion-hold, tiebreaker, override + auto-resume
 - [ ] **Phase 4: YOLO + Per-Camera Tracking on Recorded Clips** - Pre-trained YOLO on CUDA with one BoT-SORT tracker per camera (native ReID), competitor-lock and plausibility gate, validated on the curated clips
@@ -35,7 +35,7 @@ Plans:
 - [x] 01-01-PLAN.md — Package scaffolding (`src/segugio/`), pinned `requirements.txt` + `pyproject.toml`, loguru bootstrap, pytest substrate (conftest fixtures), lazy-import smoke test [Wave 1]
 - [x] 01-02-PLAN.md — Central config contract: pydantic v2 models (cameras/roles, normalized zones, `framing_weights[role][zone]`, thresholds, model path/class), discipline discriminated-union swap, fail-fast loader, disc+agility example configs [Wave 2]
 - [x] 01-03-PLAN.md — Curated clip-set substrate: opencv cataloguer (footage path at execution time), queryable manifest + condition-coverage gap report, `tests/fixtures/README.md` license/consent, external-dir + committed-manifest pattern [Wave 2]
-- [ ] 01-04-PLAN.md — Deterministic synthetic generators: seeded score-stream (ping-pong/tie/dropout/recovery) + feed-death timelines for hardware-free unit testing of scorer/FSM/watchdog [Wave 2]
+- [x] 01-04-PLAN.md — Deterministic synthetic generators: seeded score-stream (ping-pong/tie/dropout/recovery) + feed-death timelines for hardware-free unit testing of scorer/FSM/watchdog [Wave 2]
 
 ### Phase 2: Framing Scorer (pure logic)
 **Goal**: A pure, I/O-free framing scorer turns per-detection signals into a smoothed, resolution-independent per-camera score that already encodes the domain's hardest framing decisions (zone-gating, size target-band, lead-room, coast/TTL, confidence normalization), provably correct on synthetic detection sequences before any detector is wired in.
@@ -119,7 +119,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation, Config & Curated Clip Set | 3/4 | In Progress|  |
+| 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
 | 2. Framing Scorer (pure logic) | 0/4 | Not started | - |
 | 3. Decision Engine FSM | 0/4 | Not started | - |
 | 4. YOLO + Per-Camera Tracking on Clips | 0/4 | Not started | - |

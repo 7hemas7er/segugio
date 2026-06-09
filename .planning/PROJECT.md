@@ -12,14 +12,13 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 
 ### Validated
 
-(Nessuno ancora — si valida costruendo e provando)
+- [x] Framing scorer: score normalizzato (centratura + dimensione + confidence) resolution-independent, con smoothing EMA per camera — *validato in Phase 2 (FRM-01..07): scorer puro e I/O-free, zone-gating, lead-room, coast/TTL, conf-norm per camera; 124 test verdi su sequenze sintetiche, copertura framing 99%.*
 
 ### Active
 
 <!-- Milestone v1: software completo su dati sintetici (Fasi 0-4). Testabile senza hardware. -->
 
 - [ ] Configurazione centrale YAML (numero camere, zone del campo, soglie di switching, alpha EMA, hysteresis_margin, min_dwell, debounce_N, cooldown, watchdog_timeout) con validazione
-- [ ] Framing scorer: score normalizzato (centratura + dimensione + confidence) resolution-independent, con smoothing EMA per camera
 - [ ] Decision engine: macchina a stati (FSM) come unica fonte di verità su "quale camera è live", con isteresi + min_dwell + debounce + cooldown + feed-alive (mai doppio cut, mai flicker, mai cut su feed morto)
 - [ ] Integrazione modello YOLO **pre-addestrato** (path + indice classe da config, nessun training) su GPU CUDA, con **un tracker per camera** (persist=True), su video registrati come pseudo-camere
 - [ ] OBS controller via obs-websocket v5 (obsws-python): cut scena (SetCurrentProgramScene), PIP/multi-view (SetSceneItemTransform + SetSceneItemEnabled con sceneItemId cachato), testi (SetInputSettings), reconnect, EventClient
@@ -96,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-09 after initialization*
+*Last updated: 2026-06-09 — Phase 2 complete (framing scorer, pure logic). Next: Phase 3 — Decision Engine FSM.*

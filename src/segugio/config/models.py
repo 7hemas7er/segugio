@@ -29,6 +29,7 @@ from pydantic import (
     model_validator,
 )
 
+from ..framing.params import ScorerParams
 from .discipline import FieldProfile
 
 
@@ -116,6 +117,7 @@ class Config(BaseModel):
     framing_weights: dict[Role, dict[str, float]]
     thresholds: Thresholds = Field(default_factory=Thresholds)
     model: ModelConfig = Field(default_factory=ModelConfig)
+    scoring: ScorerParams = Field(default_factory=ScorerParams)
 
     @model_validator(mode="after")
     def _zones_are_weighted(self) -> "Config":

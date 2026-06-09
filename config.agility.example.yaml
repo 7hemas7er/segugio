@@ -68,6 +68,32 @@ thresholds:
   watchdog_timeout: 0.8
   track_buffer: 60
 
+# ---- framing-scorer tuning seeds (the per-camera scorer params) ------------ #
+# Values are starting points (tuned on real footage in later phases); the schema
+# and bounds are what's locked here. w_c+w_s+w_conf must sum to 1 (centeredness
+# dominant). This block is identical across disc_dog/agility configs — only
+# field.sport and framing_weights differ between the two.
+scoring:
+  sigma_c: 0.25              # Gaussian centeredness falloff (forgiveness)
+  ideal_size: 0.30          # ideal apparent scale sqrt(w*h) (~30% of frame)
+  sigma_s: 0.18             # size-band tolerance (non-monotonic peak at ideal_size)
+  w_c: 0.5                  # centeredness weight (dominant — framing correctness)
+  w_s: 0.3                  # size weight (secondary preference)
+  w_conf: 0.2               # normalized-confidence weight (low tiebreaker)
+  lead_max: 0.25            # clamp so a fast dog can't push the ideal off-frame
+  v_deadzone: 0.005         # below this speed → no lead (resting dog stays centered)
+  ttl_seconds: 0.4          # short blur-gap coast window (range 0.3–0.7)
+  beta: 0.05                # conf-norm EMA adaptation (slower than score alpha)
+  z_clip: 2.0               # clip the conf z-score to ±2σ
+  warmup: 10                # passthrough samples before normalizing confidence
+  conf_floor: 0.25          # plausibility confidence floor (recall gate)
+  min_area: 0.0004          # noise floor (keep LOW — distant dogs are small)
+  aspect_lo: 0.3            # implausible-aspect lower bound (shadow streak guard)
+  aspect_hi: 3.5            # implausible-aspect upper bound
+  out_of_bounds_factor: 0.15 # multiply (NOT zero) when the dog is outside all zones
+  vel_window: 3             # K-sample finite-difference velocity window
+  eps: 1e-6                 # sqrt(var + eps) divisor floor (never hardcoded)
+
 # ---- YOLO model ------------------------------------------------------------ #
 model:
   path: yolo26s.pt

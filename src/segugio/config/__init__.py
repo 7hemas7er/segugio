@@ -6,6 +6,7 @@ load-bearing public surface (``Config``, ``load_config``, ``Role``); the full sc
 discipline discriminated union in ``.discipline``. Heavy-import-free by design.
 """
 
+from ..framing.params import ScorerParams
 from .discipline import AgilityProfile, DiscDogProfile, FieldProfile, FramingDefaults
 from .loader import load_config
 from .models import Camera, Config, ModelConfig, Role, Thresholds, Zone
@@ -18,6 +19,7 @@ __all__ = [
     "Zone",
     "ModelConfig",
     "Thresholds",
+    "ScorerParams",
     "FieldProfile",
     "DiscDogProfile",
     "AgilityProfile",

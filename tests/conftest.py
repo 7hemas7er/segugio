@@ -114,3 +114,15 @@ _VALID_CONFIG: dict = {
 def valid_config_dict() -> dict:
     """A minimal well-formed disc_dog config dict (deep-copied so tests can mutate)."""
     return copy.deepcopy(_VALID_CONFIG)
+
+
+@pytest.fixture
+def scorer_params():
+    """Seeded ``ScorerParams`` defaults the FRM tests score against (incl. ``eps``).
+
+    Imported inside the fixture body to keep this conftest light; ``ScorerParams()``
+    validates all seeds (and the w_c+w_s+w_conf==1 invariant) at construction.
+    """
+    from segugio.config import ScorerParams
+
+    return ScorerParams()

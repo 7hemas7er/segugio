@@ -47,13 +47,13 @@ Plans:
   3. During a synthetic short detection dropout (blur burst), the score coasts (TTL hold) instead of collapsing to zero; once TTL expires the subject is marked lost
   4. The ideal framing target shifts toward the dog's motion direction (lead-room), and per-camera confidence normalization prevents a uniformly brighter camera from winning on confidence alone
   5. The entire scorer module performs no I/O and its full behavior is exercised by unit tests on synthetic detection sequences (FRM-07)
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 02-01 · Wave 2: 02-02 · Wave 3: 02-03 · Wave 4: 02-04)
 
 Plans:
-- [ ] 02-01: Base score (centeredness + size target-band + confidence) + per-camera EMA smoothing
-- [ ] 02-02: Zone-gating via `framing_weights[role][zone]` multiplier + lead-room (velocity-biased target)
-- [ ] 02-03: Coast/TTL on detection dropout + per-camera confidence normalization + shadow-FP guard
-- [ ] 02-04: Unit-test suite over synthetic detection sequences proving purity and all behaviors
+- [ ] 02-01-PLAN.md — Substrate: frozen DetectionSignal/CameraScore/ScorerStatus, pure term functions, additive ScorerParams config sub-model, NEW detection_stream generator, Wave-0 test scaffold; FRM-01 base + shadow guard green [Wave 1]
+- [ ] 02-02-PLAN.md — CameraScorer present-detection path: base score + EMA + zone-gating + lead-room + per-camera conf-normalization (FRM-02/03/04/06) [Wave 2]
+- [ ] 02-03-PLAN.md — Coast/TTL dropout path (hold-then-lost, never collapse to 0) + MultiCamScorer fan-out (FRM-05) [Wave 3]
+- [ ] 02-04-PLAN.md — Purity/determinism gate + lazy-import-boundary extension + coverage (FRM-07) [Wave 4]
 
 ### Phase 3: Decision Engine FSM
 **Goal**: A `transitions`-based finite state machine becomes the sole authority on which camera is live — consuming per-camera scores and feed-liveness events to emit guarded, jitter-free switching decisions that never double-cut, never flicker, never select a dead feed, hold through climaxes and expected occlusions, and support manual override with automatic resume.

@@ -305,3 +305,75 @@ def test_resolve_clip_path_rejects_traversal(tmp_path: Path) -> None:
     fixtures_root.mkdir()
     with pytest.raises(ValueError):
         fx.resolve_clip_path("../../etc/passwd", fixtures_root=fixtures_root)
+
+
+# --------------------------------------------------------------------------- #
+# Task 2 — README (license/consent), example manifest, gitignore policy proof
+# --------------------------------------------------------------------------- #
+
+_FIXTURES_DIR = _REPO_ROOT / "tests" / "fixtures"
+_README = _FIXTURES_DIR / "README.md"
+_EXAMPLE_MANIFEST = _FIXTURES_DIR / "clip_manifest.example.yaml"
+
+
+def test_fixtures_readme_exists_and_documents_license() -> None:
+    assert _README.exists(), f"missing {_README}"
+    text = _README.read_text(encoding="utf-8")
+    assert "## License" in text
+    # Documents the ingest procedure referencing the cataloguer.
+    assert "tools/catalog_clips.py" in text
+
+
+def test_fixtures_readme_has_no_hardcoded_absolute_path() -> None:
+    # The footage path is supplied at execution time — no absolute path (POSIX `/...`
+    # or Windows `X:\...`) may be baked into the README.
+    text = _README.read_text(encoding="utf-8")
+    for line in text.splitlines():
+        assert not line.startswith("/"), f"absolute POSIX path in README: {line!r}"
+        # crude Windows drive-letter check: a single letter + ':\'
+        assert not (len(line) >= 3 and line[0].isalpha() and line[1] == ":" and line[2] == "\\"), (
+            f"absolute Windows path in README: {line!r}"
+        )
+
+
+def test_example_manifest_parses_and_spans_both_disciplines() -> None:
+    assert _EXAMPLE_MANIFEST.exists(), f"missing {_EXAMPLE_MANIFEST}"
+    manifest = fx.load_manifest(_EXAMPLE_MANIFEST)
+    clips = manifest["clips"]
+    assert len(clips) >= 2
+    disciplines = {c["discipline"] for c in clips}
+    assert disciplines == {"disc_dog", "agility"}, disciplines
+
+
+def test_example_manifest_works_with_query_api() -> None:
+    manifest = fx.load_manifest(_EXAMPLE_MANIFEST)
+    # select_clips filters by discipline + conditions.
+    agility_tunnel = fx.select_clips(
+        manifest, discipline="agility", conditions=["tunnel_contact_occlusion"]
+    )
+    assert len(agility_tunnel) >= 1
+    # coverage_report yields the full grid with at least one covered + one missing cell.
+    report = fx.coverage_report(manifest)
+    flat = [report[d][c] for d in fx.DISCIPLINES for c in fx.CONDITIONS]
+    assert any(flat) and not all(flat)
+
+
+def _git_check_ignore(rel_path: str) -> bool:
+    """True if git ignores ``rel_path`` (run from the repo root)."""
+    result = subprocess.run(
+        ["git", "check-ignore", rel_path],
+        cwd=str(_REPO_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    # exit 0 + the path echoed -> ignored; exit 1 + empty -> not ignored.
+    return result.returncode == 0 and result.stdout.strip() != ""
+
+
+def test_gitignore_ignores_binaries_but_keeps_readme_and_manifest() -> None:
+    # Binaries under the fixtures tree are ignored (external-dir pattern, Pitfall 4)...
+    assert _git_check_ignore("tests/fixtures/disc_dog/sample.mp4")
+    assert _git_check_ignore("tests/fixtures/agility/run.mov")
+    # ...while the README and the committed manifest are NOT ignored.
+    assert not _git_check_ignore("tests/fixtures/README.md")
+    assert not _git_check_ignore("tests/fixtures/clip_manifest.yaml")

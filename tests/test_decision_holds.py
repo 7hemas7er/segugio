@@ -94,12 +94,16 @@ def test_action_hold_suppresses_and_caps(thresholds) -> None:
     held = HoldInput(action=True)
     cut_while_held = False
     cut_after_cap = None
+    suppressed_ticks = 0
     for i in range(cap + 10):
         d = eng.tick(
             [_sc(_CAM_A, 0.20, t), _sc(_CAM_B, 0.95, t)],  # cam_b fully qualifies
             alive={_CAM_A: True, _CAM_B: True},
             holds=held,
         )
+        if d.target == _CAM_A and cut_after_cap is None:
+            # Still held on the incumbent → this tick was suppressed by the action hold.
+            suppressed_ticks += 1
         if i < cap and d.target == _CAM_B:
             cut_while_held = True
         if d.target == _CAM_B and cut_after_cap is None:
@@ -108,8 +112,16 @@ def test_action_hold_suppresses_and_caps(thresholds) -> None:
 
     assert not cut_while_held, "a cut fired while the action hold was active (before the cap)"
     assert cut_after_cap is not None, "the hold never force-released at the cap (stuck-hold freeze)"
-    assert cut_after_cap >= cap - 1, (
-        f"cut at i={cut_after_cap} fired before the action cap {cap} (cap not enforced)"
+    # WR-03: the cap means EXACTLY `cap` suppressed ticks — symmetric with the occlusion path
+    # (which suppresses for exactly its bound). `action_hold_age` reaches 1 on the first held
+    # tick, so the inclusive comparator keeps the hold active for ages 1..cap (cap ticks) and
+    # force-releases the cut on the very next tick (i == cap). Assert that exactly.
+    assert suppressed_ticks == cap, (
+        f"action hold suppressed {suppressed_ticks} ticks, expected exactly cap={cap} (WR-03)"
+    )
+    assert cut_after_cap == cap, (
+        f"cut fired at i={cut_after_cap}, expected exactly i==cap={cap} (off-by-one in the "
+        f"action-hold cap vs the occlusion path — WR-03)"
     )
 
 

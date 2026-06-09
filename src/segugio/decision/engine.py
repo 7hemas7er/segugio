@@ -293,11 +293,21 @@ class DecisionEngine:
     def holding(self) -> bool:
         """True iff an action or occlusion hold is ACTIVE this tick (DEC-03/DEC-04).
 
-        Action-active = the action input is set AND its age has not reached the max-cap
+        Action-active = the action input is set AND its age has not exceeded the max-cap
         (force-release at the cap). Occlusion-active = its countdown has not yet reached 0.
         Wired as ``unless=["holding"]`` on the normal ``auto_switch`` ONLY — NEVER on the
         ``feed_emergency`` edges (death wins over hold). Reads the per-tick scratch advanced
         at the top of ``tick()``; a pure read (no mutation).
+
+        Boundary semantics (WR-03): ``action_hold_age`` is incremented to 1 at the top of
+        ``tick()`` on the FIRST held tick, so the inclusive ``<= cap`` test keeps the hold
+        active for ages ``1..cap`` — exactly ``cap`` suppressed ticks, force-releasing the cut
+        on the tick age reaches ``cap + 1``. This is INTENTIONALLY symmetric with the occlusion
+        path: the occlusion countdown is armed to ``bound`` on its rising edge and the
+        ``remaining > 0`` test suppresses for exactly ``bound`` ticks. Both holds therefore
+        suppress for precisely their configured count (verified empirically); the inclusive
+        comparator here is required for that symmetry — a strict ``<`` would cap the action
+        hold one tick SHORT of the occlusion path.
         """
         action_active = self._action_held_this_tick and (
             self.action_hold_age <= self.action_hold_cap_ticks

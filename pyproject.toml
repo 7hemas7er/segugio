@@ -40,3 +40,6 @@ where = ["src"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "gpu: requires CUDA GPU + ultralytics/torch + yolo26s.pt weights; skipped when absent (D-09)",
+]

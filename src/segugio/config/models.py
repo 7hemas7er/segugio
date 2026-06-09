@@ -30,6 +30,7 @@ from pydantic import (
 )
 
 from ..framing.params import ScorerParams
+from ..tracking.params import TrackingParams
 from .discipline import FieldProfile
 
 
@@ -118,6 +119,7 @@ class Config(BaseModel):
     thresholds: Thresholds = Field(default_factory=Thresholds)
     model: ModelConfig = Field(default_factory=ModelConfig)
     scoring: ScorerParams = Field(default_factory=ScorerParams)
+    tracking: TrackingParams = Field(default_factory=TrackingParams)
 
     @model_validator(mode="after")
     def _zones_are_weighted(self) -> "Config":

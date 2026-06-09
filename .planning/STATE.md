@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-06-09T23:13:17.575Z"
+last_updated: "2026-06-09T23:20:36.126Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 14
   percent: 60
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 04 (yolo-per-camera-tracking-on-recorded-clips) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-09
 
-Progress: [████████░░] 81%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [████████░░] 81%
 | Phase 03 P03 | 7min | 2 tasks tasks | 3 files files |
 | Phase 03 P04 | 5min | 2 tasks tasks | 2 files files |
 | Phase 04 P01 | 4min | 2 tasks | 11 files |
+| Phase 04 P02 | 6min | 2 tasks tasks | 4 files files |
 
 ## Accumulated Context
 
@@ -99,6 +100,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 03 / 03-04]: DEC-07 determinism gate — same seed + scenario → byte-identical list[Decision] across all four SCENARIOS over the FULL tick(scores, alive, holds, override) contract; fresh-engine _run driver + == over frozen output (FRM-07 analogue)
 - [Phase ?]: [Phase 03 / 03-04]: two reusable hard-safety-invariant helpers (assert_no_decision_outside_guard DEC-01, assert_never_airs_dead_feed DEC-06) over (decision, alive_map) pairs, applied in all three combined scenarios (force→release→resume, hold-through-occlusion→release, live-feed-death-mid-hold death-wins); segugio.decision 100% coverage
 - [Phase ?]: [Phase 04 / 04-01]: tracking substrate — lazy-import segugio.tracking surface (pure TrackingParams + signals_from_boxes, cv2 forced absent in smoke test); TrackingParams additive sub-model (TRK-04/05 seeds) wired into Config.tracking; signals_from_boxes PURE TRK-03 mapper (Results-row -> frozen DetectionSignal, float/int cast, ids=None coast); multi_track_stream deterministic N-track substrate + linear_left crossing path for 04-02; gpu marker + tracking_params/crop_geometry fixtures; 178 tests green (+11, zero regression)
+- [Phase ?]: [Phase 04 / 04-02]: subject-selection brain — PURE CompetitorLock (TRK-04, zone-gate AND motion-energy acquire D-03, sticky continuity D-04, per-camera independence D-05, NaN fail-safe) + PURE PlausibilityGate (TRK-05, inter-frame teleport/size-jump reject -> None coast D-06 without poisoning prev, distinct from Phase-2 intra-frame guard D-07, reset() for re-acquire); both stdlib-only/clock-free/rng-free, unit-tested on multi_track_stream; 192 tests green (+14, zero regression)
 
 ### Pending Todos
 
@@ -119,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T23:13:17.559Z
+Last session: 2026-06-09T23:20:14.936Z
 Stopped at: Completed 04-01-PLAN.md
 Resume file: None

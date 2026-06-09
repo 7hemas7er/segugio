@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-06-09T20:12:51.899Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-06-09T20:24:45.862Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 11
+  percent: 40
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 03 (decision-engine-fsm) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-09
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [████████░░] 83%
 | Phase 02 P04 | 6min | 2 tasks tasks | 2 files files |
 | Phase 03 P01 | 6min | 3 tasks tasks | 16 files files |
 | Phase 03 P02 | 9min | 3 tasks | 4 files |
+| Phase 03 P03 | 7min | 2 tasks tasks | 3 files files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 03 / 03-02]: feed-death emergency cut (DEC-06) — two feed_emergency guarded transitions (best-alive/SAFE) fired ABOVE auto_switch, bypass dwell/cooldown then re-protect the new target (D-01); hard invariant alive[target] or SAFE every tick
 - [Phase ?]: [Phase 03 / 03-02]: action+occlusion holds (DEC-03/04) — holding() unless on auto_switch ONLY (death wins over hold); occlusion bound=ticks_from_seconds(hold_length_s,fps); EVERY hold mandatory tick max-capped (force-release/auto-expiry)
 - [Phase ?]: [Phase 03 / 03-02]: deterministic tiebreaker (DEC-05) — incumbent-wins inside the hysteresis dead-band; no-incumbent → first config-declared camera (strict-max over cam_ids, scores-order independent); no role-priority
+- [Phase ?]: [Phase 03 / 03-03]: OVERRIDE mode (RBT-03) — force/release guarded transitions as the TOP-priority tier above feed-death emergency; sticky override_cam (operator intent) distinct from the aired target (D-03)
+- [Phase ?]: [Phase 03 / 03-03]: force is immediate (bypasses dwell/debounce/cooldown, D-05); forced-but-dead airs SAFE/best-live never the dead feed and snaps back on recovery while staying in OVERRIDE (D-03, reuses DEC-06 selection)
+- [Phase ?]: [Phase 03 / 03-03]: release is manual-only (D-04, no auto-expire) and auto-resume reuses the normal auto_switch guard — zeroes the streak, no argmax snap, full hysteresis+min_dwell qualification (D-06, Pitfall 6)
 
 ### Pending Todos
 
@@ -109,6 +113,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T20:12:51.868Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-06-09T20:24:45.829Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None

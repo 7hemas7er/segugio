@@ -298,6 +298,7 @@ def run_clip_eval(clip_path, cameras, crops, model_cfg, params, out_video_path):
     frame_iter = source.frames()
     writer = None
     reid_checked = False
+    dog_idx_resolved: set = set()  # cam_ids whose dog index has been name-resolved (once each)
     try:
         for tick, frame_crops in frame_iter:
             for cam in cams:
@@ -305,15 +306,26 @@ def run_clip_eval(clip_path, cameras, crops, model_cfg, params, out_video_path):
                 crop = frame_crops.get(cam_id)
                 tracker = trackers[cam_id]
 
-                # Resolve the dog index BY NAME + run the HARD native-ReID gate ONCE, before
-                # the real processing — after the first crop is decoded (predictor exists).
-                if not reid_checked:
+                # Resolve the dog index BY NAME once per camera, BEFORE its first inference.
+                # Kept independent of reid_checked: the native-ReID gate now flips reid_checked
+                # as soon as ONE camera runs a real warmup, so coupling resolution to it would
+                # leave the other cameras (and any camera whose first crops were all empty)
+                # filtering on the unverified configured index forever (CR-02 fallout).
+                if cam_id not in dog_idx_resolved:
                     tracker.dog_idx = resolve_dog_index(tracker.model, model_cfg.class_index)
+                    dog_idx_resolved.add(cam_id)
 
                 results = tracker.track(crop)  # None on a blank/decode-failure frame → coast
 
-                if not reid_checked:
+                # Run the HARD TRK-02 gate ONLY after a warmup that ACTUALLY performed
+                # inference. tracker.track() returns None WITHOUT calling model.track() on a
+                # blank/None crop (detector.py), so model.predictor is still None and the gate
+                # would fire for the wrong reason (an empty warmup), not the silent-fallback it
+                # detects. Guard on results is not None and mark reid_checked only here so the
+                # gate is never skipped after an all-empty first tick (CR-02 / WR-01).
+                if not reid_checked and results is not None:
                     assert_native_reid_engaged(tracker.model)  # RAISES on cls fallback (TRK-02)
+                    reid_checked = True
 
                 # Edge → signals → lock → gate → the per-camera DetectionSignal | None.
                 xywhn, ids, confs = _arrays_from_results(results)
@@ -333,8 +345,9 @@ def run_clip_eval(clip_path, cameras, crops, model_cfg, params, out_video_path):
                         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
                         writer = cv2.VideoWriter(str(out_video_path), fourcc, 30.0, (fw, fh))
                     writer.write(annotated)
-            # The native-ReID gate has now run for every camera's first frame.
-            reid_checked = True
+            # NOTE: reid_checked is driven SOLELY by the gate actually running on a real
+            # inference (the `results is not None` block above) — never set unconditionally
+            # here, so an all-empty first tick cannot silently bypass the TRK-02 gate (WR-01).
     finally:
         frame_iter.close()
         if writer is not None:

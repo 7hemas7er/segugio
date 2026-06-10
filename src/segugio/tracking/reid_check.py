@@ -48,7 +48,16 @@ def assert_native_reid_engaged(model) -> None:
         RuntimeError: if no trackers exist, if ``with_reid`` is off, if native ReID fell back
             to ``yolo26n-cls.pt`` (encoder is a ``ReID``), or if the forward hook is missing.
     """
-    predictor = model.predictor  # exists only after the first .track() call
+    predictor = getattr(model, "predictor", None)  # exists only after a real .track() call
+    if predictor is None:
+        # The caller must run the gate only after a warmup that ACTUALLY performed inference
+        # (eval.py guards on `results is not None`). A None predictor means model.track() never
+        # ran (e.g. an empty/None warmup crop returned None WITHOUT inference) — fail with the
+        # real cause, not a misleading "no trackers" / AttributeError downstream (CR-02).
+        raise RuntimeError(
+            "model.predictor is None — assert_native_reid_engaged was called before any real "
+            ".track() inference ran (an empty/None warmup crop performs no inference)."
+        )
     trackers = getattr(predictor, "trackers", None)
     if not trackers:
         raise RuntimeError(

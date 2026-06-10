@@ -1,7 +1,8 @@
 ---
 phase: 04-yolo-per-camera-tracking-on-recorded-clips
 verified: 2026-06-10T10:00:00Z
-status: human_needed
+status: passed
+gpu_uat: "executed 2026-06-10 on RTX 4000 Ada / CUDA 13.3 — all 3 human_verification items PASS (see 04-HUMAN-UAT.md); one real bug found+fixed (tracker yaml resolution, TRK-01/TRK-02 were dead on the real path)"
 score: 5/5
 overrides_applied: 0
 human_verification:
@@ -20,7 +21,7 @@ human_verification:
 
 **Phase Goal:** A pre-trained YOLO model running on CUDA, with one BoT-SORT tracker per camera using native-feature ReID, produces normalized per-detection signals and a robustly selected competitor track — proven against the curated multi-condition clips so subject selection (the dominant project risk) is validated in software, feeding real signals into the Phase 2 scorer shape.
 **Verified:** 2026-06-10T10:00:00Z
-**Status:** human_needed
+**Status:** passed (GPU UAT executed 2026-06-10 on RTX 4000 Ada — all 3 human items pass; tracker-yaml bug found+fixed)
 **Re-verification:** No — initial verification
 
 ---

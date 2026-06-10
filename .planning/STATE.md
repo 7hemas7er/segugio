@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-06-09T23:41:03.601Z"
+status: ready_to_plan
+stopped_at: Phase 04 complete (4/4) — ready to discuss Phase 5
+last_updated: 2026-06-10T06:25:18.062Z
 last_activity: 2026-06-09
 progress:
   total_phases: 5
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 04 — yolo-per-camera-tracking-on-recorded-clips
+**Current focus:** Phase 5 — integration — ndi mock, orchestrator, obs & score ui
 
 ## Current Position
 
-Phase: 04 (yolo-per-camera-tracking-on-recorded-clips) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-06-09
+Phase: 5
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-10
 
 Progress: [██████████] 100%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 12
+- Total plans completed: 16
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: [██████████] 100%
 | 01 | 4 | - | - |
 | 02 | 4 | - | - |
 | 03 | 4 | - | - |
+| 04 | 4 | - | - |
 
 **Recent Trend:**
 

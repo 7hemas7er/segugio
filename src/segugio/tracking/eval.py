@@ -289,6 +289,9 @@ def run_clip_eval(clip_path, cameras, crops, model_cfg, params, out_video_path):
     locks: dict = {}
     gates: dict = {}
     streams: "dict[str, list[DetectionSignal | None]]" = {}
+    # Per-camera previously-selected locked track_id — drives a gate reset ONLY on a genuine
+    # re-acquire (the locked identity actually changed), never on a transient coast (CR-01).
+    last_selected_id: "dict[str, int | None]" = {cam.id: None for cam in cams}
     for cam in cams:
         trackers[cam.id] = PerCameraTracker(model_cfg.path, model_cfg.class_index, "botsort_dog.yaml")
         locks[cam.id] = CompetitorLock(cam, params)
@@ -330,9 +333,17 @@ def run_clip_eval(clip_path, cameras, crops, model_cfg, params, out_video_path):
                 # Edge → signals → lock → gate → the per-camera DetectionSignal | None.
                 xywhn, ids, confs = _arrays_from_results(results)
                 candidates = signals_from_boxes(xywhn, ids, confs, tick, cam_id)
+                prev_sel_id = last_selected_id[cam_id]
                 selected = locks[cam_id].select(candidates, tick)
-                if selected is None:
+                cur_sel_id = selected.track_id if selected is not None else None
+                # Reset the continuity chain ONLY on a genuine re-acquire — the locked identity
+                # actually changed to a NEW track. A transient coast (`select` → None because
+                # nothing is in-field this single tick) must NOT reset: it flows through
+                # check(None) → None with prev intact, so a swapped/teleported box reusing the
+                # locked id on the NEXT real det is still rejected (CR-01 / TRK-05 teleport guard).
+                if cur_sel_id is not None and cur_sel_id != prev_sel_id:
                     gates[cam_id].reset()  # genuine loss → fresh continuity chain on re-acquire
+                last_selected_id[cam_id] = cur_sel_id
                 signal = gates[cam_id].check(selected)
                 streams[cam_id].append(signal)
 

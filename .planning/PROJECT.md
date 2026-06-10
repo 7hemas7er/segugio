@@ -14,13 +14,13 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 
 - [x] Framing scorer: score normalizzato (centratura + dimensione + confidence) resolution-independent, con smoothing EMA per camera — *validato in Phase 2 (FRM-01..07): scorer puro e I/O-free, zone-gating, lead-room, coast/TTL, conf-norm per camera; 124 test verdi su sequenze sintetiche, copertura framing 99%.*
 - [x] Decision engine: FSM (`transitions`) come unica fonte di verità sulla camera live, con isteresi a due soglie + min_dwell + debounce + cooldown, feed-death emergency cut, action/occlusion hold con max-cap obbligatorio, tiebreaker deterministico, override manuale + auto-resume — *validato in Phase 3 (DEC-01..07, RBT-03): switch solo da transizioni guardate, zero cut spuri su ping-pong/tie, mai aria su feed morto, determinismo byte-identico; 167 test verdi su stream sintetici score + feed-death, copertura `segugio.decision` 100%; blocker CR-01 (cooldown spurio in uscita da SAFE) trovato in code review e corretto con test di regressione.*
+- [x] YOLO + tracking per camera: modello pre-addestrato (path/classe da config) con **un tracker per camera** (`persist=True`, BoT-SORT ReID nativo), mapper segnali normalizzati, competitor-lock e plausibility gate su clip registrate come pseudo-camere — *validato in software in Phase 4 (TRK-01..05): logica pura (`signals_from_boxes`, `CompetitorLock` zona∧moto + sticky, `PlausibilityGate` teleport/size-jump→coast) unit-testata su stream multi-track sintetici; `PerCameraTracker` (cane risolto per nome da `model.names`, `end2end=False`) + hard gate ReID nativo (raise sul fallback silenzioso `yolo26n-cls.pt`) con boundary lazy-import; 208 test verdi, 3 GPU-gated SKIP. 2 blocker da code review (reset del gate su ogni coast; gate ReID su crop vuoto) corretti. Verifica reale-YOLO/clip rimandata alla CUDA box (`04-HUMAN-UAT.md`), per design "software-complete su dati sintetici".*
 
 ### Active
 
 <!-- Milestone v1: software completo su dati sintetici (Fasi 0-4). Testabile senza hardware. -->
 
 - [ ] Configurazione centrale YAML (numero camere, zone del campo, soglie di switching, alpha EMA, hysteresis_margin, min_dwell, debounce_N, cooldown, watchdog_timeout) con validazione
-- [ ] Integrazione modello YOLO **pre-addestrato** (path + indice classe da config, nessun training) su GPU CUDA, con **un tracker per camera** (persist=True), su video registrati come pseudo-camere
 - [ ] OBS controller via obs-websocket v5 (obsws-python): cut scena (SetCurrentProgramScene), PIP/multi-view (SetSceneItemTransform + SetSceneItemEnabled con sceneItemId cachato), testi (SetInputSettings), reconnect, EventClient
 - [ ] Score manager: **inserimento manuale** dei punteggi (UI/CLI) → scrittura atomica su file letto da una text source OBS "read from file"
 - [ ] NDI ingest via cyndilib (FrameSync → numpy BGR), in parallelo a OBS, + **sorgente NDI sintetica/mock** per test senza telefoni
@@ -94,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-09 — Phase 3 complete (decision engine FSM: hysteresis/dwell/debounce/cooldown, feed-death cut, holds, tiebreaker, override + auto-resume). Next: Phase 4 — YOLO + per-camera tracking on recorded clips.*
+*Last updated: 2026-06-10 — Phase 4 complete (YOLO + per-camera tracking on recorded clips: PerCameraTracker + hard gate ReID nativo, mapper segnali puro, competitor-lock + plausibility gate; 208 test verdi, verifica GPU/reale tracciata in 04-HUMAN-UAT.md). Next: Phase 5 — Integration (NDI mock, orchestrator, OBS controller, score UI manuale).*

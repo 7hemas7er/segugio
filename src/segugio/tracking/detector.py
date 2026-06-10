@@ -31,6 +31,7 @@ module top, so ``import segugio.tracking.detector`` succeeds with the heavy stac
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -39,6 +40,46 @@ if TYPE_CHECKING:  # type-only — keeps heavy deps off the runtime import path
     import numpy as np
 
 __all__ = ["PerCameraTracker", "resolve_dog_index"]
+
+
+def _resolve_tracker_yaml(tracker_yaml) -> str:
+    """Resolve a BoT-SORT tracker yaml to an absolute path, failing loudly if absent.
+
+    Ultralytics' ``check_yaml`` only resolves its built-in tracker names (``botsort.yaml`` /
+    ``bytetrack.yaml``) or a path it can find from the CWD — it does NOT search Segugio's
+    top-level ``trackers/`` dir. Passing the bare name ``"botsort_dog.yaml"`` therefore made
+    ``.track()`` raise ``'botsort_dog.yaml' does not exist``, which the per-frame fail-safe
+    silently degraded to coast on EVERY frame (so ``predictor.trackers`` was never built and
+    native ReID never engaged — TRK-01/TRK-02 dead on the real path). Resolving to an absolute
+    path here and validating at construction makes a missing/misnamed tracker config fail
+    LOUDLY at startup instead of as a silent perpetual coast.
+
+    Resolution order:
+      1. the path as given (absolute, or relative to the CWD) if it is a file;
+      2. Segugio's repo-level ``trackers/<name>`` dir, located relative to this package;
+      3. otherwise raise ``FileNotFoundError`` listing every location searched.
+
+    Args:
+        tracker_yaml: a bare name (``"botsort_dog.yaml"``), a CWD-relative path, or an
+            absolute path to the BoT-SORT override yaml.
+
+    Returns:
+        An absolute filesystem path (str) that Ultralytics ``.track(tracker=...)`` can load.
+
+    Raises:
+        FileNotFoundError: if the yaml is not found at any candidate location.
+    """
+    given = Path(tracker_yaml)
+    if given.is_file():
+        return str(given.resolve())
+    # src-layout: detector.py → tracking → segugio → src → <repo root> (parents[3]).
+    repo_trackers = Path(__file__).resolve().parents[3] / "trackers" / given.name
+    if repo_trackers.is_file():
+        return str(repo_trackers)
+    raise FileNotFoundError(
+        f"tracker yaml {tracker_yaml!r} not found — looked at {given.resolve()} and "
+        f"{repo_trackers}. Pass an absolute path or place it in the repo trackers/ dir."
+    )
 
 
 def resolve_dog_index(model, configured_index: int) -> int:
@@ -93,14 +134,18 @@ class PerCameraTracker:
             model_path: path to the YOLO weights (e.g. ``ModelConfig.path`` → ``yolo26s.pt``).
             dog_idx: the dog class index, resolved BY NAME via :func:`resolve_dog_index`
                 (never hardcoded 16).
-            tracker_yaml: path to ``botsort_dog.yaml`` (a bare name resolvable by Ultralytics
-                ``check_yaml`` if it lives on the search path, or an absolute path).
+            tracker_yaml: ``botsort_dog.yaml`` as a bare name, CWD-relative, or absolute path.
+                Resolved to an absolute path via :func:`_resolve_tracker_yaml` and validated to
+                exist HERE — a missing/misnamed config fails loudly at construction rather than
+                degrading to a silent per-frame coast (Ultralytics ``check_yaml`` does NOT search
+                the repo ``trackers/`` dir, so the bare name alone does not resolve).
         """
         from ultralytics import YOLO  # lazy — heavy import INSIDE the constructor
 
+        # Resolve + validate BEFORE loading the model so a bad tracker path fails fast.
+        self.tracker_yaml = _resolve_tracker_yaml(tracker_yaml)
         self.model = YOLO(str(model_path))  # own predictor.trackers state per camera
         self.dog_idx = int(dog_idx)
-        self.tracker_yaml = str(tracker_yaml)
 
     def track(self, frame: "np.ndarray"):
         """Run one persistent track step on a single BGR crop for THIS camera.

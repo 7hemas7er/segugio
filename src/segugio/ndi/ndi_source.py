@@ -31,6 +31,7 @@ the Windows box with a pull-the-cable test (load-bearing for RBT-01 liveness).
 from __future__ import annotations
 
 import threading
+import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # type-only — keeps numpy/cyndilib off the runtime import path
@@ -39,6 +40,13 @@ if TYPE_CHECKING:  # type-only — keeps numpy/cyndilib off the runtime import p
     from ..config.models import Camera
 
 __all__ = ["NdiFrameSource"]
+
+# Disconnected-branch sleep (CR-02): while the named source is absent / the receiver is not
+# connected, the loop sleeps this short interval instead of a bare ``continue``. A bare
+# continue pins a CPU core (busy-spin) per camera while a feed is down; ~50ms coasting costs
+# ~no CPU and is well inside the ~30Hz tick (the real near-zero-CPU figure is HARDWARE-verified
+# under @pytest.mark.ndi — this constant is the busy-spin FIX, not a tuned hardware value).
+_RECEIVER_DISCONNECTED_SLEEP_S = 0.05
 
 
 class NdiFrameSource:
@@ -109,26 +117,52 @@ class NdiFrameSource:
             source = self._resolve_source(finder, source_name)
             if source is not None:
                 receiver.set_source(source)
-            last_ts: float | None = None
-            while not self._stop.is_set():
-                if not receiver.is_connected():
-                    continue
-                receiver.frame_sync.capture_video()
-                # NDI-03: the first frames after set_source are often zero-resolution.
-                if min(video_frame.xres, video_frame.yres) != 0:
-                    ts = video_frame.get_timestamp_posix()  # RBT-01 NEW-frame substrate
-                    # Only a genuinely NEW frame advances liveness (Pitfall 1: a frozen
-                    # feed repeats its last frame for ~75 min with the same timestamp).
-                    if ts != last_ts:
-                        arr = video_frame.get_array().reshape(
-                            video_frame.yres, video_frame.xres, 4
-                        )
-                        bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
-                        self._publish(cam_id, bgr, ts)
-                        last_ts = ts
+            # The per-iteration loop body lives in _run_receiver, which takes every
+            # collaborator (finder/receiver/video_frame/cv2) as a PARAMETER. This is the
+            # headless seam: tests drive _run_receiver with pure fakes (no real cyndilib/cv2).
+            self._run_receiver(cam_id, source_name, finder, receiver, video_frame, cv2)
         finally:
             receiver.disconnect()
             finder.close()
+
+    def _run_receiver(self, cam_id, source_name, finder, receiver, video_frame, cv2) -> None:
+        """The supervised per-camera capture loop, driven by injected collaborators.
+
+        No heavy import lives here — ``cv2`` and the cyndilib objects are passed in by
+        :meth:`_receiver_loop` (which owns the lazy boundary). That makes this loop the seam a
+        headless test drives with pure fakes.
+
+        Disconnected branch (CR-02 fix): instead of a bare ``continue`` that busy-spins a CPU
+        core, the loop sleeps ``_RECEIVER_DISCONNECTED_SLEEP_S`` and then re-resolves the named
+        source — so a source absent at thread start (or one that dropped) is picked up and
+        reconnected WITHOUT a ``stop()``/``start()`` cycle (auto-reconnect). The real near-zero
+        CPU + live cyndilib reconnect are HARDWARE-verified (@pytest.mark.ndi); this code path
+        is the headless-provable logic.
+        """
+        last_ts: float | None = None
+        while not self._stop.is_set():
+            if not receiver.is_connected():
+                # CR-02: no busy-spin — coast a short interval (no CPU pin) ...
+                time.sleep(_RECEIVER_DISCONNECTED_SLEEP_S)
+                # ... then re-resolve a (possibly late-appearing) named source and reconnect
+                # without a stop()/start() cycle (auto-reconnect).
+                source = self._resolve_source(finder, source_name)
+                if source is not None:
+                    receiver.set_source(source)
+                continue
+            receiver.frame_sync.capture_video()
+            # NDI-03: the first frames after set_source are often zero-resolution.
+            if min(video_frame.xres, video_frame.yres) != 0:
+                ts = video_frame.get_timestamp_posix()  # RBT-01 NEW-frame substrate
+                # Only a genuinely NEW frame advances liveness (Pitfall 1: a frozen
+                # feed repeats its last frame for ~75 min with the same timestamp).
+                if ts != last_ts:
+                    arr = video_frame.get_array().reshape(
+                        video_frame.yres, video_frame.xres, 4
+                    )
+                    bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+                    self._publish(cam_id, bgr, ts)
+                    last_ts = ts
 
     @staticmethod
     def _resolve_source(finder, source_name: str):

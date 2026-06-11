@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 05 re-verified 5/5 headless (CR-01 closed) — awaiting hardware UAT (D-07)
-last_updated: "2026-06-11T14:10:00.000Z"
-last_activity: 2026-06-11 -- Phase 05 re-verification 5/5 (CR-01 startup fault-sink closed); 5 hardware items in 05-UAT.md
+stopped_at: Phase 05 UAT found 1 gap (no runnable orchestrator entry point) — 05-09 planned & verified, ready for --gaps-only
+last_updated: "2026-06-11T14:40:00.000Z"
+last_activity: 2026-06-11 -- Phase 05 UAT: blocking gap (no `python -m segugio` runner); 05-09 gap plan created + checked
 progress:
   total_phases: 5
   completed_phases: 4
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — VERIFIED 5/5 HEADLESS, AWAITING HARDWARE UAT
-Plan: 05-07 + 05-08 complete (gap-closure: CR-01 startup fault-sink, WR-01/02/04/09, CR-02)
-Status: Re-verification 5/5 (CR-01 closed). All headless truths pass (302 passed, 3 skipped). 5 hardware items deferred to D-07 in 05-UAT.md — run /gsd-verify-work 05 on the Windows/RTX box to close the phase.
-Last activity: 2026-06-11 -- Phase 05 re-verified 5/5; UAT persisted
+Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — HEADLESS 5/5; UAT FOUND 1 BLOCKING GAP (no runner)
+Plan: 05-07 + 05-08 complete (CR-01, WR-01/02/04/09, CR-02); 05-09 created+verified (runtime entry point), NOT yet executed
+Status: UAT (verify-work) surfaced a blocking prerequisite — the integrated orchestrator has no runnable entry point (no __main__/python -m segugio; from_config needs real source/obs/trackers injected by a caller that does not exist), so the D-07 hardware E2E (UAT Tests 1-4) cannot launch. 05-09 adds a runtime factory + __main__ + run doc (lazy-import boundary preserved, headless-tested). Next: /gsd-execute-phase 05 --gaps-only, then re-run /gsd-verify-work 05 on the Windows/RTX box.
+Last activity: 2026-06-11 -- Phase 05 UAT gap diagnosed; 05-09 fix plan ready
 
 Progress: [████████░░] 80% (4/5 phases verified-complete)
 

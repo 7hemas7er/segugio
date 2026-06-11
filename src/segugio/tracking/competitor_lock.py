@@ -107,6 +107,20 @@ class CompetitorLock:
         self.locked_id = best.track_id
         return best
 
+    def locked_motion_energy(self) -> float:
+        """Public read of the LOCKED subject's motion energy (D-08 action-hold seed).
+
+        Additive accessor (RESEARCH Open Q1 / Assumption A6): the orchestrator's action-hold
+        derivation thresholds this value to set ``HoldInput.action`` (a catch/jump in progress
+        → don't cut away). It ONLY READS the existing private ``_motion_energy`` for the current
+        ``locked_id`` — no logic change, byte-identical to the internal path on the same input
+        stream — and returns ``0.0`` when nothing is locked (``locked_id is None`` → no action
+        to hold through). Pure / clock-free / stdlib-only, preserving the TRK-04 boundary.
+        """
+        if self.locked_id is None:
+            return 0.0
+        return self._motion_energy(self.locked_id)
+
     # --- internals ---------------------------------------------------------- #
 
     def _update_history(self, candidates: "list[DetectionSignal]", tick: int) -> None:

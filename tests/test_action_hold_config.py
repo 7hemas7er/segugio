@@ -89,11 +89,11 @@ def test_obs_controller_interface_declared():
 # --- CompetitorLock public motion-energy accessor (RESEARCH Q1/A6) --------- #
 
 
-def _signal(track_id, cx, cy):
+def _signal(track_id, cx, cy, tick):
     from segugio.framing.signals import DetectionSignal
 
     return DetectionSignal(
-        cam_id="cam_l", track_id=track_id, cx=cx, cy=cy, w=0.1, h=0.1, conf=0.9
+        tick=tick, cam_id="cam_wide", track_id=track_id, cx=cx, cy=cy, w=0.1, h=0.1, conf=0.9
     )
 
 
@@ -115,7 +115,7 @@ def test_locked_motion_energy_matches_private(make_config, tracking_params):
     lock = CompetitorLock(cam, tracking_params)
     # feed a moving track over several ticks so it acquires the lock
     for tick in range(6):
-        lock.select([_signal(1, 0.1 + 0.1 * tick, 0.5)], tick)
+        lock.select([_signal(1, 0.1 + 0.1 * tick, 0.5, tick)], tick)
     assert lock.locked_id == 1
     public = lock.locked_motion_energy()
     private = lock._motion_energy(lock.locked_id)

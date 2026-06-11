@@ -9,7 +9,15 @@ discipline discriminated union in ``.discipline``. Heavy-import-free by design.
 from ..framing.params import ScorerParams
 from .discipline import AgilityProfile, DiscDogProfile, FieldProfile, FramingDefaults
 from .loader import load_config
-from .models import Camera, Config, ModelConfig, Role, Thresholds, Zone
+from .models import (
+    ActionHoldParams,
+    Camera,
+    Config,
+    ModelConfig,
+    Role,
+    Thresholds,
+    Zone,
+)
 
 __all__ = [
     "load_config",
@@ -19,6 +27,7 @@ __all__ = [
     "Zone",
     "ModelConfig",
     "Thresholds",
+    "ActionHoldParams",
     "ScorerParams",
     "FieldProfile",
     "DiscDogProfile",

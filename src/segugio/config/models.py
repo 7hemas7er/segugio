@@ -109,6 +109,24 @@ class Thresholds(BaseModel):
     track_buffer: Annotated[int, Field(ge=1)] = 60
 
 
+class ActionHoldParams(BaseModel):
+    """Action-hold seeds (D-08): motion energy → ``HoldInput.action`` threshold + window.
+
+    Phase 5 wires ACTION-hold from the locked subject's motion energy only (occlusion-hold
+    stays deferred): when the locked dog's cumulative motion energy stays at/above
+    ``motion_threshold`` for ``window_ticks`` consecutive ticks, the orchestrator raises
+    ``HoldInput(action=True)`` so the FSM holds the cut through a catch/jump (the DEC-03
+    mandatory max-cap still applies). These are tuning SEEDS (tuned on real footage); the
+    SCHEMA + bounds are what Phase 5 locks. Additive sub-model — an existing ``extra="forbid"``
+    config WITHOUT an ``action_hold`` block still validates (defaults in), exactly like
+    ``scoring``/``tracking``. Bounds mirror the ``Thresholds`` style.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    motion_threshold: Annotated[float, Field(gt=0.0)] = 0.02
+    window_ticks: Annotated[int, Field(ge=1)] = 5
+
+
 class Config(BaseModel):
     """The single typed config root — the contract all later phases import."""
 
@@ -120,6 +138,7 @@ class Config(BaseModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
     scoring: ScorerParams = Field(default_factory=ScorerParams)
     tracking: TrackingParams = Field(default_factory=TrackingParams)
+    action_hold: ActionHoldParams = Field(default_factory=ActionHoldParams)
 
     @model_validator(mode="after")
     def _zones_are_weighted(self) -> "Config":

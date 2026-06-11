@@ -59,9 +59,9 @@
 ### Score & Overlay (SCR)
 
 - [x] **SCR-01**: Lo score manager scrive un file in modo atomico (write temp + `os.replace`) letto da una text source OBS "read from file"
-- [ ] **SCR-02**: Una UI/CLI di **inserimento manuale** dei punteggi offre un selettore disciplina e 3 set di campi (disc Toss&Fetch: conteggio prese/zona/totale; disc freestyle: nome+timer; agility: tempo vs SCT + faults)
-- [ ] **SCR-03**: Un controllo manuale di **run start/stop** resetta l'overlay, avvia/ferma un timer e funge da segnale di segmentazione della run
-- [ ] **SCR-04**: Il sistema **mostra** i punteggi inseriti, non li calcola né li giudica (nessuna CV di scoring/faults/prese)
+- [x] **SCR-02**: Una UI/CLI di **inserimento manuale** dei punteggi offre un selettore disciplina e 3 set di campi (disc Toss&Fetch: conteggio prese/zona/totale; disc freestyle: nome+timer; agility: tempo vs SCT + faults)
+- [x] **SCR-03**: Un controllo manuale di **run start/stop** resetta l'overlay, avvia/ferma un timer e funge da segnale di segmentazione della run
+- [x] **SCR-04**: Il sistema **mostra** i punteggi inseriti, non li calcola né li giudica (nessuna CV di scoring/faults/prese)
 
 ### Override & Robustness (RBT)
 
@@ -144,9 +144,9 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | OBS-04 | Phase 5 | Complete |
 | OBS-05 | Phase 5 | Complete |
 | SCR-01 | Phase 5 (05-01) | Complete |
-| SCR-02 | Phase 5 | Pending |
-| SCR-03 | Phase 5 | Pending |
-| SCR-04 | Phase 5 | Pending |
+| SCR-02 | Phase 5 | Complete |
+| SCR-03 | Phase 5 | Complete |
+| SCR-04 | Phase 5 | Complete |
 | RBT-01 | Phase 5 | Complete |
 | RBT-02 | Phase 5 | Complete |
 | RBT-04 | Phase 5 | Pending |

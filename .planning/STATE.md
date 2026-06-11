@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 05 UAT found 1 gap (no runnable orchestrator entry point) — 05-09 planned & verified, ready for --gaps-only
-last_updated: "2026-06-11T14:40:00.000Z"
-last_activity: 2026-06-11 -- Phase 05 UAT: blocking gap (no `python -m segugio` runner); 05-09 gap plan created + checked
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-06-11T16:23:13.312Z"
+last_activity: 2026-06-11 -- Phase 05 execution started
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 24
-  completed_plans: 23
-  percent: 80
+  completed_phases: 5
+  total_plans: 25
+  completed_plans: 25
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — HEADLESS 5/5; UAT FOUND 1 BLOCKING GAP (no runner)
-Plan: 05-07 + 05-08 complete (CR-01, WR-01/02/04/09, CR-02); 05-09 created+verified (runtime entry point), NOT yet executed
-Status: UAT (verify-work) surfaced a blocking prerequisite — the integrated orchestrator has no runnable entry point (no __main__/python -m segugio; from_config needs real source/obs/trackers injected by a caller that does not exist), so the D-07 hardware E2E (UAT Tests 1-4) cannot launch. 05-09 adds a runtime factory + __main__ + run doc (lazy-import boundary preserved, headless-tested). Next: /gsd-execute-phase 05 --gaps-only, then re-run /gsd-verify-work 05 on the Windows/RTX box.
-Last activity: 2026-06-11 -- Phase 05 UAT gap diagnosed; 05-09 fix plan ready
+Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — EXECUTING
+Plan: 2 of 9
+Status: Ready to execute
+Last activity: 2026-06-11 -- Phase 05 execution started
 
 Progress: [████████░░] 80% (4/5 phases verified-complete)
 
@@ -79,6 +79,7 @@ Progress: [████████░░] 80% (4/5 phases verified-complete)
 | Phase 05 P06 | 10min | 3 tasks tasks | 8 files files |
 | Phase 05 P07 | 12min | 2 tasks | 5 files |
 | Phase 05 P08 | 8min | 2 tasks | 4 files |
+| Phase 05 P09 | 4min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,7 @@ Recent decisions affecting current work:
 - [Phase 05 / 05-08]: gap-closure code fixes — WR-04: atomic_write_text now routes its final swap through the same _atomic_replace retry as atomic_write_json, so an OBS reader holding the overlay file at the MoveFileEx instant retries instead of crashing the writer (headless test monkeypatches os.replace fail-then-succeed). CR-02: extracted the per-camera capture loop into _run_receiver (collaborators injected — the headless seam, lazy cv2/cyndilib stay in _receiver_loop); the disconnected branch now sleeps _RECEIVER_DISCONNECTED_SLEEP_S (0.05) instead of busy-spinning AND re-resolves/reconnects a late-appearing named source without a stop()/start() cycle (auto-reconnect). New tests/test_ndi_receiver_loop.py drives the loop with pure fakes (bounded → a reintroduced busy-spin would hang). Suite 302 passed / 3 skipped / 0 failures (+5 vs 05-07). Real near-zero-CPU + live cyndilib reconnect + real Windows overlay sharing-violation stay HARDWARE-deferred (D-07, human-verification #2/#4).
 
 - [Phase 05 / 05-07]: CR-01 closed (the FAILED truth, SC-5/RBT-04) — _safe_startup fault-isolates source.start()/obs.connect() in run()/run_measured() so a down OBS/NDI at launch coasts into the tick loop (the per-tick _safe_call heals OBS, the watchdog handles a dead source — reaching the loop is sufficient for "never crash"). ObsWsController.connect() guards _cache_pip_ids() (partial connect cannot crash; ids re-cache via EventClient/per-tick reconnect). Additive Thresholds.watchdog_grace=0.067 seed; from_config sources it on grace=None, explicit wins (WR-02). Tick catch-all reason "fault" not "feed-dead" (WR-09); dead live_cam removed (WR-01, no behavior change). NEW tests/test_orchestrator_startup.py exercises the REAL run_measured startup with start()/connect() RAISING and proves the loop ticks 5× — the regression that flips Truth #5. Full headless suite 297 passed / 3 skipped / 0 failures. watchdog_grace SHIPPED tuning + real-OBS startup confirmation stay HARDWARE-deferred (D-07).
+- [Phase ?]: [Phase 05 / 05-09]: UAT gap closed — build_orchestrator runtime factory maps Config -> real NdiFrameSource + ObsWsController + per-camera PerCameraTracker + opcomm channel_paths, then Orchestrator.from_config (signature unchanged); python -m segugio entry point (load_config -> build -> run; Ctrl-C -> shutdown SAFE coast, RBT-04); docs/run.md OBS-up/OBS-down rig launch. Injectable *_factory seam keeps it headless-unit-tested with the heavy stack absent; lazy-import boundary held. 314 passed / 3 skipped (+12, zero regression). UAT Tests 1-4 now launchable on the Windows/RTX rig (D-07).
 
 ### Pending Todos
 
@@ -146,6 +148,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-11T13:11:23.649Z
+Last session: 2026-06-11T16:22:10.256Z
 Stopped at: Completed 05-07-PLAN.md
 Resume file: None

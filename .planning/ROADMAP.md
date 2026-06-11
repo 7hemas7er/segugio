@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Framing Scorer (pure logic)** - Resolution-independent per-camera framing score with EMA, zone-gating, lead-room, coast/TTL and per-camera confidence normalization — pure and unit-testable (completed 2026-06-09)
 - [x] **Phase 3: Decision Engine FSM** - The single source of truth on "which camera is live": hysteresis, dwell, debounce, cooldown, feed-alive guard, action-hold, occlusion-hold, tiebreaker, override + auto-resume (completed 2026-06-09)
 - [x] **Phase 4: YOLO + Per-Camera Tracking on Recorded Clips** - Pre-trained YOLO on CUDA with one BoT-SORT tracker per camera (native ReID), competitor-lock and plausibility gate, validated on the curated clips (completed 2026-06-09)
-- [ ] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement (verification 2026-06-11: 4/5 — gaps found, CR-01 startup fault-sink)
+- [x] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement (verification 2026-06-11: 4/5 — gaps found, CR-01 startup fault-sink) (completed 2026-06-11)
 
 ## Phase Details
 
@@ -174,7 +174,7 @@ Plans:
 
 - [x] 05-07-PLAN.md — BLOCKER: fault-isolate `run()`/`run_measured()` startup (`source.start()`/`obs.connect()` in try/except → coast into the tick loop) + guard `_cache_pip_ids()` in `connect()` (CR-01, the FAILED truth, RBT-04); non-zero config-sourced anti-jitter `watchdog_grace` (WR-02); distinct non-"feed-dead" fault reason (WR-09); remove dead `live_cam` (WR-01); NEW headless startup-fault regression test that flips Truth #5 [Gap Closure]
 - [x] 05-08-PLAN.md — IO/thread robustness: route `atomic_write_text` through the `_atomic_replace` retry (WR-04, Windows OBS sharing-violation) + de-busy-spin/auto-reconnect the NDI `_receiver_loop` (CR-02 code fix; real CPU/reconnect stays HARDWARE-deferred), each with a headless regression test [Gap Closure]
-- [ ] 05-09-PLAN.md — RUNNABLE ENTRY POINT (UAT gap, the half-met phase goal): `build_orchestrator(config, channel_dir)` factory (src/segugio/orchestrator/runtime.py) composing real NdiFrameSource + ObsWsController + per-camera PerCameraTracker + opcomm channel_paths -> `Orchestrator.from_config(...)` (heavy imports lazy, injectable seam for headless tests) + `python -m segugio <config>` (`__main__.py`: load -> build -> run, Ctrl-C -> shutdown SAFE coast, RBT-04) + docs/run.md (OBS-up/OBS-down launch) — unblocks D-07 UAT Tests 1-4 [Gap Closure]
+- [x] 05-09-PLAN.md — RUNNABLE ENTRY POINT (UAT gap, the half-met phase goal): `build_orchestrator(config, channel_dir)` factory (src/segugio/orchestrator/runtime.py) composing real NdiFrameSource + ObsWsController + per-camera PerCameraTracker + opcomm channel_paths -> `Orchestrator.from_config(...)` (heavy imports lazy, injectable seam for headless tests) + `python -m segugio <config>` (`__main__.py`: load -> build -> run, Ctrl-C -> shutdown SAFE coast, RBT-04) + docs/run.md (OBS-up/OBS-down launch) — unblocks D-07 UAT Tests 1-4 [Gap Closure]
 
 ## Progress
 
@@ -187,4 +187,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
-| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 8/8 | Re-verify Pending | —          |
+| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Segugio — Console Regia</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem;
+           background: #14161a; color: #e8e8e8; }
+    h1 { font-size: 1.3rem; margin: 0 0 1rem; }
+    fieldset { border: 1px solid #333; border-radius: 8px; margin: 0 0 1rem; padding: 0.8rem; }
+    legend { font-weight: 600; padding: 0 0.4rem; }
+    label { display: block; margin: 0.4rem 0 0.15rem; font-size: 0.9rem; color: #b9b9b9; }
+    input, select { width: 100%; padding: 0.5rem; font-size: 1rem; border-radius: 6px;
+                    border: 1px solid #444; background: #1d2026; color: #fff; }
+    button { padding: 0.7rem 1rem; font-size: 1rem; border-radius: 6px; border: 0;
+             background: #2d6cdf; color: #fff; cursor: pointer; margin: 0.25rem 0.25rem 0 0; }
+    button.secondary { background: #3a3f47; }
+    button.danger { background: #b23b3b; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .row > div { flex: 1 1 120px; }
+    .hidden { display: none; }
+    #stato { font-size: 1.05rem; line-height: 1.6; }
+    .feed-ok { color: #46c46a; } .feed-dead { color: #e35d5d; }
+    .pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px;
+            background: #222; margin-right: 0.3rem; }
+  </style>
+</head>
+<body>
+  <h1>Segugio — Console Regia</h1>
+
+  <!-- (1) SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02) -->
+  <form id="form-score" method="post" action="/score">
+    <fieldset>
+      <legend>Punteggio</legend>
+      <label for="disciplina">Disciplina</label>
+      <select id="disciplina" name="discipline">
+        <option value="disc_tf">Disc — Toss &amp; Fetch</option>
+        <option value="disc_freestyle">Disc — Freestyle</option>
+        <option value="agility">Agility</option>
+      </select>
+
+      <!-- disc Toss & Fetch: prese / zona / totale -->
+      <div class="campi" data-disc="disc_tf">
+        <div class="row">
+          <div><label for="prese">Prese</label><input id="prese" name="prese" inputmode="numeric"></div>
+          <div><label for="zona">Zona</label><input id="zona" name="zona"></div>
+          <div><label for="totale">Totale</label><input id="totale" name="totale" inputmode="numeric"></div>
+        </div>
+      </div>
+
+      <!-- disc Freestyle: nome + timer -->
+      <div class="campi hidden" data-disc="disc_freestyle">
+        <div class="row">
+          <div><label for="nome">Nome</label><input id="nome" name="nome"></div>
+          <div><label for="timer">Timer</label><input id="timer" name="timer" placeholder="mm:ss"></div>
+        </div>
+      </div>
+
+      <!-- agility: tempo vs SCT + faults -->
+      <div class="campi hidden" data-disc="agility">
+        <div class="row">
+          <div><label for="tempo">Tempo</label><input id="tempo" name="tempo" inputmode="decimal"></div>
+          <div><label for="sct">SCT</label><input id="sct" name="sct" inputmode="decimal"></div>
+          <div><label for="faults">Faults</label><input id="faults" name="faults" inputmode="numeric"></div>
+        </div>
+      </div>
+
+      <button type="submit">Aggiorna punteggio</button>
+    </fieldset>
+  </form>
+
+  <!-- (2) RUN START/STOP (D-09) -->
+  <fieldset>
+    <legend>Run</legend>
+    <button type="button" data-action="start" class="run-btn">Avvia run</button>
+    <button type="button" data-action="stop" class="run-btn danger">Ferma run</button>
+  </fieldset>
+
+  <!-- (3) OVERRIDE — Forza / Rilascia (D-10). Each button = EITHER a force OR a release. -->
+  <fieldset>
+    <legend>Regia</legend>
+    <button type="button" class="force-btn" data-cam="cam_wide">Forza CAM Wide</button>
+    <button type="button" class="force-btn" data-cam="cam_long">Forza CAM Long</button>
+    <button type="button" class="force-btn" data-cam="cam_low">Forza CAM Low</button>
+    <button type="button" class="force-btn" data-cam="cam_handler">Forza CAM Handler</button>
+    <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
+  </fieldset>
+
+  <!-- (4) LIVE DIRECTOR STATUS read-back (D-11) -->
+  <fieldset>
+    <legend>Stato live</legend>
+    <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
+    <div id="feeds"></div>
+  </fieldset>
+
+  <script>
+    // --- discipline selector toggles the matching field set (SCR-02) ---
+    const sel = document.getElementById("disciplina");
+    function showFields() {
+      document.querySelectorAll(".campi").forEach(el => {
+        el.classList.toggle("hidden", el.dataset.disc !== sel.value);
+      });
+    }
+    sel.addEventListener("change", showFields);
+    showFields();
+
+    function post(url, data) {
+      const body = new URLSearchParams(data);
+      return fetch(url, { method: "POST", body,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    }
+
+    // --- score form: post only the visible discipline's fields ---
+    document.getElementById("form-score").addEventListener("submit", e => {
+      e.preventDefault();
+      post("/score", new FormData(e.target));
+    });
+
+    // --- run start/stop (D-09) ---
+    document.querySelectorAll(".run-btn").forEach(b =>
+      b.addEventListener("click", () => post("/run", { action: b.dataset.action })));
+
+    // --- override: a force sends ONLY force_cam; Rilascia sends ONLY release (never both, D-10) ---
+    document.querySelectorAll(".force-btn").forEach(b =>
+      b.addEventListener("click", () => post("/command", { force_cam: b.dataset.cam })));
+    document.getElementById("rilascia").addEventListener("click", () =>
+      post("/command", { release: "1" }));
+
+    // --- live status poll (D-11) ---
+    async function pollStatus() {
+      try {
+        const r = await fetch("/status");
+        const s = await r.json();
+        document.getElementById("live-cam").textContent = s.live_cam;
+        document.getElementById("live-reason").textContent = s.reason;
+        const feeds = document.getElementById("feeds");
+        feeds.innerHTML = "";
+        Object.entries(s.alive || {}).forEach(([cam, ok]) => {
+          const span = document.createElement("span");
+          span.className = "pill " + (ok ? "feed-ok" : "feed-dead");
+          span.textContent = cam + ": " + (ok ? "vivo" : "morto");
+          feeds.appendChild(span);
+        });
+      } catch (e) { /* coast — a poll error never breaks the page */ }
+    }
+    pollStatus();
+    setInterval(pollStatus, 1000);
+  </script>
+</body>
+</html>

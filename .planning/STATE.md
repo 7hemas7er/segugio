@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-06-11T10:40:15.948Z"
-last_activity: 2026-06-11 -- Phase 05 verified 4/5 — gaps found; CR-01 breaks the never-crash contract on the real stack
+status: executing
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-06-11T13:11:23.649Z"
+last_activity: 2026-06-11 -- Completed 05-07 (CR-01 startup fault-isolation)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 22
-  completed_plans: 22
+  total_plans: 24
+  completed_plans: 23
   percent: 80
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — VERIFICATION: GAPS FOUND
-Plan: 6 of 6 executed; verification 4/5
-Status: Gaps found — 1 blocker (CR-01: orchestrator startup outside the fault sink) + 5 human-verification items. Next: /gsd-plan-phase 05 --gaps
-Last activity: 2026-06-11 -- Phase 05 verified 4/5 — gaps found; CR-01 breaks the never-crash contract on the real stack
+Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — EXECUTING
+Plan: 1 of 8
+Status: Executing Phase 05
+Last activity: 2026-06-11 -- Phase 05 execution started
 
 Progress: [████████░░] 80% (4/5 phases verified-complete)
 
@@ -77,6 +77,7 @@ Progress: [████████░░] 80% (4/5 phases verified-complete)
 | Phase 05 P04 | 9min | 2 tasks tasks | 5 files files |
 | Phase 05 P05 | 9min | 3 tasks | 7 files |
 | Phase 05 P06 | 10min | 3 tasks tasks | 8 files files |
+| Phase 05 P07 | 12min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-04: FeedWatchdog pure last-NEW-frame liveness (RBT-01) — dead iff now-ts > watchdog_timeout+grace, clock-free/stdlib-only, None/non-finite ts -> dead fail-safe; never reads NDI source state (Pitfall 1)
 - [Phase ?]: 05-04: RBT-02 proven as integration only (no FSM logic) — watchdog alive_map drives locked DecisionEngine.tick; dead feed -> SAFE/other-live, recovered feed rejoins only after full hysteresis+dwell, never airs dead feed
 - [Phase ?]: [Phase 05 / 05-06]: Orchestrator = grown-up run_clip_eval — fixed-rate fault-isolated tick: source.latest -> per-camera fan-out (one tracker/lock/gate per cam, never a frame list #13107) -> action-hold deriver -> scorer -> watchdog alive map -> engine.tick -> obs.cut -> atomic D-11 status on change. Every stage try/except -> coast to SAFE, never crash (RBT-04); shutdown cuts to SAFE. D-08 action-hold from locked motion energy holds the cut through a catch/jump then force-releases at the DEC-03 cap. D-09 STOP parks on the SAFE SENTINEL (engine.to_safe + synthetic SAFE Decision) so status.live_cam reads SAFE; Override still wins. Trackers INJECTED (YOLO out of headless tests); locks+gates built from config. Latency probe additive in run_measured; mock-timed wiring p95 + gpu real-yolo p95<150ms (RBT-05). segugio.orchestrator on the lazy-import surface. v1 milestone closed.
+- [Phase 05 / 05-07]: CR-01 closed (the FAILED truth, SC-5/RBT-04) — _safe_startup fault-isolates source.start()/obs.connect() in run()/run_measured() so a down OBS/NDI at launch coasts into the tick loop (the per-tick _safe_call heals OBS, the watchdog handles a dead source — reaching the loop is sufficient for "never crash"). ObsWsController.connect() guards _cache_pip_ids() (partial connect cannot crash; ids re-cache via EventClient/per-tick reconnect). Additive Thresholds.watchdog_grace=0.067 seed; from_config sources it on grace=None, explicit wins (WR-02). Tick catch-all reason "fault" not "feed-dead" (WR-09); dead live_cam removed (WR-01, no behavior change). NEW tests/test_orchestrator_startup.py exercises the REAL run_measured startup with start()/connect() RAISING and proves the loop ticks 5× — the regression that flips Truth #5. Full headless suite 297 passed / 3 skipped / 0 failures. watchdog_grace SHIPPED tuning + real-OBS startup confirmation stay HARDWARE-deferred (D-07).
 
 ### Pending Todos
 
@@ -141,6 +143,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-11T09:30:49.774Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-06-11T13:11:23.649Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None

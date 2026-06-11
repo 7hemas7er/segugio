@@ -7,13 +7,18 @@ degrades to SAFE and never crashes (RBT-04), derives the D-08 action-hold from t
 subject's motion energy, reads the operator command/run-state each tick, writes the D-11
 status file on change, and measures the decision-loop latency (RBT-05).
 
-Two modules:
+Three modules:
   * :mod:`segugio.orchestrator.action_hold` — the PURE D-08 motion-energy → ``HoldInput.action``
     derivation (stdlib-only, clock-free). Re-exported here (it is light + pure).
   * :mod:`segugio.orchestrator.loop` — the ``Orchestrator`` tick (the I/O edge that owns the
     wall-clock + threads). NOT re-exported at package top: its body is light (the heavy
     cyndilib/obsws clients live only inside the INJECTED real impls) but importing it eagerly
     would still be needless; callers import ``from segugio.orchestrator.loop import Orchestrator``.
+  * :mod:`segugio.orchestrator.runtime` — ``build_orchestrator``, the runtime compose/factory the
+    UAT gap says ``from_config`` lacks: it maps a ``Config`` onto the real ``NdiFrameSource`` /
+    ``ObsWsController`` / per-camera ``PerCameraTracker`` + the opcomm channel paths, then calls
+    ``Orchestrator.from_config(...)``. Re-exported here; its heavy builders are LAZY (inside the
+    default factories), so importing this symbol does NOT pull cyndilib/obsws/ultralytics/cv2.
 
 Lazy-import boundary (the Phase-1 invariant): ``import segugio.orchestrator`` succeeds with
 cyndilib / obsws / ultralytics / torch / cv2 / Flask ABSENT — the orchestrator depends ONLY
@@ -24,5 +29,6 @@ injected real implementations (Wave 2), never imported here.
 from __future__ import annotations
 
 from .action_hold import ActionHoldDeriver
+from .runtime import build_orchestrator
 
-__all__ = ["ActionHoldDeriver"]
+__all__ = ["ActionHoldDeriver", "build_orchestrator"]

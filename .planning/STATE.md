@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-08-PLAN.md
-last_updated: "2026-06-11T13:26:00.000Z"
-last_activity: 2026-06-11 -- Completed 05-08 (WR-04 overlay swap retry + CR-02 NDI loop de-busy-spin/auto-reconnect)
+stopped_at: Phase 05 re-verified 5/5 headless (CR-01 closed) — awaiting hardware UAT (D-07)
+last_updated: "2026-06-11T14:10:00.000Z"
+last_activity: 2026-06-11 -- Phase 05 re-verification 5/5 (CR-01 startup fault-sink closed); 5 hardware items in 05-UAT.md
 progress:
   total_phases: 5
   completed_phases: 4
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — EXECUTING
-Plan: 05-08 complete (gap-closure: WR-04 + CR-02 code fixes)
-Status: Gap-closure plans 05-07 + 05-08 done; re-verification pending (hardware items D-07 stay human-deferred)
-Last activity: 2026-06-11 -- Completed 05-08 gap-closure
+Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — VERIFIED 5/5 HEADLESS, AWAITING HARDWARE UAT
+Plan: 05-07 + 05-08 complete (gap-closure: CR-01 startup fault-sink, WR-01/02/04/09, CR-02)
+Status: Re-verification 5/5 (CR-01 closed). All headless truths pass (302 passed, 3 skipped). 5 hardware items deferred to D-07 in 05-UAT.md — run /gsd-verify-work 05 on the Windows/RTX box to close the phase.
+Last activity: 2026-06-11 -- Phase 05 re-verified 5/5; UAT persisted
 
 Progress: [████████░░] 80% (4/5 phases verified-complete)
 

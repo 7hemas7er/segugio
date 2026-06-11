@@ -19,7 +19,7 @@ runs when the gpu gate already passed (CUDA + weights present).
 
 from __future__ import annotations
 
-__all__ = ["gpu_available"]
+__all__ = ["gpu_available", "ndi_available", "obs_available"]
 
 
 def gpu_available() -> tuple[bool, str]:
@@ -43,4 +43,37 @@ def gpu_available() -> tuple[bool, str]:
         import ultralytics  # noqa: F401 — needed to load the weights at all
     except ImportError:
         return False, "ultralytics not installed (heavy group absent)"
+    return True, ""
+
+
+def ndi_available() -> tuple[bool, str]:
+    """Return ``(ok, reason)`` — whether the real-NDI (cyndilib) E2E path can run here (D-05).
+
+    Import-guarded so the headless CPU box (``cyndilib`` absent) yields a SKIP reason rather
+    than an import error at collection time — the lazy-import boundary stays intact. A live
+    named NDI source is still required at runtime; this probe only gates the dependency, the
+    test body times out cleanly if no source appears (Windows E2E run only).
+    """
+    try:
+        import cyndilib  # noqa: F401 — probe only; import-guarded so CPU collection is safe
+    except ImportError:
+        return False, "cyndilib not installed (heavy group absent)"
+    try:
+        import cv2  # noqa: F401 — the receiver path needs cv2 for cvtColor
+    except ImportError:
+        return False, "opencv-python (cv2) not installed (heavy group absent)"
+    return True, ""
+
+
+def obs_available() -> tuple[bool, str]:
+    """Return ``(ok, reason)`` — whether the real-OBS (obsws-python) E2E path can run here (D-06).
+
+    Import-guarded like ``ndi_available``: an absent ``obsws_python`` is a SKIP, not a
+    collection-time import error. A running OBS + obs-websocket v5 is still required at
+    runtime; this probe gates only the dependency (real-OBS E2E run lands with 05-03).
+    """
+    try:
+        import obsws_python  # noqa: F401 — probe only; import-guarded for safe CPU collection
+    except ImportError:
+        return False, "obsws-python not installed (heavy group absent)"
     return True, ""

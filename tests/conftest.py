@@ -29,23 +29,33 @@ FPS = 30.0
 
 
 def pytest_collection_modifyitems(config, items) -> None:
-    """SKIP every ``@pytest.mark.gpu`` item when the GPU eval gate is unmet (D-09).
+    """SKIP each hardware-gated item (``gpu``/``ndi``/``obs``) when its stack is unmet.
 
-    The gate LOGIC lives in ``tests/conftest_tracking.gpu_available`` (isolated + import-
-    guarded so collection never imports torch on a CPU box). pytest only auto-loads files
-    literally named ``conftest.py`` as plugins, so the session hook itself must live here.
-    Imported in-body so this conftest stays heavy-import-free at module load. Touches ONLY
-    ``gpu``-marked items — the pure CPU suite is untouched.
+    The gate LOGIC lives in ``tests/conftest_tracking`` (isolated + import-guarded so
+    collection never imports torch/cyndilib/obsws on a headless box). pytest only auto-loads
+    files literally named ``conftest.py`` as plugins, so the session hook itself must live
+    here. Imported in-body so this conftest stays heavy-import-free at module load. Touches
+    ONLY the marked items — the pure CPU suite is untouched.
+
+      - ``gpu`` → ``gpu_available`` (CUDA + ultralytics/torch + weights, D-09)
+      - ``ndi`` → ``ndi_available`` (cyndilib + cv2; real-NDI E2E path, D-05/NDI-01/02)
+      - ``obs`` → ``obs_available`` (obsws-python; real-OBS E2E path, D-06/OBS-01..05)
     """
-    from conftest_tracking import gpu_available
+    from conftest_tracking import gpu_available, ndi_available, obs_available
 
-    ok, reason = gpu_available()
-    if ok:
-        return  # GPU + weights present — let the gpu tests run (hard ReID gate included)
-    skip_gpu = pytest.mark.skip(reason=f"gpu eval skipped: {reason} (D-09)")
-    for item in items:
-        if "gpu" in item.keywords:
-            item.add_marker(skip_gpu)
+    gates = {
+        "gpu": (gpu_available, "gpu eval skipped: {reason} (D-09)"),
+        "ndi": (ndi_available, "ndi E2E skipped: {reason} (D-05)"),
+        "obs": (obs_available, "obs E2E skipped: {reason} (D-06)"),
+    }
+    for marker, (probe, template) in gates.items():
+        ok, reason = probe()
+        if ok:
+            continue  # the stack is present — let the marked tests run
+        skip = pytest.mark.skip(reason=template.format(reason=reason))
+        for item in items:
+            if marker in item.keywords:
+                item.add_marker(skip)
 
 
 @pytest.fixture

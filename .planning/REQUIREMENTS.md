@@ -68,8 +68,8 @@
 - [x] **RBT-01**: Un feed watchdog deduce la liveness dal timestamp dell'ultimo frame *nuovo* (mai dallo stato sorgente NDI), con grazia anti-jitter
 - [x] **RBT-02**: Alla caduta di un feed il sistema fa fallback automatico (scena SAFE o altra camera viva) senza crash; alla ripresa il feed rientra solo dopo essere vivo e aver vinto la piena isteresi+dwell
 - [x] **RBT-03**: **Override manuale + auto-resume** — un operatore può forzare una camera specifica; poi il sistema rientra in automatico
-- [ ] **RBT-04**: L'orchestrator gira a tick a rate fisso, isola i guasti (try/except + restart supervisionati dei thread) e va in shutdown sulla scena SAFE; mai crash del processo
-- [ ] **RBT-05**: Il loop decisionale AI (frame → YOLO → score → FSM → comando OBS) è misurato e sta sotto ~150ms (ideale <80ms)
+- [x] **RBT-04**: L'orchestrator gira a tick a rate fisso, isola i guasti (try/except + restart supervisionati dei thread) e va in shutdown sulla scena SAFE; mai crash del processo
+- [x] **RBT-05**: Il loop decisionale AI (frame → YOLO → score → FSM → comando OBS) è misurato e sta sotto ~150ms (ideale <80ms)
 
 ### Test Fixtures (TST)
 
@@ -149,8 +149,8 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | SCR-04 | Phase 5 | Complete |
 | RBT-01 | Phase 5 | Complete |
 | RBT-02 | Phase 5 | Complete |
-| RBT-04 | Phase 5 | Pending |
-| RBT-05 | Phase 5 | Pending |
+| RBT-04 | Phase 5 | Complete |
+| RBT-05 | Phase 5 | Complete |
 
 **Coverage:**
 

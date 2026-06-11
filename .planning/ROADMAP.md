@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Framing Scorer (pure logic)** - Resolution-independent per-camera framing score with EMA, zone-gating, lead-room, coast/TTL and per-camera confidence normalization — pure and unit-testable (completed 2026-06-09)
 - [x] **Phase 3: Decision Engine FSM** - The single source of truth on "which camera is live": hysteresis, dwell, debounce, cooldown, feed-alive guard, action-hold, occlusion-hold, tiebreaker, override + auto-resume (completed 2026-06-09)
 - [x] **Phase 4: YOLO + Per-Camera Tracking on Recorded Clips** - Pre-trained YOLO on CUDA with one BoT-SORT tracker per camera (native ReID), competitor-lock and plausibility gate, validated on the curated clips (completed 2026-06-09)
-- [ ] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement
+- [x] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement (completed 2026-06-11)
 
 ## Phase Details
 
@@ -168,7 +168,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-06-PLAN.md — Orchestrator: action-hold from motion energy (D-08) + fixed-rate fault-isolated tick (the grown-up `run_clip_eval`) + SAFE shutdown + D-11 status write (RBT-04) + decision-loop latency harness (RBT-05) [Wave 3]
+- [x] 05-06-PLAN.md — Orchestrator: action-hold from motion energy (D-08) + fixed-rate fault-isolated tick (the grown-up `run_clip_eval`) + SAFE shutdown + D-11 status write (RBT-04) + decision-loop latency harness (RBT-05) [Wave 3]
 
 ## Progress
 
@@ -181,4 +181,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
-| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 5/6 | In Progress|  |
+| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 6/6 | Complete   | 2026-06-11 |

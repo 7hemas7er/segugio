@@ -1,53 +1,48 @@
 ---
-status: testing
+status: partial
 phase: 05-integration-ndi-mock-orchestrator-obs-score-ui
 source: [05-VERIFICATION.md]
 started: 2026-06-11T14:05:00Z
-updated: 2026-06-11T16:10:00Z
+updated: 2026-06-11T16:40:00Z
 ---
 
 ## Current Test
 
-[ready for hardware — D-07]
-
-All 5 phase truths are VERIFIED headlessly (315 passed, 9 skipped, 0 failures).
-The blocking prerequisite UAT first surfaced — no runnable entry point — is now
-RESOLVED by gap-closure plan 05-09: `python -m segugio <config.yaml>` exists and
-composes the real NdiFrameSource + ObsWsController + PerCameraTracker from config,
-then calls Orchestrator.run() (Ctrl-C → shutdown() SAFE coast, RBT-04). The CR-01
-blocker found in code review (channel_dir never created → D-11 status channel
-silently dead on a clean launch) is also fixed and regression-tested. The items
-below are now LAUNCHABLE on the Windows/RTX hardware box via `docs/run.md` — they
-remain deferred to that box (D-07), no longer blocked on missing code.
+[paused — Test 1 crash fixed (bc4c5f5); Tests 1-5 awaiting the Windows/RTX rig (D-07).
+Resume with `/gsd-verify-work 05` once `pip install -e ".[heavy]"` + OBS/NDI/GPU are set up.]
 
 ## Tests
 
 ### 1. Real OBS startup with orchestrator (RBT-04, _safe_startup on the live obsws stack)
 expected: `python -m segugio config.example.yaml` starts without crashing when OBS is not yet running; the director ticks; the controller reconnects once OBS starts on the live obsws-python v5 stack.
-result: pending
-reason: "Code gap RESOLVED — the entry point now exists (05-09: __main__.py + runtime.py). obsws-python is absent in dev; the headless test (test_run_measured_survives_connect_raising) drives the REAL _safe_startup path with a ConnectionError-raising fake. On-Windows confirmation of the live websocket stack is D-07. Launch per docs/run.md (OBS-down section)."
+result: blocked
+blocked_by: physical-device
+reported: "`python -m segugio config.example.yaml` crashed at launch: ModuleNotFoundError: No module named 'ultralytics' (PerCameraTracker.__init__ -> from ultralytics import YOLO), via build_orchestrator -> _default_tracker_factory. User followed docs/run.md Prerequisites (`pip install -e .`)."
+severity: major
+diagnosis: "NOT a wiring bug — the entry point ran argparse -> load_config -> build_orchestrator -> created channel_dir -> built NdiFrameSource + ObsWsController, then crashed constructing the first PerCameraTracker, which lazily imports ultralytics. Root cause: the `heavy` optional-dependency group (ultralytics/cyndilib/obsws-python/watchdog/opencv-python) is NOT installed, and docs/run.md Prerequisites told the operator to run `pip install -e .` (base deps only). Secondary: the entry point died with a raw traceback instead of an actionable message (WR-01 from 05-09-REVIEW)."
+resolution: "FIXED (commit bc4c5f5, headlessly verified on this box with the heavy stack genuinely absent): (1) docs/run.md Prerequisites now installs `pip install -e \".[heavy]\"` with a headless-vs-rig note + the libndi requirement; (2) main() catches a HEAVY-stack ModuleNotFoundError and exits 2 with `Heavy runtime stack not installed (missing 'ultralytics'). Install it on the rig with: pip install -e \".[heavy]\"` instead of a traceback (a non-heavy ModuleNotFoundError is re-raised so real bugs are not masked). Re-running `python -m segugio config.example.yaml` now prints that line and exits 2. The REMAINING live confirmation — director ticks + reconnects against real OBS with the heavy stack installed — is D-07 hardware-deferred (needs the Windows/RTX rig)."
 
 ### 2. Real NDI receiver auto-reconnect + near-zero CPU (CR-02, NDI-01)
 expected: CPU for disconnected receiver threads is near-zero (no busy-spin); a named NDI source that appears after thread start auto-reconnects without stop()/start(). Watch for the WR-02 livelock risk — set_source re-issued every 50ms mid-handshake on real cyndilib.
-result: pending
+result: blocked
 blocked_by: physical-device
 reason: "Now launchable via `python -m segugio` (Test-1 runner exists). Requires Windows + cyndilib + a live/mock NDI source to observe real reconnect timing and CPU. Headless logic (sleep + re-resolve) proven by test_ndi_receiver_loop.py."
 
 ### 3. Anti-jitter grace empirical tuning (WR-02, RBT-02)
 expected: The shipped watchdog_grace=0.067 (~2 frames @30fps) tolerates single-late-frame jitter on real WiFi phone feeds without cut-storms; tune against measured jitter if needed.
-result: pending
+result: blocked
 blocked_by: physical-device
 reason: "Now launchable via the runner; empirical tuning needs the live system against real WiFi phone feeds (D-07). The non-zero default is already pinned by test."
 
 ### 4. Full E2E real-stack run (D-07 — v1 milestone validation)
 expected: mock NDI sender -> cyndilib -> YOLO -> score -> FSM -> OBS cut/PIP/overlay -> feed death -> SAFE fallback -> UI score entry -> overlay update all work end-to-end; OBS overlay shows operator scores; feed death triggers SAFE; UI status panel shows live camera + reason.
-result: pending
+result: blocked
 blocked_by: physical-device
 reason: "Now launchable — `python -m segugio config.example.yaml` + the operator console (docs/run.md). cyndilib/obsws/cv2/CUDA/ultralytics are absent in dev (@pytest.mark.ndi/obs auto-skip). This is the v1 milestone on-Windows hardware validation (D-07)."
 
 ### 5. GPU latency budget (RBT-05)
 expected: `python -m pytest tests/test_latency.py -m gpu` on the RTX 4000 Ada with yolo26s.pt and real clip frames shows decision-loop p95 < 150ms (target <80ms). If over budget, apply the _DEGRADATION_LADDER logged in loop.py. (Wiring overhead proven headless: mock-timed p95 < 50ms.)
-result: pending
+result: blocked
 blocked_by: physical-device
 reason: "Needs the RTX 4000 Ada GPU box with yolo26s.pt. Independent of the runner — runnable any time via `pytest tests/test_latency.py -m gpu` on the GPU machine."
 
@@ -56,11 +51,23 @@ reason: "Needs the RTX 4000 Ada GPU box with yolo26s.pt. Independent of the runn
 total: 5
 passed: 0
 issues: 0
-pending: 5
+pending: 0
 skipped: 0
-blocked: 0
+blocked: 5
 
 ## Gaps
+
+- truth: "Following docs/run.md exactly, `python -m segugio <config>` launches (or fails with an actionable message) — the operator can stand the rig up from the documented procedure without hitting a raw Python traceback."
+  status: resolved
+  reason: "UAT Test 1: docs/run.md Prerequisites said `pip install -e .`, which installs only the base deps and omits the `heavy` extras (ultralytics/cyndilib/obsws-python/opencv-python). The entry point then crashed with `ModuleNotFoundError: No module named 'ultralytics'` when build_orchestrator constructs the first PerCameraTracker. The documented launch procedure was wrong, and the failure mode was a raw traceback rather than a clear 'install the heavy stack' message (WR-01)."
+  resolved_by: "Commit bc4c5f5 — (1) docs/run.md now installs `pip install -e \".[heavy]\"` (+ headless-vs-rig note + libndi); (2) main() catches a HEAVY-stack ModuleNotFoundError and exits 2 with an actionable `pip install -e \".[heavy]\"` message (non-heavy ModuleNotFoundError re-raised, so real bugs are not masked). Verified headlessly on this box (heavy stack genuinely absent): `python -m segugio config.example.yaml` prints the hint and exits 2; +2 regression tests (test_main_missing_heavy_dep_exits_2_with_actionable_message, test_main_non_heavy_module_error_is_not_masked); full suite 317 passed / 9 skipped / 0 failures."
+  severity: major
+  test: 1
+  artifacts:
+    - "docs/run.md — Prerequisites now `pip install -e \".[heavy]\"` (was `pip install -e .`, which omitted the heavy extras)."
+    - "pyproject.toml — [project.optional-dependencies].heavy declares ultralytics/cyndilib/obsws-python/watchdog/opencv-python."
+    - "src/segugio/__main__.py — main() heavy-dep ModuleNotFoundError guard → exit 2 with actionable message (WR-01)."
+    - "src/segugio/tracking/detector.py — PerCameraTracker.__init__ `from ultralytics import YOLO` (the first uninstalled heavy dep surfaces here)."
 
 - truth: "The integrated orchestrator can be launched on the rig: a runnable entry point composes the real NdiFrameSource + ObsWsController + PerCameraTracker (yolo26s.pt) from config and calls Orchestrator.run(), so the full NDI->YOLO->score->FSM->OBS loop runs against real hardware. The phase goal ('everything wires together end-to-end ... a fault-isolated orchestrator ticks the full loop') is only half-met without it: the logic is verified headless but nothing launches it on hardware, so the D-07 human E2E (Tests 1-4) cannot be executed."
   status: resolved

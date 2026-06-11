@@ -191,6 +191,222 @@ def thresholds():
     return Config.model_validate(_VALID_CONFIG).thresholds
 
 
+# --------------------------------------------------------------------------- #
+# Phase-5 integration fixtures (ADDITIVE — the Phase-1 fixtures above are the
+# stable seams 01-02/03/04 + Phase 2/3/4 build on; do NOT rename/reshape them).
+#
+# These are the shared seams the Phase-5 Wave-0 stubs + the four Wave-2 plans
+# (NDI mock, orchestrator, OBS controller, score UI) assert against:
+#
+#   make_config        -> Callable[..., Config]  (minimal validated 4-camera Config)
+#   fake_frame_source  -> object implementing start/latest/last_frame_ts/stop
+#   recording_obs      -> a call-capturing ObsController stand-in (RecordingObsController-shaped)
+#   injected_clock     -> Callable[[], float]    (a monotonic float advanced on demand)
+#   file_channel       -> a tmp_path-backed bundle of score/runstate/command/status paths
+#
+# All are heavy-import-free at module load (imports happen in-body), preserving
+# the lazy-import boundary (import segugio.* succeeds with cyndilib/obsws/cv2/Flask absent).
+# --------------------------------------------------------------------------- #
+
+# A minimal 4-camera config dict (one is_safe) — the Phase-5 wiring needs >1 camera
+# and an explicit SAFE fallback. Built on the Phase-1 schema (FieldProfile + cameras
+# + framing_weights + thresholds + model); reuses the same zone/weight shape.
+_PHASE5_CONFIG: dict = {
+    "field": {"sport": "disc_dog", "event": "distance_accuracy"},
+    "cameras": [
+        {
+            "id": "cam_wide",
+            "role": "main_wide",
+            "obs_scene": "CAM Wide",
+            "is_safe": True,
+            "ndi_source": "PHONE-WIDE (NDI)",
+            "zones": [{"name": "field", "rect": [0.0, 0.0, 1.0, 1.0]}],
+        },
+        {
+            "id": "cam_long",
+            "role": "long",
+            "obs_scene": "CAM Long",
+            "is_safe": False,
+            "ndi_source": "PHONE-LONG (NDI)",
+            "zones": [{"name": "field", "rect": [0.0, 0.0, 1.0, 1.0]}],
+        },
+        {
+            "id": "cam_low",
+            "role": "low",
+            "obs_scene": "CAM Low",
+            "is_safe": False,
+            "ndi_source": "PHONE-LOW (NDI)",
+            "zones": [{"name": "field", "rect": [0.0, 0.0, 1.0, 1.0]}],
+        },
+        {
+            "id": "cam_handler",
+            "role": "handler_side",
+            "obs_scene": "CAM Handler",
+            "is_safe": False,
+            "ndi_source": "PHONE-HANDLER (NDI)",
+            "zones": [{"name": "field", "rect": [0.0, 0.0, 1.0, 1.0]}],
+        },
+    ],
+    "framing_weights": {
+        "main_wide": {"field": 1.0},
+        "long": {"field": 1.0},
+        "low": {"field": 1.0},
+        "handler_side": {"field": 1.0},
+    },
+    "thresholds": {
+        "alpha": 0.3,
+        "hysteresis_margin": 0.1,
+        "min_dwell": 2.0,
+        "debounce_N": 3,
+        "cooldown": 1.0,
+        "watchdog_timeout": 0.8,
+        "track_buffer": 60,
+    },
+    "model": {"path": "yolo26s.pt", "class_index": 16},
+}
+
+
+@pytest.fixture
+def make_config() -> Callable[..., object]:
+    """Factory returning a minimal validated 4-camera ``Config`` (one ``is_safe``).
+
+    Usage::
+
+        cfg = make_config()                       # the canonical 4-cam Phase-5 config
+        cfg = make_config(overrides={"action_hold": {"motion_threshold": 0.05}})
+
+    ``Config`` is imported in-body to keep this conftest heavy-import-free. The dict is
+    deep-copied per call so a test mutating ``overrides`` never leaks into another test.
+    """
+    from segugio.config import Config
+
+    def _build(overrides: dict | None = None) -> object:
+        raw = copy.deepcopy(_PHASE5_CONFIG)
+        if overrides:
+            raw.update(copy.deepcopy(overrides))
+        return Config.model_validate(raw)
+
+    return _build
+
+
+class _FakeFrameSource:
+    """Light stand-in for the ``FrameSource`` interface (start/latest/last_frame_ts/stop).
+
+    No numpy, no cv2 — ``latest`` returns whatever object the test seeds via ``set``.
+    Tracks start/stop calls and per-camera last-NEW-frame timestamps (RBT-01 substrate).
+    The real cyndilib impl + the in-process clip mock land in Wave 2 (05-02).
+    """
+
+    def __init__(self) -> None:
+        self.started = False
+        self.stopped = False
+        self._frames: dict[str, object] = {}
+        self._ts: dict[str, float] = {}
+
+    def set(self, cam_id: str, frame: object, ts: float | None = None) -> None:
+        self._frames[cam_id] = frame
+        if ts is not None:
+            self._ts[cam_id] = ts
+
+    def start(self) -> None:
+        self.started = True
+
+    def latest(self, cam_id: str):
+        return self._frames.get(cam_id)
+
+    def last_frame_ts(self, cam_id: str):
+        return self._ts.get(cam_id)
+
+    def stop(self) -> None:
+        self.stopped = True
+
+
+@pytest.fixture
+def fake_frame_source() -> _FakeFrameSource:
+    """A light ``FrameSource``-shaped fake (start/latest/last_frame_ts/stop)."""
+    return _FakeFrameSource()
+
+
+class _InlineRecordingObs:
+    """Inline RecordingObsController stand-in until 05-03 lands the real fake.
+
+    Captures every controller call as a tuple in ``self.calls`` so the camera-id→scene
+    mapping and failure paths can be asserted headless (RESEARCH Pattern 2). Once 05-03
+    lands ``segugio.obs.recording_fake.RecordingObsController`` the fixture prefers it.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[tuple] = []
+
+    def connect(self) -> None:
+        self.calls.append(("connect",))
+
+    def cut(self, scene_name: str) -> None:
+        self.calls.append(("cut", scene_name))
+
+    def set_pip(self, scene, source, enabled, transform=None) -> None:
+        self.calls.append(("pip", scene, source, enabled, transform))
+
+    def set_overlay_text(self, input_name: str, text: str) -> None:
+        self.calls.append(("overlay", input_name, text))
+
+    def close(self) -> None:
+        self.calls.append(("close",))
+
+
+@pytest.fixture
+def recording_obs():
+    """A call-capturing ObsController stand-in (RecordingObsController-shaped).
+
+    Prefers the real ``segugio.obs.recording_fake.RecordingObsController`` once 05-03
+    lands it; until then returns the inline stand-in so the Wave-0 stubs collect/run.
+    """
+    try:  # pragma: no cover - exercised once 05-03 lands the real fake
+        from segugio.obs.recording_fake import RecordingObsController  # type: ignore
+
+        return RecordingObsController()
+    except Exception:
+        return _InlineRecordingObs()
+
+
+@pytest.fixture
+def injected_clock() -> Callable[..., float]:
+    """A controllable monotonic-float clock for watchdog tests (no wall-clock).
+
+    Returns a callable: ``clock()`` reads the current value; ``clock(advance=dt)`` advances
+    it by ``dt`` and returns the new value. Liveness math (RBT-01) is PURE on injected
+    timestamps — the wall-clock lives only in the orchestrator, never in the watchdog.
+    """
+    state = {"t": 0.0}
+
+    def _clock(advance: float | None = None) -> float:
+        if advance is not None:
+            state["t"] += advance
+        return state["t"]
+
+    return _clock
+
+
+@pytest.fixture
+def file_channel(tmp_path: Path) -> dict:
+    """A tmp_path-backed bundle of the four operator↔system file paths.
+
+    Returns ``{"dir", "score", "runstate", "command", "status", "overlay"}`` Paths under
+    pytest's ``tmp_path`` (same volume → ``os.replace`` is atomic). The atomic-file channel
+    (05-01 Task 2) and the Flask UI (05-05) write/read exactly these files.
+    """
+    d = tmp_path / "opcomm"
+    d.mkdir()
+    return {
+        "dir": d,
+        "score": d / "score.json",
+        "runstate": d / "runstate.json",
+        "command": d / "command.json",
+        "status": d / "status.json",
+        "overlay": d / "overlay.txt",
+    }
+
+
 def _as_camera_scores(samples, status_default=None):
     """Wrap each ``ScoreSample`` (no status field) as a ``CameraScore`` (RESEARCH Pitfall 2).
 

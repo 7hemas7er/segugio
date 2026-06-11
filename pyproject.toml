@@ -15,6 +15,7 @@ dependencies = [
     "numpy==2.4.6",
     "loguru==0.7.3",
     "transitions==0.9.3",  # pure-Python FSM (Phase 3); no native/GPU/C deps → light side
+    "Flask==3.1.3",  # operator console (Phase 5, D-02): serve page + POST + atomic-file write; synchronous, 1-dep tree, runtime UI tool (not [heavy])
 ]
 
 [project.optional-dependencies]
@@ -42,4 +43,6 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
     "gpu: requires CUDA GPU + ultralytics/torch + yolo26s.pt weights; skipped when absent (D-09)",
+    "ndi: requires libndi + cyndilib + a live named NDI source on the network; Windows-only, real-NDI E2E path (D-05/NDI-01/02)",
+    "obs: requires OBS Studio + DistroAV + obs-websocket v5 running; real-OBS E2E path (D-06/OBS-01..05)",
 ]

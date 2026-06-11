@@ -58,6 +58,58 @@ def test_temp_is_same_dir(tmp_path, monkeypatch):
     assert seen_dirs == [os.path.dirname(os.path.abspath(str(target)))]
 
 
+def test_atomic_write_text_retries_on_permission_error(tmp_path, monkeypatch):
+    """atomic_write_text retries the swap on a transient Windows sharing-violation (WR-04).
+
+    Simulates OBS holding the overlay file open at the instant of os.replace → MoveFileEx:
+    the FIRST os.replace raises PermissionError [WinError 5], subsequent calls succeed.
+    atomic_write_text must route through _atomic_replace's bounded retry (mirroring
+    atomic_write_json) — so the writer does NOT crash and the file still lands.
+    """
+    target = tmp_path / "overlay.txt"
+    calls: list[int] = []
+
+    real_replace = os.replace
+
+    def _flaky_replace(src, dst):
+        calls.append(1)
+        if len(calls) == 1:
+            raise PermissionError("[WinError 5] sharing violation")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", _flaky_replace)
+    atomic_write_text(str(target), "Punti: 7")
+
+    # The retry happened: one failure + one success = at least two os.replace invocations.
+    assert len(calls) >= 2
+    # The file landed with exactly the written text despite the transient sharing-violation.
+    assert target.read_text(encoding="utf-8") == "Punti: 7"
+
+
+def test_atomic_write_json_retries_on_permission_error(tmp_path, monkeypatch):
+    """Parity: atomic_write_json already survives the same transient PermissionError.
+
+    Documents the symmetric WR-04 contract — text and json swaps share the same
+    _atomic_replace retry path, so both survive an OBS/orchestrator reader holding the file.
+    """
+    target = tmp_path / "score.json"
+    calls: list[int] = []
+
+    real_replace = os.replace
+
+    def _flaky_replace(src, dst):
+        calls.append(1)
+        if len(calls) == 1:
+            raise PermissionError("[WinError 5] sharing violation")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", _flaky_replace)
+    atomic_write_json(str(target), {"punti": 7})
+
+    assert len(calls) >= 2
+    assert json.loads(target.read_text(encoding="utf-8")) == {"punti": 7}
+
+
 def test_interleaved_reader_never_partial(tmp_path):
     """A reader interleaved with many rapid writes never observes a partial/empty file."""
     target = tmp_path / "score.json"

@@ -83,11 +83,14 @@ def atomic_write_text(path: str, text: str) -> None:
     """Write a plain string to ``path`` atomically — the OBS read-from-file overlay (OBS-05).
 
     Same atomicity guarantee as :func:`atomic_write_json`: OBS reading the overlay file
-    mid-write never flickers to blank or a truncated line.
+    mid-write never flickers to blank or a truncated line. The final swap is routed through
+    the SAME :func:`_atomic_replace` retry the JSON path uses, so the Windows MoveFileEx
+    sharing-violation (``PermissionError``) raised when OBS holds the overlay file open at the
+    instant of the swap is retried — not propagated as a writer crash (Pitfall 6 / WR-04).
     """
     tmp = _temp_path(path)
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp, path)
+    _atomic_replace(tmp, path)  # atomic on the same volume (Windows: MoveFileEx + retry)

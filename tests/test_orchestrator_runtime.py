@@ -170,6 +170,28 @@ def test_tracker_factory_seeded_with_config_model(tmp_path) -> None:
         assert Path(str(trk.tracker_yaml)).name == "botsort_dog.yaml"
 
 
+def test_build_creates_missing_channel_dir(tmp_path) -> None:
+    """Test 4c (CR-01 regression): build_orchestrator creates a channel_dir that does not exist.
+
+    On a clean rig launch the default ./opcomm does NOT exist and the orchestrator may start
+    before/without the console (which is the only other code that creates it). The atomic writer
+    writes its temp file INSIDE channel_dir before os.replace, so a missing dir makes every D-11
+    write_status raise FileNotFoundError — swallowed by the tick's RBT-04 guard, so the loop
+    survives but status.json is never written and the operator panel's reverse channel goes dead.
+    The other tests pass an already-existing tmp_path, which hides this; this one does not.
+    """
+    missing = tmp_path / "does-not-exist" / "opcomm"
+    assert not missing.exists()
+
+    _, orch, _ = _build(missing)
+
+    assert missing.is_dir()  # build created the full path
+    # And the D-11 status write now actually lands (no swallowed FileNotFoundError):
+    # _to_safe writes status.json, and with the dir present the atomic write succeeds.
+    orch._to_safe("startup")
+    assert (missing / "status.json").is_file()
+
+
 def test_runtime_imports_with_heavy_stack_absent(monkeypatch) -> None:
     """Test 5: import segugio.orchestrator.runtime succeeds with the heavy stack ABSENT."""
     for name in ("torch", "ultralytics", "cyndilib", "obsws_python", "cv2"):

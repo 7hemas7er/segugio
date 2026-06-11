@@ -34,6 +34,7 @@ builder bodies, so ``import segugio.orchestrator.runtime`` succeeds with the hea
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
@@ -134,6 +135,15 @@ def build_orchestrator(
     source_factory = source_factory or _default_source_factory
     obs_factory = obs_factory or _default_obs_factory
     tracker_factory = tracker_factory or _default_tracker_factory
+
+    # Create the opcomm channel dir up front — IDENTICAL to ui/app.py:create_app's
+    # os.makedirs (the UI's own dir-creation). The orchestrator must NOT depend on the
+    # console having started first: on a clean rig launch the default ./opcomm does not
+    # exist, and the atomic writer writes its temp file INSIDE this dir before os.replace,
+    # so a missing dir makes every D-11 write_status raise FileNotFoundError. That error is
+    # swallowed by the tick's RBT-04 try/except — the loop never crashes but status.json is
+    # never written, silently killing the operator panel's reverse channel this plan wires.
+    os.makedirs(channel_dir, exist_ok=True)
 
     channel_paths = _channel_paths(channel_dir)
 

@@ -3,13 +3,39 @@ status: partial
 phase: 05-integration-ndi-mock-orchestrator-obs-score-ui
 source: [05-VERIFICATION.md]
 started: 2026-06-11T14:05:00Z
-updated: 2026-06-11T16:40:00Z
+updated: 2026-06-12T00:30:00Z
 ---
 
 ## Current Test
 
-[paused — Test 1 crash fixed (bc4c5f5); Tests 1-5 awaiting the Windows/RTX rig (D-07).
-Resume with `/gsd-verify-work 05` once `pip install -e ".[heavy]"` + OBS/NDI/GPU are set up.]
+[paused — heavy stack installed on the dev box and smoke-tested (see findings below). RBT-04
+no-crash partially CONFIRMED on the real stack. Tests 1-5 still need the full Windows/RTX rig
+(real OBS up + live NDI source + GPU). Resume with `/gsd-verify-work 05` at the rig.]
+
+## Smoke-test findings (heavy stack on dev box — 2026-06-12)
+
+`pip install -e ".[heavy]"` succeeded on Python 3.14 (torch 2.12.0 cp314 wheel, ultralytics,
+cyndilib, opencv, obsws all resolve — no need for 3.12). Running the real stack on the dev box
+(no GPU, no live NDI source, OBS first absent then operator-started) gave PARTIAL D-07 signal
+and exposed **4 real defects, all fixed**:
+
+- **RBT-04 CONFIRMED (partial):** `python -m segugio config.example.yaml` downloaded `yolo26s.pt`,
+  built source/obs/4 trackers, and ticked ~20s coasting in SAFE WITHOUT crashing while OBS+NDI
+  were down — on the real obsws-python/ultralytics stack. (Full "reconnects once OBS starts" +
+  the NDI/GPU paths still need the rig.)
+- **OBS log spam (fixed `0935d48`):** with OBS down from start, `_req` was None so every tick
+  threw an AttributeError that `_safe_call` dumped as a full traceback (~90 lines/sec). Throttled
+  to first-failure + heartbeat, accurate cause, one recovery line; +regression test.
+- **NDI mock-sender cyndilib 0.1.1 API (fixed `a9e96d0`):** the `[ASSUMED A2]` code was wrong in
+  two places when first run for real — `FourCC` import path (`ndi_recv`→`ndi_structs`) and
+  `write_video_async` needs a flat 1-D buffer (`bgra.reshape(-1)`). Both fixed; rest of the
+  cyndilib surface probed and confirmed correct.
+- **Tooling/test (fixed `5707286`, `682aa89`):** ultralytics ships its own top-level `tests/`
+  package that shadowed the repo's in any heavy venv (→ `tests/__init__.py` + qualify one import);
+  and `test_app_imports_nothing_heavy` was brittle in a heavy env (→ force-absent pattern).
+
+Headless suite: **318 passed** (global) / venv `-m "not ndi and not obs and not gpu"` all green.
+The 2 `@pytest.mark.ndi` loopback tests still fail in the venv — real NDI frame delivery (rig).
 
 ## Tests
 

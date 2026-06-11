@@ -1,0 +1,516 @@
+"""``Orchestrator`` — the fixed-rate, fault-isolated tick (the grown-up ``run_clip_eval``).
+
+This is the live successor of ``tracking/eval.py:run_clip_eval`` and the file that closes the
+v1 milestone: it wires every locked Phase 1-4 brain into ONE end-to-end loop —
+``FrameSource.latest(cam)`` per camera → per-camera fan-out (``PerCameraTracker.track`` →
+``signals_from_boxes`` → ``CompetitorLock.select`` → ``PlausibilityGate.check``) →
+``MultiCamScorer.update`` → the ``FeedWatchdog`` alive map → the D-08 action-hold from the
+locked subject's motion energy → ``DecisionEngine.tick`` → ``ObsController.cut`` to the target
+``Camera.obs_scene`` → the D-11 atomic status write.
+
+The three load-bearing structures copied from ``run_clip_eval`` (05-PATTERNS.md §loop.py):
+
+  1. PER-CAMERA INDEPENDENCE (``eval.py:287-299``): one ``PerCameraTracker`` + one
+     ``CompetitorLock`` + one ``PlausibilityGate`` per ``cam.id`` — NEVER a frame list to one
+     tracker (#13107). The trackers are INJECTED (so YOLO loads only in the real wiring; the
+     headless tests inject fakes); the locks + gates are built here from config (they are pure
+     and light).
+  2. THE PER-CAMERA FAN-OUT (``eval.py:321-348``): the exact chain, swapping
+     ``frame_crops.get(cam_id)`` for ``self.source.latest(cam_id)``, preserving the CR-01
+     gate-reset-only-on-genuine-reacquire rule.
+  3. THE ONCE-BEFORE-LOOP HARD ReID GATE (``eval.py:303, 329-331``): ``assert_native_reid_engaged``
+     is called ONCE after a warmup that ACTUALLY ran inference (``results is not None``); it
+     RAISES on the silent ``yolo26n-cls.pt`` fallback (TRK-02).
+
+ROBUSTNESS (RBT-04, threat T-05-06-01, "nessun crash ammesso"): every tick stage is wrapped so
+a raised exception (frame pull / track / scorer / engine / OBS / channel) is caught → logged →
+the loop coasts to SAFE and keeps ticking; the process NEVER exits. ``shutdown()`` cuts to SAFE,
+stops the source, and closes OBS. Malformed operator files are absorbed at the channel boundary
+(``opcomm.channel`` returns the last-good/default and never raises into the loop).
+
+D-09 run-state STEERS the loop: ``just_started`` resets the ``CompetitorLock``s; while STOPPED
+the loop parks the director on SAFE (passing a synthetic park toward the is_safe target;
+Override still wins, RBT-03 — the top FSM tier). D-10 override is read each tick and passed into
+the FSM as an ``OverrideCmd``. D-11 status is written atomically ON CHANGE.
+
+LATENCY (RBT-05): :meth:`run_measured` instruments each tick stage with ``perf_counter`` deltas
+(ingest-pull / YOLO / score / FSM / OBS-cut) ADDITIVELY — it does not change the pipeline logic —
+and returns per-stage + total timings for the latency harness (see ``tests/test_latency.py``).
+
+DETERMINISM (the Phase-1 convention): the orchestrator OWNS the wall-clock (the rate-limiter in
+:meth:`run` + the latency probe) and the threads — everything it calls stays clock-free and
+injected-value-testable. ``tick`` is an injected integer index. In the headless ``run_measured``
+mode the per-tick ``now`` is derived from the tick (matching the mock source's tick-derived
+timestamps) so liveness is deterministic off-GPU; the real ``run`` uses ``time.monotonic``.
+
+LAZY-IMPORT BOUNDARY: this module imports only LIGHT deps (stdlib + loguru + the pure segugio
+surfaces). ``import segugio.orchestrator.loop`` succeeds with cyndilib / obsws / ultralytics /
+torch / cv2 / Flask ABSENT — the heavy clients live ONLY inside the injected real
+implementations (the real ``FrameSource`` / ``ObsController`` / ``PerCameraTracker``).
+"""
+
+from __future__ import annotations
+
+import time
+from typing import TYPE_CHECKING
+
+from loguru import logger
+
+from ..decision.signals import SAFE_TARGET
+from ..obs.mapping import scene_for
+from ..opcomm.channel import read_command, read_runstate, write_status
+from ..opcomm.records import DirectorStatus
+from ..tracking.competitor_lock import CompetitorLock
+from ..tracking.plausibility import PlausibilityGate
+from ..tracking.signals_map import signals_from_boxes
+
+if TYPE_CHECKING:  # type-only — keeps heavy deps off the runtime import path
+    from ..config.models import Config
+
+__all__ = ["Orchestrator"]
+
+# The decision-loop stages the latency probe times (RBT-05). OBS-cut is measured but is off the
+# inference critical path (the dominant ~35-60ms tail is the websocket round-trip, not compute).
+_LATENCY_STAGES = ("ingest", "yolo", "score", "fsm", "obs")
+
+# Degradation ladder (RBT-05 / TECHNICAL-RESEARCH): if the measured total p95 exceeds the
+# budget on the Windows/RTX box, act on these trigger points IN ORDER. Recorded here (and
+# logged in run_measured) so the on-Windows run can apply them — this loop does not auto-tune.
+_DEGRADATION_LADDER = (
+    "1) swap yolo26s.pt -> yolo26n.pt (config model.path)",
+    "2) reduce active cameras (fewer per-camera trackers)",
+    "3) lower the AI-path imgsz / tick fps",
+)
+
+
+def _arrays_from_results(results):
+    """Extract ``(xywhn, ids, confs)`` plain lists from one YOLO ``Results`` row (or None).
+
+    Byte-for-byte the ``eval.py:_arrays_from_results`` contract: ``Results.boxes`` may be
+    ``None`` or have ``.id is None`` (no confirmed track) — both degrade to ``([], None, [])``
+    so ``signals_from_boxes`` coasts. ``.cpu().numpy().tolist()`` brings the tensors to plain
+    Python so the pure mapper never sees a live GPU tensor. Kept LOCAL (not imported from eval)
+    so this loop never imports the cv2-edge module.
+    """
+    if results is None or getattr(results, "boxes", None) is None:
+        return [], None, []
+    boxes = results.boxes
+    if boxes.id is None:  # no confirmed track this frame → coast
+        return [], None, []
+    xywhn = boxes.xywhn.cpu().numpy().tolist()
+    ids = boxes.id.cpu().numpy().astype(int).tolist()
+    confs = boxes.conf.cpu().numpy().tolist()
+    return xywhn, ids, confs
+
+
+class Orchestrator:
+    """The fixed-rate fault-isolated tick (RBT-04/05, D-08/09/10/11).
+
+    Construct with the validated ``Config`` and the injected collaborators (the
+    ``FrameSource``, the ``ObsController``, the pre-built ``MultiCamScorer`` /
+    ``DecisionEngine`` / ``FeedWatchdog`` / ``ActionHoldDeriver``, the operator↔system
+    ``channel_paths`` bundle, and the per-camera ``trackers`` dict). Prefer :meth:`from_config`
+    which builds the scorer/engine/watchdog/deriver from the Config for you.
+
+    Args:
+        config: the validated ``Config`` (cameras / thresholds / framing / action_hold).
+        source: a ``FrameSource`` (``start``/``latest``/``last_frame_ts``/``stop``).
+        obs: an ``ObsController`` (``connect``/``cut``/``set_overlay_text``/``close``).
+        scorer: the ``MultiCamScorer`` (one ``CameraScorer`` per camera).
+        engine: the ``DecisionEngine`` (the camera-switching FSM).
+        watchdog: the ``FeedWatchdog`` (pure last-NEW-frame liveness math).
+        action_hold: the ``ActionHoldDeriver`` (D-08 motion energy → ``HoldInput.action``).
+        channel_paths: a mapping with ``command`` / ``runstate`` / ``status`` (and optionally
+            ``score`` / ``overlay``) Path/str entries — the operator↔system files.
+        trackers: ``{cam_id: PerCameraTracker}`` — INJECTED so YOLO loads only in real wiring
+            (headless tests inject fakes). Each tracker exposes ``track(frame)`` and (for the
+            real impl) ``.model`` for the once-before-loop ReID gate.
+    """
+
+    def __init__(
+        self,
+        config: "Config",
+        source,
+        obs,
+        scorer,
+        engine,
+        watchdog,
+        action_hold,
+        channel_paths,
+        trackers,
+    ) -> None:
+        self.config = config
+        self.cameras = list(config.cameras)
+        self.source = source
+        self.obs = obs
+        self.scorer = scorer
+        self.engine = engine
+        self.watchdog = watchdog
+        self.action_hold = action_hold
+        self.trackers = dict(trackers)
+
+        # Operator↔system file paths (str so the channel's open() is happy on any Path type).
+        self._cmd_path = str(channel_paths["command"])
+        self._runstate_path = str(channel_paths["runstate"])
+        self._status_path = str(channel_paths["status"])
+
+        # PER-CAMERA INDEPENDENCE (eval.py:287-299): one lock + one gate per camera. The locks
+        # and gates are PURE/light so they are built here from config; the trackers are injected.
+        self.cam_ids = [cam.id for cam in self.cameras]
+        self.locks: dict = {cam.id: CompetitorLock(cam, config.tracking) for cam in self.cameras}
+        self.gates: dict = {cam.id: PlausibilityGate(config.tracking) for cam in self.cameras}
+        # Per-camera previously-selected locked id — drives the CR-01 gate-reset-only-on-genuine-
+        # reacquire rule (mirrors eval.py:294).
+        self._last_selected_id: dict = {cam.id: None for cam in self.cameras}
+
+        # The is_safe camera id (the D-09 park target) — resolved once (config guarantees one).
+        self._safe_cam_id = next(c.id for c in self.cameras if c.is_safe)
+
+        # Loop / lifecycle state.
+        self._stopping = False
+        self._reid_checked = False
+        self._dog_idx_resolved: set = set()
+        self._last_status: DirectorStatus | None = None  # write-on-change (D-11)
+
+        # Latency probe accumulator (RBT-05) — additive; never changes pipeline logic.
+        self._latency: dict[str, list[float]] = {s: [] for s in _LATENCY_STAGES}
+        self._latency_total: list[float] = []
+
+    # ----- construction convenience ----------------------------------------- #
+
+    @classmethod
+    def from_config(
+        cls,
+        config: "Config",
+        source,
+        obs,
+        channel_paths,
+        trackers,
+        fps: float = 30.0,
+        grace: float = 0.0,
+    ) -> "Orchestrator":
+        """Build the scorer/engine/watchdog/deriver from ``config`` and return an Orchestrator.
+
+        The collaborators are constructed exactly as ``run_clip_eval`` / Phase-3 wiring expect:
+        the scorer takes the per-discipline ``lead_room`` gain + the coast ``ttl_ticks`` (from
+        ``framing_defaults`` and ``fps``); the engine takes the discipline ``hold_length_s``;
+        the watchdog takes ``Thresholds.watchdog_timeout``; the deriver takes ``action_hold``.
+        """
+        from ..decision.engine import DecisionEngine
+        from ..framing.scorer import MultiCamScorer, ttl_ticks_from_seconds
+        from ..watchdog_feed.liveness import FeedWatchdog
+        from .action_hold import ActionHoldDeriver
+
+        fd = config.field.framing_defaults
+        ttl_ticks = ttl_ticks_from_seconds(fd.hold_length_s, fps)
+        scorer = MultiCamScorer(
+            config.cameras,
+            config.scoring,
+            config.framing_weights,
+            config.thresholds.alpha,
+            fd.lead_room,
+            ttl_ticks,
+        )
+        engine = DecisionEngine(
+            config.cameras,
+            config.thresholds,
+            fps=fps,
+            hold_length_s=fd.hold_length_s,
+        )
+        watchdog = FeedWatchdog(config.thresholds.watchdog_timeout, grace=grace)
+        deriver = ActionHoldDeriver(config.action_hold)
+        return cls(
+            config=config,
+            source=source,
+            obs=obs,
+            scorer=scorer,
+            engine=engine,
+            watchdog=watchdog,
+            action_hold=deriver,
+            channel_paths=channel_paths,
+            trackers=trackers,
+        )
+
+    # ----- the per-camera fan-out (eval.py:321-348) ------------------------- #
+
+    def _fan_out(self, tick: int) -> "tuple[dict, float]":
+        """Run the per-camera tracker→signals→lock→gate chain → (dets_by_cam, locked_energy).
+
+        Mirrors ``run_clip_eval``'s fan-out EXACTLY, swapping ``frame_crops.get(cam_id)`` for
+        ``self.source.latest(cam_id)``. Preserves the CR-01 gate-reset-only-on-genuine-reacquire
+        rule and the once-before-loop HARD ReID gate (TRK-02). Returns the per-camera
+        ``DetectionSignal | None`` map (the ``MultiCamScorer.update`` consumer shape) AND the
+        LOCKED subject's motion energy (the max over cameras → the D-08 action-hold signal).
+        """
+        dets_by_cam: dict = {}
+        locked_energy = 0.0
+        for cam in self.cameras:
+            cam_id = cam.id
+            tracker = self.trackers[cam_id]
+            frame = self.source.latest(cam_id)  # newest BGR frame, or None → coast
+
+            # Resolve the dog index BY NAME once per camera before its first inference (CR-02).
+            # Only for the real tracker (it carries .model + .dog_idx); the headless fakes skip.
+            if cam_id not in self._dog_idx_resolved and hasattr(tracker, "model"):
+                from ..tracking.detector import resolve_dog_index
+
+                tracker.dog_idx = resolve_dog_index(tracker.model, self.config.model.class_index)
+                self._dog_idx_resolved.add(cam_id)
+
+            results = tracker.track(frame)  # None on a blank/decode-failure frame → coast
+
+            # The HARD TRK-02 gate ONCE, only after a warmup that ACTUALLY ran inference.
+            if not self._reid_checked and results is not None and hasattr(tracker, "model"):
+                from ..tracking.reid_check import assert_native_reid_engaged
+
+                assert_native_reid_engaged(tracker.model)  # RAISES on cls fallback (TRK-02)
+                self._reid_checked = True
+
+            # Edge → signals → lock → gate → the per-camera DetectionSignal | None.
+            xywhn, ids, confs = _arrays_from_results(results)
+            candidates = signals_from_boxes(xywhn, ids, confs, tick, cam_id)
+            prev_sel_id = self._last_selected_id[cam_id]
+            selected = self.locks[cam_id].select(candidates, tick)
+            cur_sel_id = selected.track_id if selected is not None else None
+            # Gate-reset ONLY on a genuine re-acquire (the locked identity changed), never on a
+            # transient coast (CR-01 / TRK-05 teleport guard).
+            if cur_sel_id is not None and cur_sel_id != prev_sel_id:
+                self.gates[cam_id].reset()
+            self._last_selected_id[cam_id] = cur_sel_id
+            signal = self.gates[cam_id].check(selected)
+            dets_by_cam[cam_id] = signal
+
+            # D-08: the locked subject's motion energy for THIS camera (0.0 when nothing locked).
+            energy = self.locks[cam_id].locked_motion_energy()
+            if energy > locked_energy:
+                locked_energy = energy
+        return dets_by_cam, locked_energy
+
+    # ----- per-tick orchestration ------------------------------------------- #
+
+    def _read_run_and_override(self):
+        """Read the run-state + override command at the channel boundary (never raises).
+
+        Returns ``(run, override, just_started)``. The channel's ``read_*`` absorb malformed /
+        absent files (return last-good/default), so this is exception-free by construction
+        (RBT-04 / threat T-05-06-02).
+        """
+        run = read_runstate(self._runstate_path)
+        cmd = read_command(self._cmd_path)
+        override = cmd.to_override() if cmd is not None else None
+        return run, override
+
+    def _decide(self, tick: int, scores, alive, holds, override, run):
+        """Run the FSM tick with the D-09 STOP-parks-on-SAFE steering (Override still wins).
+
+        While the run is STOPPED and the operator has NOT issued a live override, the loop parks
+        the director on the SAFE SENTINEL: it still advances the FSM (``to_safe()`` keeps the
+        FSM's clocks/state coherent for the next START) and returns a synthetic SAFE
+        ``Decision`` so the status/cut report the SAFE sentinel (``live_cam == "SAFE"``), not a
+        camera id. Override is the TOP tier (RBT-03) so a live override during STOP still wins —
+        in that case the normal ``engine.tick`` runs with the override and decides as usual.
+        This avoids a new FSM state (RESEARCH OQ3 / D-09 discretion).
+        """
+        if run.stopped and override is None:
+            self.engine.to_safe()  # advance the FSM to SAFE (keeps clocks coherent for START)
+            from ..decision.signals import Decision, Mode
+
+            return Decision(
+                tick=scores[0].tick if scores else tick,
+                target=SAFE_TARGET,
+                mode=Mode(self.engine.state),
+                reason="none",
+            )
+        return self.engine.tick(scores, alive, holds, override)
+
+    def _status_for(self, decision, alive) -> DirectorStatus:
+        """Map a ``Decision`` + the alive map → the D-11 ``DirectorStatus`` (live cam + reason).
+
+        ``reason`` mapping (Decision.reason + the alive map → the D-11 advisory tag the panel
+        renders): ``override``/``override_dead_fallback`` → ``override``; ``feed_emergency`` →
+        ``feed-dead``; a SAFE target with no live feed → ``feed-dead``; a SAFE target WITH a live
+        feed (nothing tracked) → ``subject-lost``; ``auto_switch`` → ``auto``; otherwise the
+        steady-state ``auto`` (or ``subject-lost`` when parked on SAFE with live feeds).
+        """
+        r = decision.reason
+        target = decision.target
+        any_alive = any(alive.values())
+        if r in ("override", "override_dead_fallback"):
+            reason = "override"
+        elif r == "feed_emergency":
+            reason = "feed-dead"
+        elif target == SAFE_TARGET:
+            # Parked on SAFE: distinguish "all feeds dead" from "feeds live but nothing tracked".
+            reason = "subject-lost" if any_alive else "feed-dead"
+        elif r == "auto_switch":
+            reason = "auto"
+        else:
+            # Steady state on a live camera (reason "none"/"hold") → auto.
+            reason = "auto"
+        live_cam = self._safe_cam_id if target == SAFE_TARGET else target
+        # live_cam is the camera id; the UI maps it to a label. SAFE target → the is_safe cam id.
+        return DirectorStatus(live_cam=target, reason=reason, alive=dict(alive))
+
+    def _apply(self, decision, alive) -> None:
+        """Cut OBS to the decision's scene + write the D-11 status on change (never raises here).
+
+        ``scene_for`` maps the target (SAFE sentinel → the is_safe camera's obs_scene) to the OBS
+        scene; the cut is attempted inside the caller's try/except so a websocket drop coasts.
+        The status write is atomic and only happens when the status actually CHANGED (D-11).
+        """
+        scene = scene_for(decision, self.cameras)
+        self.obs.cut(scene)
+        status = self._status_for(decision, alive)
+        if status != self._last_status:
+            write_status(self._status_path, status)
+            self._last_status = status
+
+    def _to_safe(self, reason: str, alive: dict | None = None) -> None:
+        """Coast the director to SAFE (a fault degraded a stage) — best-effort, never raises.
+
+        The single fault sink (RBT-04 / Pitfall 7): cut to the SAFE scene and record a SAFE
+        status. Wrapped so even the SAFE cut failing (a hard-down OBS) cannot crash the loop.
+        """
+        alive = alive if alive is not None else {cam.id: False for cam in self.cameras}
+        try:
+            safe_scene = next(c.obs_scene for c in self.cameras if c.is_safe)
+            self.obs.cut(safe_scene)
+        except Exception as exc:  # noqa: BLE001 — even a failed SAFE cut must not crash
+            logger.warning("SAFE cut failed (coasting): {}", exc)
+        status = DirectorStatus(live_cam=SAFE_TARGET, reason=reason, alive=dict(alive))
+        if status != self._last_status:
+            try:
+                write_status(self._status_path, status)
+                self._last_status = status
+            except Exception as exc:  # noqa: BLE001 — a failed status write must not crash
+                logger.warning("SAFE status write failed (coasting): {}", exc)
+
+    def _tick_once(self, tick: int, now: float, probe: dict | None = None) -> None:
+        """Run ONE fully fault-isolated tick. A raised stage is caught → coast to SAFE.
+
+        ``probe`` (when given) accumulates per-stage perf_counter deltas (RBT-05) ADDITIVELY —
+        the pipeline logic is identical with or without it. ``now`` is the injected wall-clock
+        the watchdog reads (the loop owns the clock; the pipeline stays clock-free).
+        """
+        alive: dict = {}
+        try:
+            # (ingest) per-camera frame pull is folded into the fan-out's source.latest calls,
+            # so we time the whole fan-out under 'ingest'+'yolo' boundaries: the source pull is
+            # 'ingest', the tracker.track inference is 'yolo'. They interleave per camera, so we
+            # time the combined fan-out and attribute it to 'yolo' (the dominant inference cost),
+            # recording a nominal 'ingest' separately around the source readiness.
+            t0 = time.perf_counter()
+            dets_by_cam, locked_energy = self._fan_out(tick)
+            t_fan = time.perf_counter()
+
+            holds = self.action_hold.derive(locked_energy)
+            scores = self.scorer.update(dets_by_cam, tick)
+            t_score = time.perf_counter()
+
+            alive = self.watchdog.alive_map(now, self.source, self.cam_ids)
+            run, override = self._read_run_and_override()
+            if run.just_started:
+                self._reset_locks()
+            decision = self._decide(tick, scores, alive, holds, override, run)
+            t_fsm = time.perf_counter()
+
+            self._apply(decision, alive)
+            t_obs = time.perf_counter()
+
+            if probe is not None:
+                # Attribute fan-out time to YOLO (the dominant inference stage); ingest is the
+                # source-pull share (kept nominal/zero here as latest() is O(1) on the mock —
+                # the real receiver-thread pull is also O(1), the network cost is off-tick).
+                probe["ingest"].append(0.0)
+                probe["yolo"].append(t_fan - t0)
+                probe["score"].append(t_score - t_fan)
+                probe["fsm"].append(t_fsm - t_score)
+                probe["obs"].append(t_obs - t_fsm)
+                probe["total"].append(t_obs - t0)
+        except Exception as exc:  # noqa: BLE001 — RBT-04: ANY stage fault → coast to SAFE
+            logger.exception("tick {} failed → SAFE coast: {}", tick, exc)
+            self._to_safe(reason="feed-dead", alive=alive)
+
+    def _reset_locks(self) -> None:
+        """Reset every ``CompetitorLock`` (D-09 START: a fresh run re-acquires the subject)."""
+        for cam in self.cameras:
+            self.locks[cam.id] = CompetitorLock(cam, self.config.tracking)
+            self.gates[cam.id].reset()
+            self._last_selected_id[cam.id] = None
+
+    # ----- public lifecycle ------------------------------------------------- #
+
+    def run(self, rate_hz: float = 30.0) -> None:
+        """The live fixed-rate loop (owns the wall-clock). Ticks until :meth:`stop` is called.
+
+        Starts the source + connects OBS, then ticks at ``rate_hz`` pulling the newest frame per
+        camera and running the fault-isolated pipeline. ``finally:`` cuts to SAFE, stops the
+        source, and closes OBS (RBT-04 SAFE shutdown). The wall-clock (``time.monotonic`` for the
+        watchdog, ``time.perf_counter`` for the rate-limiter) lives ONLY here.
+        """
+        period = 1.0 / rate_hz if rate_hz > 0 else 0.0
+        self._stopping = False
+        self.source.start()
+        self.obs.connect()
+        tick = 0
+        try:
+            while not self._stopping:
+                t_start = time.perf_counter()
+                self._tick_once(tick, now=time.monotonic())
+                tick += 1
+                # Fixed-rate sleep (never negative).
+                elapsed = time.perf_counter() - t_start
+                if period > elapsed:
+                    time.sleep(period - elapsed)
+        finally:
+            self.shutdown()
+
+    def run_measured(self, n_ticks: int) -> dict:
+        """Drive a BOUNDED number of fault-isolated ticks; return per-stage + total timings.
+
+        The headless / off-GPU harness entry (RBT-05). Starts the source + connects OBS, drives
+        ``n_ticks`` ticks (pumping the mock source each tick when it exposes ``pump``), times each
+        stage with ``perf_counter`` (additive — same pipeline), and returns
+        ``{stage: [per-tick seconds], "total": [...]}``. ``now`` is derived from the tick (matching
+        the mock source's tick-derived timestamps) so liveness is DETERMINISTIC off-GPU. Does NOT
+        shut down (the caller may inspect state / call :meth:`shutdown`).
+        """
+        probe: dict[str, list[float]] = {s: [] for s in _LATENCY_STAGES}
+        probe["total"] = []
+        self._stopping = False
+        self.source.start()
+        self.obs.connect()
+        for tick in range(n_ticks):
+            # Pump the mock source one emitted frame per tick (no-op for sources without pump).
+            pump = getattr(self.source, "pump", None)
+            if callable(pump):
+                pump()
+            # Tick-derived now: matches the mock source's ts (= tick + 1.0) so a freshly-published
+            # frame is alive (gap 0) and a stalled feed goes dead as `now` advances past its ts.
+            self._tick_once(tick, now=float(tick) + 1.0, probe=probe)
+        # Persist into the instance accumulator (so multiple measured runs aggregate).
+        for stage in _LATENCY_STAGES:
+            self._latency[stage].extend(probe[stage])
+        self._latency_total.extend(probe["total"])
+        logger.debug(
+            "latency probe over {} ticks (degradation ladder if over budget: {})",
+            n_ticks,
+            " | ".join(_DEGRADATION_LADDER),
+        )
+        return probe
+
+    def stop(self) -> None:
+        """Signal the live :meth:`run` loop to exit after the current tick."""
+        self._stopping = True
+
+    def shutdown(self) -> None:
+        """Cut to SAFE, stop the source, close OBS — the RBT-04 SAFE shutdown (never raises)."""
+        self._to_safe(reason="shutdown")
+        try:
+            self.source.stop()
+        except Exception as exc:  # noqa: BLE001 — teardown must not crash
+            logger.warning("source.stop() failed on shutdown (coasting): {}", exc)
+        try:
+            self.obs.close()
+        except Exception as exc:  # noqa: BLE001 — teardown must not crash
+            logger.warning("obs.close() failed on shutdown (coasting): {}", exc)

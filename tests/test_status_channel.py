@@ -8,7 +8,8 @@ alive/dead map. These run headless against the in-process clip mock + the record
 
 from __future__ import annotations
 
-from segugio.opcomm.channel import read_status
+from segugio.opcomm.channel import read_status, write_runstate
+from segugio.opcomm.records import RunState
 from segugio.orchestrator.loop import Orchestrator
 
 
@@ -27,6 +28,12 @@ class _OkObs:
 
     def close(self) -> None:
         self.calls.append(("close",))
+
+
+class _Frame:
+    """A non-empty frame stand-in (``.size > 0`` so the NDI-03 guard publishes it)."""
+
+    size = 1
 
 
 class _FakeTracker:
@@ -78,11 +85,15 @@ def test_status_reason_maps_feed_dead_vs_subject_lost(make_config, file_channel)
     # return no detections → the FSM finds no eligible candidate → SAFE with live feeds.
     def _iter():
         for tick in range(20):
-            yield (tick, {cam.id: object() for cam in cfg.cameras})
+            yield (tick, {cam.id: _Frame() for cam in cfg.cameras})
 
     source = ClipReplayFrameSource(frames_iter=_iter())
     obs = _OkObs()
     orch = _orch(cfg, source, obs, file_channel)
+
+    # The run is STARTED (D-09): so the loop does NOT park on SAFE — the FSM auto-decides. With
+    # live feeds but no detections it stays on SAFE because no candidate qualifies → subject-lost.
+    write_runstate(str(file_channel["runstate"]), RunState(action="start"))
 
     # Many ticks so the watchdog sees fresh timestamps (now derived from the emitted tick).
     orch.run_measured(n_ticks=6)

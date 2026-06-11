@@ -29,6 +29,7 @@ PHASE1_SURFACE = [
     "segugio.ndi",  # 05-01: the FrameSource interface (cyndilib lazy-imported in the real impl, Wave 2)
     "segugio.obs",  # 05-01: the ObsController interface (obsws lazy-imported in the real impl, Wave 2)
     "segugio.watchdog_feed",  # 05-04: the pure feed-liveness math (math + typing only)
+    "segugio.orchestrator",  # 05-06: the fault-isolated tick + D-08 deriver (heavy clients inside injected impls)
 ]
 
 

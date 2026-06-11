@@ -177,10 +177,14 @@ def test_loop_never_calls_track_with_a_frame_list(make_config, file_channel):
             captured[self.cam_id].append(frame)
             return None
 
-    # A source publishing a simple per-camera "frame" object (a list-of-rows stand-in).
+    # A source publishing a simple non-empty per-camera "frame" object (.size > 0 so the
+    # NDI-03 guard publishes it).
+    class _Frame:
+        size = 1
+
     def _iter():
         for tick in range(4):
-            yield (tick, {cam.id: object() for cam in cfg.cameras})
+            yield (tick, {cam.id: _Frame() for cam in cfg.cameras})
 
     source = ClipReplayFrameSource(frames_iter=_iter())
     obs = _OkObs()

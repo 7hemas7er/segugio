@@ -150,7 +150,7 @@ Plans:
   4. The manual score-entry UI offers the discipline selector and the three per-discipline field sets plus run start/stop; entries are written atomically (temp + `os.replace`) and appear in the OBS read-from-file overlay — the system displays scores and never adjudicates
   5. The orchestrator runs a fixed-rate tick wiring all modules with fault isolation (try/except + supervised restarts), shuts down to the SAFE scene, never crashes the process, and the measured frame→YOLO→score→FSM→OBS decision loop stays under ~150ms (target <80ms)
 
-**Plans**: 6 plans (Wave 1: 05-01 · Wave 2 parallel: 05-02, 05-03, 05-04, 05-05 · Wave 3: 05-06)
+**Plans**: 8 plans (Wave 1: 05-01 · Wave 2 parallel: 05-02, 05-03, 05-04, 05-05 · Wave 3: 05-06 · Gap Closure parallel: 05-07, 05-08)
 **UI hint**: yes
 
 Plans:
@@ -169,6 +169,11 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 05-06-PLAN.md — Orchestrator: action-hold from motion energy (D-08) + fixed-rate fault-isolated tick (the grown-up `run_clip_eval`) + SAFE shutdown + D-11 status write (RBT-04) + decision-loop latency harness (RBT-05) [Wave 3]
+
+**Gap Closure** *(parallel; from 2026-06-11 verification 4/5 — zero file overlap; prior plans done)*
+
+- [ ] 05-07-PLAN.md — BLOCKER: fault-isolate `run()`/`run_measured()` startup (`source.start()`/`obs.connect()` in try/except → coast into the tick loop) + guard `_cache_pip_ids()` in `connect()` (CR-01, the FAILED truth, RBT-04); non-zero config-sourced anti-jitter `watchdog_grace` (WR-02); distinct non-"feed-dead" fault reason (WR-09); remove dead `live_cam` (WR-01); NEW headless startup-fault regression test that flips Truth #5 [Gap Closure]
+- [ ] 05-08-PLAN.md — IO/thread robustness: route `atomic_write_text` through the `_atomic_replace` retry (WR-04, Windows OBS sharing-violation) + de-busy-spin/auto-reconnect the NDI `_receiver_loop` (CR-02 code fix; real CPU/reconnect stays HARDWARE-deferred), each with a headless regression test [Gap Closure]
 
 ## Progress
 

@@ -197,3 +197,47 @@ def test_loop_never_calls_track_with_a_frame_list(make_config, file_channel):
         # Each tracker saw single frames (never a list of frames in one call).
         assert captured[cam.id], f"tracker {cam.id} was driven"
         assert all(not isinstance(f, list) for f in captured[cam.id])
+
+
+def test_partial_connect_does_not_crash():
+    """A partial ObsWsController.connect() (id-cache fails) coasts — connect must NOT raise (CR-01).
+
+    OBS just came up: the clients build but ``get_scene_item_id`` raises while resolving PIP ids.
+    ``_cache_pip_ids`` is guarded INSIDE connect() so the controller still marks itself connected
+    and stays usable for the per-tick reconnect (ids re-cache via the EventClient / first op).
+    """
+    from segugio.obs.obsws_controller import ObsWsController
+
+    class _IdRaisingReq:
+        def get_scene_item_id(self, scene, source):
+            raise ConnectionError("OBS just came up — id not resolvable yet")
+
+        def disconnect(self):
+            pass
+
+    class _FakeEvt:
+        class _CB:
+            def __init__(self) -> None:
+                self.registered: list = []
+
+            def register(self, fn):
+                self.registered.append(fn)
+
+        def __init__(self) -> None:
+            self.callback = _FakeEvt._CB()
+
+        def disconnect(self):
+            pass
+
+    def factory(host, port, password):
+        return _IdRaisingReq(), _FakeEvt()
+
+    # A non-empty pip_sources so _cache_pip_ids actually runs and hits the raising get id.
+    ctrl = ObsWsController(
+        pip_sources=[("PIP", "cam_wide")], client_factory=factory
+    )
+
+    # connect() must NOT raise despite _cache_pip_ids failing on the id resolve.
+    ctrl.connect()
+
+    assert ctrl._connected is True  # the partial connect coasted; controller stays usable

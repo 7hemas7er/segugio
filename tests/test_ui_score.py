@@ -1,25 +1,112 @@
-"""SCR-02 — Flask POST /score writes expected file content per discipline (Wave-0 stub).
+"""SCR-02 — Flask POST /score writes expected file content per discipline (display-only).
 
-Behavior (filled by 05-05):
-  - POST /score for disc T&F / freestyle / agility writes the expected score.json + overlay.txt.
-  - exercised via the Flask test client (no server, no heavy deps).
+Exercised via the Flask test client (no server, no heavy deps). The app factory
+``create_app(channel_dir)`` injects a tmp_path file dir so each POST writes ``score.json``
+(structured) AND ``overlay.txt`` (the rendered Italian line for OBS-05). Also asserts the
+GET / page is served and carries the Italian console controls (Task 3 template).
 """
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
-
-@pytest.mark.xfail(reason="impl pending 05-05 (SCR-02 Flask POST /score)", strict=False)
-def test_post_score_disc_tf():
-    raise AssertionError("not implemented")
+from segugio.opcomm.channel import read_score
+from segugio.opcomm.records import Discipline
 
 
-@pytest.mark.xfail(reason="impl pending 05-05 (SCR-02 freestyle)", strict=False)
-def test_post_score_freestyle():
-    raise AssertionError("not implemented")
+@pytest.fixture
+def client(file_channel):
+    """A Flask test client wired to a tmp_path opcomm dir (no server)."""
+    from segugio.ui.app import create_app
+
+    app = create_app(str(file_channel["dir"]))
+    app.config.update(TESTING=True)
+    return app.test_client(), file_channel
 
 
-@pytest.mark.xfail(reason="impl pending 05-05 (SCR-02 agility)", strict=False)
-def test_post_score_agility():
-    raise AssertionError("not implemented")
+# --- POST /score per discipline (SCR-02) ------------------------------------- #
+
+
+def test_post_score_disc_tf(client):
+    c, ch = client
+    resp = c.post(
+        "/score",
+        data={"discipline": "disc_tf", "prese": "5", "zona": "3", "totale": "12"},
+    )
+    assert resp.status_code in (200, 204)
+    # score.json holds the structured operator input.
+    doc = read_score(str(ch["score"]))
+    assert doc.discipline == Discipline.disc_tf
+    assert doc.fields.get("prese") == "5"
+    assert doc.fields.get("totale") == "12"
+    # overlay.txt holds the rendered Italian line for OBS (values verbatim).
+    overlay = ch["overlay"].read_text(encoding="utf-8")
+    assert "5" in overlay and "12" in overlay and "Prese" in overlay
+
+
+def test_post_score_freestyle(client):
+    c, ch = client
+    resp = c.post(
+        "/score",
+        data={"discipline": "disc_freestyle", "nome": "Rex & Anna", "timer": "01:30"},
+    )
+    assert resp.status_code in (200, 204)
+    doc = read_score(str(ch["score"]))
+    assert doc.discipline == Discipline.disc_freestyle
+    assert doc.fields.get("nome") == "Rex & Anna"
+    overlay = ch["overlay"].read_text(encoding="utf-8")
+    assert "Rex & Anna" in overlay and "01:30" in overlay
+
+
+def test_post_score_agility(client):
+    c, ch = client
+    resp = c.post(
+        "/score",
+        data={"discipline": "agility", "tempo": "34.5", "sct": "40.0", "faults": "5"},
+    )
+    assert resp.status_code in (200, 204)
+    doc = read_score(str(ch["score"]))
+    assert doc.discipline == Discipline.agility
+    assert doc.fields.get("tempo") == "34.5"
+    overlay = ch["overlay"].read_text(encoding="utf-8")
+    assert "34.5" in overlay and "40.0" in overlay
+
+
+def test_post_score_unknown_discipline_rejected(client):
+    """An out-of-enum discipline is whitelisted at the boundary → 400 (T-05-05-01)."""
+    c, ch = client
+    resp = c.post("/score", data={"discipline": "../../etc", "prese": "1"})
+    assert resp.status_code == 400
+    # nothing written
+    assert not ch["score"].exists()
+
+
+# --- GET / page content (Task 3 template, exercised here) -------------------- #
+
+
+def test_index_serves_italian_console(client):
+    c, _ = client
+    resp = c.get("/")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    # Italian console controls (D-04 four concerns on one page).
+    assert "Disciplina" in html
+    assert "Avvia run" in html and "Ferma run" in html
+    assert "Forza" in html and "Rilascia" in html
+    assert "Stato live" in html
+    # the 3 per-discipline field labels (SCR-02)
+    assert "Prese" in html and "Zona" in html and "Totale" in html
+    assert "Nome" in html and "Timer" in html
+    assert "Tempo" in html and "SCT" in html and "Faults" in html
+
+
+def test_app_imports_nothing_heavy():
+    """segugio.ui.app imports only Flask + segugio.opcomm — no heavy stack."""
+    import sys
+
+    import segugio.ui.app  # noqa: F401
+
+    for heavy in ("ultralytics", "torch", "cyndilib", "obsws_python", "cv2"):
+        assert heavy not in sys.modules, f"{heavy} leaked into segugio.ui.app import"

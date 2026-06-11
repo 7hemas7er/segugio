@@ -25,6 +25,9 @@ PHASE1_SURFACE = [
     "segugio.framing",  # 02-04: the pure framing scorer joins the proven lazy-import surface
     "segugio.decision",  # 03-01: the pure FSM joins the proven lazy-import surface (transitions is light)
     "segugio.tracking",  # 04-01: the per-camera tracking layer (pure surface; cv2 lazy-imported in the heavy edge)
+    "segugio.opcomm",  # 05-01: the atomic-file operator↔system channel (stdlib + loguru only)
+    "segugio.ndi",  # 05-01: the FrameSource interface (cyndilib lazy-imported in the real impl, Wave 2)
+    "segugio.obs",  # 05-01: the ObsController interface (obsws lazy-imported in the real impl, Wave 2)
 ]
 
 

@@ -20,6 +20,11 @@ htmlcov/
 venv/
 env/
 
+# --- opcomm runtime channel (operator<->system files: status/command/runstate/score/overlay) ---
+# Created at runtime by `python -m segugio` (default ./opcomm) and the operator console; these
+# are live IPC artifacts, never source. Pass --opcomm-dir / SEGUGIO_OPCOMM_DIR to relocate.
+opcomm/
+
 # --- test fixture video binaries (external-dir + committed-manifest pattern) ---
 # Real competition footage is large and may be license-restricted (consent/copyright),
 # so binaries stay local and un-committed. Only the manifest + README carry provenance.

@@ -44,9 +44,9 @@
 
 ### NDI Ingest (NDI)
 
-- [ ] **NDI-01**: Modulo ingest via cyndilib (Finder/Receiver/FrameSync) → numpy BGR, un thread ricevitore supervisionato per camera
-- [ ] **NDI-02**: Una **sorgente NDI sintetica/mock** pubblica clip registrate come sorgenti NDI nominate, per integrazione end-to-end senza telefoni
-- [ ] **NDI-03**: Guard sui primi frame vuoti (loop finché risoluzione/dati non sono validi)
+- [x] **NDI-01**: Modulo ingest via cyndilib (Finder/Receiver/FrameSync) → numpy BGR, un thread ricevitore supervisionato per camera
+- [x] **NDI-02**: Una **sorgente NDI sintetica/mock** pubblica clip registrate come sorgenti NDI nominate, per integrazione end-to-end senza telefoni
+- [x] **NDI-03**: Guard sui primi frame vuoti (loop finché risoluzione/dati non sono validi)
 
 ### OBS Control (OBS)
 
@@ -135,9 +135,9 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | TRK-03 | Phase 4 | Complete |
 | TRK-04 | Phase 4 | Complete |
 | TRK-05 | Phase 4 | Complete |
-| NDI-01 | Phase 5 | Pending |
-| NDI-02 | Phase 5 | Pending |
-| NDI-03 | Phase 5 | Pending |
+| NDI-01 | Phase 5 | Complete |
+| NDI-02 | Phase 5 | Complete |
+| NDI-03 | Phase 5 | Complete |
 | OBS-01 | Phase 5 | Pending |
 | OBS-02 | Phase 5 | Pending |
 | OBS-03 | Phase 5 | Pending |
@@ -153,11 +153,13 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | RBT-05 | Phase 5 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 41 total
 - Mapped to phases: 41 (100%)
 - Unmapped: 0 ✓
 
 **Per-phase counts:**
+
 - Phase 1 — Foundation, Config & Curated Clip Set: 6 (CFG-01..04, TST-01, TST-02)
 - Phase 2 — Framing Scorer (pure logic): 7 (FRM-01..07)
 - Phase 3 — Decision Engine FSM: 8 (DEC-01..07, RBT-03)

@@ -161,7 +161,7 @@ Plans:
 
 **Wave 2** *(parallel; blocked on Wave 1 — zero file overlap)*
 
-- [ ] 05-02-PLAN.md — NDI ingest: in-process clip-replay mock `FrameSource` + empty-frame guard (NDI-03); real cyndilib `FrameSource` (supervised per-camera threads, last-NEW-frame liveness, NDI-01); mock NDI `Sender` publishing named sources (NDI-02, E2E-only) [Wave 2]
+- [x] 05-02-PLAN.md — NDI ingest: in-process clip-replay mock `FrameSource` + empty-frame guard (NDI-03); real cyndilib `FrameSource` (supervised per-camera threads, last-NEW-frame liveness, NDI-01); mock NDI `Sender` publishing named sources (NDI-02, E2E-only) [Wave 2]
 - [ ] 05-03-PLAN.md — OBS controller: `RecordingObsController` fake (camera→scene mapping + cached PIP id, OBS-01/02) + real obsws-python v5 controller (cut/PIP/overlay/reconnect/EventClient, OBS-01/02/03/05) + scene-collection template (OBS-04) [Wave 2]
 - [ ] 05-04-PLAN.md — Feed watchdog: pure last-NEW-frame `FeedWatchdog` liveness on injected timestamps (RBT-01) + feed-death fallback + guarded rejoin against the locked `DecisionEngine` (RBT-02) [Wave 2]
 - [ ] 05-05-PLAN.md — Score manager + UI: pure per-discipline overlay renderer (display-only, SCR-04) + Flask operator console (separate process, score/run/override POSTs + status poll, SCR-02/03, D-09/10/11) + Italian console page [Wave 2]
@@ -181,4 +181,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
-| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 1/6 | In Progress | - |
+| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 2/6 | In Progress|  |

@@ -15,8 +15,15 @@ They must point at the **same opcomm directory** (see "Channel directory" below)
 
 ## Prerequisites
 
-- **Editable install done** (the `src/`-layout package is importable):
-  `pip install -e .`
+- **Editable install WITH the heavy runtime stack** (the `src/`-layout package plus the
+  lazy GPU/NDI/OBS deps the live director actually needs — ultralytics, cyndilib,
+  obsws-python, opencv-python):
+  `pip install -e ".[heavy]"`
+  > `pip install -e .` (base deps only) is the **headless/dev** install — it runs the test
+  > suite but NOT `python -m segugio`, which exits with an actionable
+  > `Heavy runtime stack not installed (missing 'ultralytics')` message the moment it builds
+  > the first tracker. cyndilib also needs the **libndi** native library installed on the box
+  > (see the DistroAV / NDI Tools install).
 - **Config** points each camera's `ndi_source` at the discovered phone / mock sender name
   (the `ndi_source:` values in `config.example.yaml` — e.g. `"PHONE-WIDE (NDI HX3)"`). The names
   must match what the NDI senders actually advertise on the dedicated WiFi.

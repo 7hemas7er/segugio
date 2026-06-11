@@ -283,3 +283,43 @@ def test_main_module_imports_with_heavy_stack_absent(monkeypatch) -> None:
     mod = importlib.import_module("segugio.__main__")
     assert mod is not None
     assert hasattr(mod, "main")
+
+
+def test_main_missing_heavy_dep_exits_2_with_actionable_message(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    """Test 10 (UAT-1 / WR-01 regression): a missing HEAVY dep at launch exits 2 with an
+    actionable `pip install -e ".[heavy]"` message — NOT a raw ModuleNotFoundError traceback.
+
+    UAT Test 1 hit this for real: docs/run.md said `pip install -e .` (base deps only), so
+    build_orchestrator's eager PerCameraTracker construction raised
+    `ModuleNotFoundError: No module named 'ultralytics'` and `python -m segugio` died with a
+    traceback. The entry point now catches a heavy-stack import failure and degrades to one line.
+    """
+    import segugio.__main__ as main_mod
+
+    def boom(config, channel_dir, **kwargs):
+        # Exactly what PerCameraTracker.__init__ -> `from ultralytics import YOLO` raises.
+        raise ModuleNotFoundError("No module named 'ultralytics'", name="ultralytics")
+
+    monkeypatch.setattr(main_mod, "build_orchestrator", boom)
+    rc = main_mod.main([str(DISC_EXAMPLE), "--opcomm-dir", str(tmp_path)])
+    assert rc == 2  # actionable exit, not an uncaught crash
+    err = capsys.readouterr().err
+    assert "ultralytics" in err  # names the offending module
+    assert '.[heavy]' in err  # tells the operator the exact fix
+
+
+def test_main_non_heavy_module_error_is_not_masked(monkeypatch, tmp_path) -> None:
+    """Test 11: a genuine missing INTERNAL module is a real bug — it must propagate, never be
+    masked behind the heavy-stack install hint (which would hide the actual defect)."""
+    import segugio.__main__ as main_mod
+
+    def boom(config, channel_dir, **kwargs):
+        raise ModuleNotFoundError(
+            "No module named 'segugio.does_not_exist'", name="segugio.does_not_exist"
+        )
+
+    monkeypatch.setattr(main_mod, "build_orchestrator", boom)
+    with pytest.raises(ModuleNotFoundError):
+        main_mod.main([str(DISC_EXAMPLE), "--opcomm-dir", str(tmp_path)])

@@ -27,11 +27,21 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 
 from .config.loader import load_config
 from .orchestrator.runtime import build_orchestrator
 
 __all__ = ["main"]
+
+# The lazy "heavy" runtime stack (pyproject [project.optional-dependencies].heavy). These are
+# imported INSIDE build_orchestrator's collaborators (PerCameraTracker → ultralytics, the NDI
+# receiver → cyndilib, the OBS client → obsws-python, frame decode → cv2). On a box that ran only
+# `pip install -e .` (base deps) they are absent, and the FIRST one (ultralytics, built eagerly at
+# compose time) raises ModuleNotFoundError. We turn that into one actionable line instead of a raw
+# traceback (RBT-04 "never crash" ethos / WR-01). A non-heavy ModuleNotFoundError is a real bug —
+# re-raised, never masked.
+_HEAVY_MODULES = frozenset({"ultralytics", "torch", "cyndilib", "obsws_python", "cv2"})
 
 # Mirror ui/app.py's default opcomm dir so the console and the orchestrator share ONE channel dir
 # out of the box (override via --opcomm-dir or the SEGUGIO_OPCOMM_DIR env var).
@@ -74,12 +84,25 @@ def main(argv=None) -> int:
         argv: optional argument list (defaults to ``sys.argv[1:]`` via argparse).
 
     Returns:
-        Process exit code (0 on a clean run or Ctrl-C stop). ``load_config`` raises
-        ``SystemExit(2)`` on a bad config — deliberately NOT re-wrapped (it fails fast).
+        Process exit code: 0 on a clean run or Ctrl-C stop; 2 when the heavy runtime stack
+        is not installed (an actionable hint is printed instead of a raw traceback — WR-01).
+        ``load_config`` raises ``SystemExit(2)`` on a bad config — deliberately NOT re-wrapped.
     """
     args = _parse_args(argv)
     config = load_config(args.config)  # fails fast with SystemExit(2) on a bad config
-    orch = build_orchestrator(config, args.opcomm_dir)
+    try:
+        orch = build_orchestrator(config, args.opcomm_dir)
+    except ModuleNotFoundError as exc:
+        top = (exc.name or "").split(".")[0]
+        if top not in _HEAVY_MODULES:
+            raise  # a genuine missing-module bug — do NOT mask it behind the install hint
+        print(
+            f"Heavy runtime stack not installed (missing '{exc.name}'). Install it on the "
+            'rig with:  pip install -e ".[heavy]"  (also needs the libndi native lib for '
+            "cyndilib; see docs/run.md).",
+            file=sys.stderr,
+        )
+        return 2
     try:
         orch.run(args.rate)
     except KeyboardInterrupt:

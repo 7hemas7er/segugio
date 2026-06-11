@@ -102,11 +102,24 @@ def test_index_serves_italian_console(client):
     assert "Tempo" in html and "SCT" in html and "Faults" in html
 
 
-def test_app_imports_nothing_heavy():
-    """segugio.ui.app imports only Flask + segugio.opcomm — no heavy stack."""
+def test_app_imports_nothing_heavy(monkeypatch):
+    """segugio.ui.app imports only Flask + segugio.opcomm — no heavy stack.
+
+    Robust to a heavy-installed env (the `.[heavy]` venv / the rig): the old check asserted
+    `heavy not in sys.modules`, but sys.modules is process-global and the conftest availability
+    probes (ndi_available → import cyndilib, gpu_available → import torch, …) load the heavy
+    stack at collection, so that check fails even though the UI app imports none of it. Instead
+    FORCE every heavy dep to raise on import and assert `import segugio.ui.app` STILL succeeds —
+    if it reached for any of them it would raise ImportError. (Same pattern as test_imports.py.)
+    """
+    import importlib
     import sys
 
-    import segugio.ui.app  # noqa: F401
-
     for heavy in ("ultralytics", "torch", "cyndilib", "obsws_python", "cv2"):
-        assert heavy not in sys.modules, f"{heavy} leaked into segugio.ui.app import"
+        monkeypatch.setitem(sys.modules, heavy, None)  # importing it now raises ImportError
+    # drop any cached UI modules so the import actually re-runs under the block
+    for cached in list(sys.modules):
+        if cached == "segugio.ui" or cached.startswith("segugio.ui."):
+            monkeypatch.delitem(sys.modules, cached, raising=False)
+
+    importlib.import_module("segugio.ui.app")  # must NOT raise — proves no heavy import attempted

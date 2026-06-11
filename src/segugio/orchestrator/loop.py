@@ -187,7 +187,7 @@ class Orchestrator:
         channel_paths,
         trackers,
         fps: float = 30.0,
-        grace: float = 0.0,
+        grace: float | None = None,
     ) -> "Orchestrator":
         """Build the scorer/engine/watchdog/deriver from ``config`` and return an Orchestrator.
 
@@ -217,6 +217,12 @@ class Orchestrator:
             fps=fps,
             hold_length_s=fd.hold_length_s,
         )
+        # WR-02 anti-jitter grace: when no explicit grace is passed, source the non-zero seed
+        # from config (config.thresholds.watchdog_grace > 0). An explicit grace arg still wins
+        # (callers/tests can override). Net: from_config(...) with no grace yields a non-zero
+        # config-sourced grace so a single late frame no longer flaps the feed dead (T-05-04-02).
+        if grace is None:
+            grace = config.thresholds.watchdog_grace
         watchdog = FeedWatchdog(config.thresholds.watchdog_timeout, grace=grace)
         deriver = ActionHoldDeriver(config.action_hold)
         return cls(
@@ -347,8 +353,8 @@ class Orchestrator:
         else:
             # Steady state on a live camera (reason "none"/"hold") → auto.
             reason = "auto"
-        live_cam = self._safe_cam_id if target == SAFE_TARGET else target
-        # live_cam is the camera id; the UI maps it to a label. SAFE target → the is_safe cam id.
+        # live_cam is the camera id; a SAFE target passes the SAFE sentinel through (the panel
+        # renders it as "SAFE"), which the existing status tests assert.
         return DirectorStatus(live_cam=target, reason=reason, alive=dict(alive))
 
     def _apply(self, decision, alive) -> None:
@@ -429,7 +435,11 @@ class Orchestrator:
                 probe["total"].append(t_obs - t0)
         except Exception as exc:  # noqa: BLE001 — RBT-04: ANY stage fault → coast to SAFE
             logger.exception("tick {} failed → SAFE coast: {}", tick, exc)
-            self._to_safe(reason="feed-dead", alive=alive)
+            # WR-09: a non-feed fault (scorer/FSM/OBS exception) is NOT a dead feed — report a
+            # distinct advisory "fault" so the operator panel does not mislabel it "feed-dead".
+            # Genuine feed deaths (feed_emergency / all-dead SAFE) keep "feed-dead" in
+            # _status_for; only this exception catch-all changes.
+            self._to_safe(reason="fault", alive=alive)
 
     def _reset_locks(self) -> None:
         """Reset every ``CompetitorLock`` (D-09 START: a fresh run re-acquires the subject)."""
@@ -439,6 +449,20 @@ class Orchestrator:
             self._last_selected_id[cam.id] = None
 
     # ----- public lifecycle ------------------------------------------------- #
+
+    def _safe_startup(self, label: str, fn) -> None:
+        """Fault-isolate ONE startup callable (source.start / obs.connect) — coast on failure.
+
+        CR-01 (RBT-04, threat T-05-07-01/02 "nessun crash ammesso"): OBS/NDI may be DOWN at
+        launch (a normal field condition). A startup call that raises must NOT terminate the
+        director — it is caught, logged, and the loop coasts into the tick loop. The per-tick
+        ``ObsWsController._safe_call`` heals the OBS reconnection each tick and the watchdog
+        handles a dead source, so reaching the tick loop is sufficient to satisfy "never crash".
+        """
+        try:
+            fn()
+        except Exception as exc:  # noqa: BLE001 — a down OBS/NDI at launch must not crash
+            logger.warning("startup {} failed (coasting into tick loop): {}", label, exc)
 
     def run(self, rate_hz: float = 30.0) -> None:
         """The live fixed-rate loop (owns the wall-clock). Ticks until :meth:`stop` is called.
@@ -450,8 +474,8 @@ class Orchestrator:
         """
         period = 1.0 / rate_hz if rate_hz > 0 else 0.0
         self._stopping = False
-        self.source.start()
-        self.obs.connect()
+        self._safe_startup("source.start", self.source.start)
+        self._safe_startup("obs.connect", self.obs.connect)
         tick = 0
         try:
             while not self._stopping:
@@ -478,8 +502,8 @@ class Orchestrator:
         probe: dict[str, list[float]] = {s: [] for s in _LATENCY_STAGES}
         probe["total"] = []
         self._stopping = False
-        self.source.start()
-        self.obs.connect()
+        self._safe_startup("source.start", self.source.start)
+        self._safe_startup("obs.connect", self.obs.connect)
         for tick in range(n_ticks):
             # Pump the mock source one emitted frame per tick (no-op for sources without pump).
             pump = getattr(self.source, "pump", None)

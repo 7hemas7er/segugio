@@ -93,7 +93,17 @@ class ObsWsController:
         register = getattr(getattr(self._evt, "callback", None), "register", None)
         if callable(register):
             register(self._on_scene_changed)
-        self._cache_pip_ids()
+        # CR-01 partial-connect guard: a partial connect (clients built, but id resolve fails
+        # because OBS just came up) must NOT crash. Guard ONLY the id-cache step — the
+        # EventClient SceneItemCreated/Removed callback and the per-tick _safe_call reconnect
+        # re-cache ids. A failed client build itself is NOT swallowed here (it surfaces and is
+        # caught at the orchestrator boundary by _safe_startup).
+        try:
+            self._cache_pip_ids()
+        except Exception:  # noqa: BLE001 — partial connect must coast; ids re-cache later
+            logger.exception(
+                "obs: _cache_pip_ids failed at connect (coasting) — ids re-cache on first event/op"
+            )
         self._connected = True
 
     def reconnect(self) -> None:

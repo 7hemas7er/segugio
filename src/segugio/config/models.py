@@ -106,6 +106,11 @@ class Thresholds(BaseModel):
     debounce_N: Annotated[int, Field(ge=1)] = 3
     cooldown: Annotated[float, Field(ge=0.0)] = 1.0
     watchdog_timeout: Annotated[float, Field(gt=0.0)] = 0.8
+    # RBT-01 anti-jitter grace seed (T-05-04-02): extra tolerance (seconds) added to
+    # watchdog_timeout so a single late frame does not flap the feed dead and trigger a cut
+    # storm. 0.067 ≈ 2 frames at 30fps — a small few-ticks tolerance. The SHIPPED value is
+    # tuned empirically on real measured jitter (human-deferred, VERIFICATION human-verify #3).
+    watchdog_grace: Annotated[float, Field(ge=0.0)] = 0.067
     track_buffer: Annotated[int, Field(ge=1)] = 60
 
 

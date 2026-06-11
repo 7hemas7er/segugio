@@ -517,7 +517,7 @@ if __name__ == "__main__":
 | A5 | Polling the operator files each tick (no `watchdog`) is sufficient and preferred over event-driven reads | §Standard Stack, Pattern 3 | If per-tick file reads measurably hurt the latency budget, switch to `watchdog`. Low risk at ~30Hz over tiny JSON files. |
 | A6 | The motion-energy value for D-08 action-hold is already exposed by `CompetitorLock` (not only computed internally) | §Don't Hand-Roll, Pattern 4 | If it's internal-only, a small additive accessor is needed on `CompetitorLock` — verify the exact attribute/return on the Windows box. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Where does `CompetitorLock` expose the locked subject's motion energy for the D-08 action-hold?**
    - What we know: D-08 says the value is "already computed by `CompetitorLock`"; the action-hold derivation is a thin threshold/window over it.

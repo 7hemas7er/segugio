@@ -43,7 +43,7 @@ created: 2026-06-11
 
 | Requirement | Plan | Behavior | Test Type | Automated Command | File Exists | Status |
 |-------------|------|----------|-----------|-------------------|-------------|--------|
-| NDI-01 | 05-01 | Real cyndilib receiver yields BGR frames + last-NEW-frame ts | integration (real NDI) | `python -m pytest tests/test_ndi_source.py -m ndi -x` | ❌ W0 | ⬜ pending |
+| NDI-01 | 05-02 | Real cyndilib receiver yields BGR frames + last-NEW-frame ts | integration (real NDI) | `python -m pytest tests/test_ndi_source.py -m ndi -x` | ❌ W0 | ⬜ pending |
 | NDI-02 | 05-02 | Mock Sender publishes a named source consumable by the receiver | integration (real NDI) | `python -m pytest tests/test_ndi_mock_sender.py -m ndi -x` | ❌ W0 | ⬜ pending |
 | NDI-03 | 05-01 | Empty/zero-res first frames are skipped | unit | `python -m pytest tests/test_frame_source_empty_guard.py -x` | ❌ W0 | ⬜ pending |
 | OBS-01 | 05-03 | `cut("CAM Long")` → fake records `set_current_program_scene("CAM Long")` | unit | `python -m pytest tests/test_obs_mapping.py::test_cut -x` | ❌ W0 | ⬜ pending |

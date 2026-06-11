@@ -41,7 +41,7 @@ def pytest_collection_modifyitems(config, items) -> None:
       - ``ndi`` → ``ndi_available`` (cyndilib + cv2; real-NDI E2E path, D-05/NDI-01/02)
       - ``obs`` → ``obs_available`` (obsws-python; real-OBS E2E path, D-06/OBS-01..05)
     """
-    from conftest_tracking import gpu_available, ndi_available, obs_available
+    from tests.conftest_tracking import gpu_available, ndi_available, obs_available
 
     gates = {
         "gpu": (gpu_available, "gpu eval skipped: {reason} (D-09)"),

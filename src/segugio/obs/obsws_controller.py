@@ -38,6 +38,13 @@ from loguru import logger
 
 __all__ = ["ObsWsController", "build_obsws_clients"]
 
+# Log throttle for a persistently-unavailable OBS. _safe_call still attempts the op (and one
+# reconnect) EVERY tick so the director rejoins the instant OBS returns, but it logs only the
+# first failure of a streak plus a periodic heartbeat — NEVER a per-tick exception traceback.
+# With OBS down at 30 Hz the old `logger.exception` path emitted ~90 traceback lines/second,
+# which buried every other log line (found during the 05 UAT smoke test).
+_OBS_FAIL_LOG_EVERY = 150  # ~5 s at 30 Hz
+
 
 def build_obsws_clients(host: str, port: int, password: str | None):
     """Build the real ``(ReqClient, EventClient)`` pair — the default client factory.
@@ -82,6 +89,9 @@ class ObsWsController:
         self._evt = None  # obsws EventClient (or injected double)
         self._item_ids: dict[tuple[str, str], int] = {}  # OBS-02 numeric id cache
         self._connected = False
+        # Consecutive failed _safe_call ops (reset on any success). Drives the log throttle so a
+        # down OBS coasts QUIETLY instead of dumping a traceback every tick (RBT-04 + log hygiene).
+        self._consec_failures = 0
         self.current_scene: str | None = None  # synced from EventClient manual cuts (OBS-03)
 
     # -- connection lifecycle ------------------------------------------------ #
@@ -107,8 +117,13 @@ class ObsWsController:
         self._connected = True
 
     def reconnect(self) -> None:
-        """Rebuild both clients + re-cache ids after a transient drop (OBS-03, Pitfall 4)."""
-        logger.warning("obs: websocket drop — reconnecting+reauth")
+        """Rebuild both clients + re-cache ids after a transient drop (OBS-03, Pitfall 4).
+
+        Logged at DEBUG, not WARNING: ``_safe_call`` calls this on every failed tick while OBS
+        is down, so a per-call WARNING here would itself be the spam. The throttled,
+        operator-facing message lives in ``_note_obs_failure``.
+        """
+        logger.debug("obs: rebuilding websocket clients (reconnect+reauth)")
         self._teardown_clients()
         self.connect()
 
@@ -163,22 +178,52 @@ class ObsWsController:
     # -- coast-on-failure wrapper (RBT-04, Pitfall 4) ------------------------ #
 
     def _safe_call(self, op_name: str, fn) -> None:
-        """Run an OBS op; on a transient failure reconnect ONCE then coast (never raise).
+        """Run an OBS op; on a failure reconnect ONCE then coast (never raise — RBT-04).
 
-        A failed OBS call must NEVER propagate into the orchestrator tick (RBT-04). On the
-        first failure we rebuild the clients (reconnect+reauth, Pitfall 4) and retry once; a
-        second failure is logged and swallowed — the loop keeps ticking on SAFE.
+        A failed OBS call must NEVER propagate into the orchestrator tick. On failure we rebuild
+        the clients (reconnect+reauth, Pitfall 4) and retry once; if it still fails the loop keeps
+        ticking on SAFE. Logging is THROTTLED (``_note_obs_*``): a persistently-down OBS is still
+        retried every tick — so the director rejoins the moment OBS returns — but only the first
+        failure of a streak and a periodic heartbeat are logged, never a per-tick traceback.
         """
         try:
             fn()
+            self._note_obs_recovered(op_name)
             return
-        except Exception:
-            logger.exception("obs: {} failed — attempting reconnect", op_name)
+        except Exception as exc:
+            self._note_obs_failure(op_name, exc)
         try:
             self.reconnect()
             fn()
+            self._note_obs_recovered(op_name)
         except Exception:
-            logger.exception("obs: {} failed after reconnect — coasting", op_name)
+            # Already counted + throttle-logged by _note_obs_failure above. Stay silent here so a
+            # down OBS does not emit a second per-tick line (the reconnect retry fails every tick).
+            pass
+
+    def _note_obs_failure(self, op_name: str, exc: Exception) -> None:
+        """Count a failed OBS op and log it THROTTLED — first of a streak + periodic heartbeat.
+
+        Distinguishes "never connected" (``_req is None`` → an AttributeError that would otherwise
+        read as a code bug) from a live websocket error, so the operator sees an accurate cause.
+        """
+        self._consec_failures += 1
+        if self._consec_failures == 1 or self._consec_failures % _OBS_FAIL_LOG_EVERY == 0:
+            cause = "no OBS connection" if self._req is None else type(exc).__name__
+            logger.warning(
+                "obs: {} failed ({}) — coasting on SAFE, retrying each tick [{} consecutive]",
+                op_name,
+                cause,
+                self._consec_failures,
+            )
+
+    def _note_obs_recovered(self, op_name: str) -> None:
+        """Reset the failure streak; log a single recovery line if we were previously down."""
+        if self._consec_failures:
+            logger.info(
+                "obs: {} recovered after {} failed tick(s)", op_name, self._consec_failures
+            )
+            self._consec_failures = 0
 
     # -- control surface ----------------------------------------------------- #
 

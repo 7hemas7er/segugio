@@ -8,6 +8,8 @@ Behavior (05-03):
 
 from __future__ import annotations
 
+from loguru import logger
+
 from segugio.obs.obsws_controller import ObsWsController
 
 
@@ -93,3 +95,52 @@ def test_failed_cut_coasts_without_raising():
     ctrl.connect()
     # must NOT raise even though every cut (and the reconnect's retry) fails
     ctrl.cut("CAM Long")
+
+
+def test_obs_down_from_start_coasts_quietly_then_recovers():
+    """OBS down at startup → cuts coast WITHOUT a per-tick traceback; once OBS comes up the
+    controller reconnects and resumes (RBT-04 + log hygiene).
+
+    UAT-1 regression: with OBS down at launch, ``_req`` stays None and the old ``_safe_call``
+    dumped a full ``logger.exception`` traceback EVERY tick (~90 lines/sec at 30 Hz), which buried
+    the output. The failure logging is now throttled (first failure + a periodic heartbeat) and
+    the cause is reported accurately ("no OBS connection"), while the op is still retried every
+    tick so the director rejoins the instant OBS returns.
+    """
+    state = {"up": False}
+
+    def factory(host, port, password):
+        if not state["up"]:
+            raise ConnectionRefusedError("OBS down")  # OBS not running yet
+        return _FakeReq(), _FakeEvt()
+
+    ctrl = ObsWsController(client_factory=factory)
+
+    records: list = []
+    sink = logger.add(records.append, level="DEBUG")
+    try:
+        # the orchestrator's _safe_startup absorbs the failed connect at launch
+        try:
+            ctrl.connect()
+        except ConnectionRefusedError:
+            pass
+
+        # many ticks while OBS stays down — must never raise (RBT-04)
+        for _ in range(200):
+            ctrl.cut("CAM Wide")
+
+        errors = [r for r in records if r.record["level"].name in ("ERROR", "CRITICAL")]
+        warnings = [r for r in records if r.record["level"].name == "WARNING"]
+        assert errors == [], "a down OBS must not dump per-tick exception tracebacks"
+        assert 1 <= len(warnings) <= 3, f"failure logging not throttled: {len(warnings)} warnings"
+        assert "no OBS connection" in str(warnings[0]), "cause should name the missing connection"
+
+        # OBS comes up → the next cut reconnects, lands on the live client, logs ONE recovery line
+        state["up"] = True
+        records.clear()
+        ctrl.cut("CAM Long")
+        assert ctrl.current_scene == "CAM Long"  # the cut actually reached the (now live) client
+        infos = [r for r in records if r.record["level"].name == "INFO"]
+        assert any("recovered" in str(r) for r in infos), "expected a single recovery log line"
+    finally:
+        logger.remove(sink)

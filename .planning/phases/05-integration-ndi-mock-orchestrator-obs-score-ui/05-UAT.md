@@ -8,9 +8,11 @@ updated: 2026-06-12T00:30:00Z
 
 ## Current Test
 
-[paused — heavy stack installed on the dev box and smoke-tested (see findings below). RBT-04
-no-crash partially CONFIRMED on the real stack. Tests 1-5 still need the full Windows/RTX rig
-(real OBS up + live NDI source + GPU). Resume with `/gsd-verify-work 05` at the rig.]
+[Test 1 PASS — verified end-to-end against real OBS (connect + cut to SAFE confirmed by reading
+the program scene back + reconnect-after-drop, all on obsws-python v5). Heavy stack installed on
+the dev box; smoke test confirmed RBT-04 no-crash and fixed 4 defects (see findings). Tests 2-5
+(NDI receiver, anti-jitter, full E2E, GPU latency) still need a live NDI source + the RTX GPU.
+Resume the rest with `/gsd-verify-work 05` at the full rig.]
 
 ## Smoke-test findings (heavy stack on dev box — 2026-06-12)
 
@@ -41,8 +43,8 @@ The 2 `@pytest.mark.ndi` loopback tests still fail in the venv — real NDI fram
 
 ### 1. Real OBS startup with orchestrator (RBT-04, _safe_startup on the live obsws stack)
 expected: `python -m segugio config.example.yaml` starts without crashing when OBS is not yet running; the director ticks; the controller reconnects once OBS starts on the live obsws-python v5 stack.
-result: blocked
-blocked_by: physical-device
+result: pass
+verified: "VERIFIED on real OBS (2026-06-12, operator's box, obsws-python v5 up on localhost:4455 no-auth, scene collection imported — SAFE/CAM Wide/CAM Long/CAM Low/CAM Handler all present). (a) OBS-down launch downloads yolo26s.pt, builds source/obs/4 trackers, ticks ~20s coasting in SAFE WITHOUT crashing and writes status.json {live_cam: SAFE, reason: feed-dead} (RBT-04). (b) Live connect + cut('SAFE') succeeds — the OBS program scene read back == 'SAFE' (OBS-01 on the real stack). (c) Reconnect: a simulated client drop (_req=None) then cut() rebuilt the client and succeeded, logging exactly one throttled WARNING ('no OBS connection') + DEBUG rebuild + one INFO 'cut recovered after 1 failed tick(s)' — no spam (confirms fix 0935d48). The live-cam-from-NDI-feed selection is covered by Tests 2/4 (NDI), not this test."
 reported: "`python -m segugio config.example.yaml` crashed at launch: ModuleNotFoundError: No module named 'ultralytics' (PerCameraTracker.__init__ -> from ultralytics import YOLO), via build_orchestrator -> _default_tracker_factory. User followed docs/run.md Prerequisites (`pip install -e .`)."
 severity: major
 diagnosis: "NOT a wiring bug — the entry point ran argparse -> load_config -> build_orchestrator -> created channel_dir -> built NdiFrameSource + ObsWsController, then crashed constructing the first PerCameraTracker, which lazily imports ultralytics. Root cause: the `heavy` optional-dependency group (ultralytics/cyndilib/obsws-python/watchdog/opencv-python) is NOT installed, and docs/run.md Prerequisites told the operator to run `pip install -e .` (base deps only). Secondary: the entry point died with a raw traceback instead of an actionable message (WR-01 from 05-09-REVIEW)."
@@ -75,11 +77,11 @@ reason: "Needs the RTX 4000 Ada GPU box with yolo26s.pt. Independent of the runn
 ## Summary
 
 total: 5
-passed: 0
+passed: 1
 issues: 0
 pending: 0
 skipped: 0
-blocked: 5
+blocked: 4
 
 ## Gaps
 

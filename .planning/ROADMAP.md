@@ -173,7 +173,7 @@ Plans:
 **Gap Closure** *(parallel; from 2026-06-11 verification 4/5 — zero file overlap; prior plans done)*
 
 - [x] 05-07-PLAN.md — BLOCKER: fault-isolate `run()`/`run_measured()` startup (`source.start()`/`obs.connect()` in try/except → coast into the tick loop) + guard `_cache_pip_ids()` in `connect()` (CR-01, the FAILED truth, RBT-04); non-zero config-sourced anti-jitter `watchdog_grace` (WR-02); distinct non-"feed-dead" fault reason (WR-09); remove dead `live_cam` (WR-01); NEW headless startup-fault regression test that flips Truth #5 [Gap Closure]
-- [ ] 05-08-PLAN.md — IO/thread robustness: route `atomic_write_text` through the `_atomic_replace` retry (WR-04, Windows OBS sharing-violation) + de-busy-spin/auto-reconnect the NDI `_receiver_loop` (CR-02 code fix; real CPU/reconnect stays HARDWARE-deferred), each with a headless regression test [Gap Closure]
+- [x] 05-08-PLAN.md — IO/thread robustness: route `atomic_write_text` through the `_atomic_replace` retry (WR-04, Windows OBS sharing-violation) + de-busy-spin/auto-reconnect the NDI `_receiver_loop` (CR-02 code fix; real CPU/reconnect stays HARDWARE-deferred), each with a headless regression test [Gap Closure]
 
 ## Progress
 
@@ -186,4 +186,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
-| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 7/8 | Gaps Found | —          |
+| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 8/8 | Re-verify Pending | —          |

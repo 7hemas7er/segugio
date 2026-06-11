@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-06-11T09:31:24.448Z"
-last_activity: 2026-06-11 -- Phase 05 plan 01 complete (opcomm channel + interfaces + Wave-0 scaffold)
+status: gaps_found
+stopped_at: Phase 05 verification — gaps found (CR-01 startup fault-sink)
+last_updated: "2026-06-11T12:00:00.000Z"
+last_activity: 2026-06-11 -- Phase 05 verified 4/5 — gaps found; CR-01 breaks the never-crash contract on the real stack
 progress:
   total_phases: 5
-  completed_phases: 5
+  completed_phases: 4
   total_plans: 22
   completed_plans: 22
-  percent: 100
+  percent: 80
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-06-11 -- Phase 05 plan 01 complete (opcomm channel + interfaces + Wave-0 scaffold)
+Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — VERIFICATION: GAPS FOUND
+Plan: 6 of 6 executed; verification 4/5
+Status: Gaps found — 1 blocker (CR-01: orchestrator startup outside the fault sink) + 5 human-verification items. Next: /gsd-plan-phase 05 --gaps
+Last activity: 2026-06-11 -- Phase 05 verified 4/5 — gaps found; CR-01 breaks the never-crash contract on the real stack
 
-Progress: [████████░░] 77%
+Progress: [████████░░] 80% (4/5 phases verified-complete)
 
 ## Performance Metrics
 

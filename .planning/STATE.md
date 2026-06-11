@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-06-11T06:55:31.033Z"
-last_activity: 2026-06-11 -- Phase 05 planning complete
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-06-11T08:40:00.000Z"
+last_activity: 2026-06-11 -- Phase 05 plan 01 complete (opcomm channel + interfaces + Wave-0 scaffold)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 16
-  completed_plans: 16
-  percent: 80
+  total_plans: 22
+  completed_plans: 17
+  percent: 77
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 5 — integration — ndi mock, orchestrator, obs & score ui
+**Current focus:** Phase 05 — integration-ndi-mock-orchestrator-obs-score-ui
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 05 planning complete
+Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — EXECUTING
+Plan: 2 of 6
+Status: Executing Phase 05
+Last activity: 2026-06-11 -- Phase 05 plan 01 complete (opcomm channel + interfaces + Wave-0 scaffold)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 77%
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Progress: [██████████] 100%
 | Phase 04 P02 | 6min | 2 tasks tasks | 4 files files |
 | Phase 04 P03 | 6min | 2 tasks tasks | 8 files files |
 | Phase 04 P04 | 6min | 2 tasks tasks | 4 files files |
+| Phase 05 P01 | 12min | 3 tasks | 27 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 04 / 04-03]: heavy-edge per-camera tracker — PerCameraTracker (TRK-01) one YOLO().track(persist=True, end2end=False, classes=[dog_idx], tracker=botsort_dog.yaml) per cam_id (never a frame list, #13107); resolve_dog_index by name (CFG-04, never hardcodes 16); assert_native_reid_engaged (TRK-02) HARD gate RAISES on the silent yolo26n-cls.pt cls fallback; ClipFrameSource (D-01) cv2 decode + overlapping L/C/R pseudo-camera crops with injected emitted-frame tick + empty-frame guard; botsort_dog.yaml (with_reid:True/model:auto/track_buffer:60); gpu autouse-skip wired in conftest.py + gpu eval skeleton SKIPs here; heavy deps lazy — import boundary holds with ultralytics/torch/cv2 absent; 195 passed +2 gpu-skip, zero regression
 - [Phase ?]: [Phase 04 / 04-04]: offline clip eval (D-08) — PURE compute_metrics (id_switch_count counts across coast gaps to catch silent BoT-SORT ID swaps; lock_held_fraction; coast_count; signal_dump; cv2-free, deterministic) + heavy run_clip_eval wiring ClipFrameSource -> PerCameraTracker -> signals_from_boxes -> CompetitorLock -> PlausibilityGate -> per-camera DetectionSignal|None (the MultiCamScorer.update consumer shape); render_overlay (cv2 in-function) draws boxes/track-ids/locked-highlight/zones; HARD assert_native_reid_engaged before the loop; explicit UNVERIFIED lines (D-02); gpu overlay/metrics test SKIPs here; 208 passed +3 skip, zero regression; Phase 4 complete
 
+- [Phase 05 / 05-01]: opcomm atomic-file channel is the single operator↔system IPC (temp+fsync+os.replace, separate files per message); read_* is boundary-safe (malformed/absent → default, never raises into the loop, RBT-04). atomic_write retries os.replace on the Windows MoveFileEx sharing-violation (Pitfall 6 reader contention) — a real Windows-portability fix surfaced by the interleaved-reader test. FrameSource/ObsController declared as light runtime_checkable Protocols (D-05/D-06); ActionHoldParams additive (D-08 seeds, motion_threshold>0/window_ticks>=1); CompetitorLock.locked_motion_energy() additive public accessor (no logic change to _motion_energy). Wave-0: 17 xfail stub files + Phase-5 conftest fixtures (make_config 4-cam/fake_frame_source/recording_obs/injected_clock/file_channel) + ndi/obs markers + Flask==3.1.3. segugio.opcomm/ndi/obs added to the import-smoke surface (lazy boundary holds with cyndilib/obsws/cv2 absent). 231 headless tests pass, 21 xfailed (remaining Wave-0 stubs), zero regression.
+
 ### Pending Todos
 
 None yet.
@@ -126,6 +129,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T14:44:00.672Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-integration-ndi-mock-orchestrator-obs-score-ui/05-CONTEXT.md
+Last session: 2026-06-11T08:40:00.000Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None

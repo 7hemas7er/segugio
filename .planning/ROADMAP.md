@@ -157,7 +157,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Foundation: full Wave-0 test scaffold + conftest fixtures + `ndi`/`obs` markers + Flask dep; the atomic-file `opcomm` channel (atomic write + frozen records + boundary-safe channel, SCR-01); additive `ActionHoldParams` config (D-08 seeds); `FrameSource`/`ObsController` interfaces; additive `CompetitorLock.locked_motion_energy()` accessor [Wave 1]
+- [x] 05-01-PLAN.md — Foundation: full Wave-0 test scaffold + conftest fixtures + `ndi`/`obs` markers + Flask dep; the atomic-file `opcomm` channel (atomic write + frozen records + boundary-safe channel, SCR-01); additive `ActionHoldParams` config (D-08 seeds); `FrameSource`/`ObsController` interfaces; additive `CompetitorLock.locked_motion_energy()` accessor [Wave 1]
 
 **Wave 2** *(parallel; blocked on Wave 1 — zero file overlap)*
 
@@ -181,4 +181,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
-| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Planned | - |
+| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 1/6 | In Progress | - |

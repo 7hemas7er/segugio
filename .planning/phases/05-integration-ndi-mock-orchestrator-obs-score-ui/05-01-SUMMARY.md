@@ -157,6 +157,10 @@ The 15 not-yet-implemented Wave-0 test files are **intentional** xfail scaffolds
 - Wave-2 plans (05-02 NDI, 05-03 OBS, 05-04 watchdog, 05-05 UI, 05-06 orchestrator) can now run against stable contracts: the opcomm channel, the FrameSource/ObsController Protocols, ActionHoldParams, and the motion-energy accessor are all on disk.
 - The heavy NDI/OBS/GPU paths and the real cyndilib/obsws clients remain Wave-2 + on-Windows-E2E work (markers `ndi`/`obs`/`gpu` reserved, stubs in place).
 
+## Self-Check: PASSED
+
+All created files verified on disk (opcomm package, ndi/obs interfaces, SUMMARY) and all 6 commits (31697bd, 320b3a5, 535b681, caacaab, 968131f, a42f826) confirmed in git log.
+
 ---
 *Phase: 05-integration-ndi-mock-orchestrator-obs-score-ui*
 *Completed: 2026-06-11*

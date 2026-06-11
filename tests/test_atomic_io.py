@@ -67,11 +67,15 @@ def test_interleaved_reader_never_partial(tmp_path):
     bad: list[str] = []
 
     def _reader():
+        # A robust reader opens-reads-closes quickly and tolerates the transient Windows
+        # sharing-violation at the instant of os.replace (PermissionError) — exactly how the
+        # real OBS / orchestrator readers behave (RESEARCH Pitfall 6). The point of the test
+        # is that whatever bytes DO get read are never a partial/empty file.
         while not stop.is_set():
             try:
                 raw = target.read_text(encoding="utf-8")
-            except FileNotFoundError:
-                continue
+            except (FileNotFoundError, PermissionError):
+                continue  # transient: target mid-rename — retry (never a partial read)
             if raw == "":
                 bad.append("empty")
                 continue

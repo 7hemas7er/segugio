@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-06-11T08:52:43.465Z"
+last_updated: "2026-06-11T09:00:47.432Z"
 last_activity: 2026-06-11 -- Phase 05 plan 01 complete (opcomm channel + interfaces + Wave-0 scaffold)
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 22
-  completed_plans: 18
+  completed_plans: 19
   percent: 80
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 05 (integration-ndi-mock-orchestrator-obs-score-ui) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-06-11 -- Phase 05 plan 01 complete (opcomm channel + interfaces + Wave-0 scaffold)
 
@@ -73,6 +73,7 @@ Progress: [████████░░] 77%
 | Phase 04 P04 | 6min | 2 tasks tasks | 4 files files |
 | Phase 05 P01 | 12min | 3 tasks | 27 files |
 | Phase 05 P02 | 14min | 3 tasks | 9 files |
+| Phase 05 P03 | 19min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,8 @@ Recent decisions affecting current work:
 - [Phase 05 / 05-01]: opcomm atomic-file channel is the single operator↔system IPC (temp+fsync+os.replace, separate files per message); read_* is boundary-safe (malformed/absent → default, never raises into the loop, RBT-04). atomic_write retries os.replace on the Windows MoveFileEx sharing-violation (Pitfall 6 reader contention) — a real Windows-portability fix surfaced by the interleaved-reader test. FrameSource/ObsController declared as light runtime_checkable Protocols (D-05/D-06); ActionHoldParams additive (D-08 seeds, motion_threshold>0/window_ticks>=1); CompetitorLock.locked_motion_energy() additive public accessor (no logic change to _motion_energy). Wave-0: 17 xfail stub files + Phase-5 conftest fixtures (make_config 4-cam/fake_frame_source/recording_obs/injected_clock/file_channel) + ndi/obs markers + Flask==3.1.3. segugio.opcomm/ndi/obs added to the import-smoke surface (lazy boundary holds with cyndilib/obsws/cv2 absent). 231 headless tests pass, 21 xfailed (remaining Wave-0 stubs), zero regression.
 - [Phase ?]: 05-02: NEW-frame liveness (ts != last_ts) is the RBT-01 substrate — last_frame_ts never advances on a frozen NDI feed (Pitfall 1)
 - [Phase ?]: 05-02: ndi/obs marker tests auto-skip when cyndilib/obsws absent (conftest hook mirrors the gpu gate)
+- [Phase ?]: 05-03: scene_for is a pure free function (segugio.obs.mapping) sharing one camera->scene contract across the real client and the recording fake; SAFE->is_safe camera obs_scene
+- [Phase ?]: 05-03: ObsWsController takes an injectable client_factory so reconnect+reauth and the overlay fallback are asserted headless with fake ReqClient/EventClient
 
 ### Pending Todos
 
@@ -132,6 +135,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-11T08:52:43.456Z
+Last session: 2026-06-11T09:00:38.572Z
 Stopped at: Completed 05-02-PLAN.md
 Resume file: None

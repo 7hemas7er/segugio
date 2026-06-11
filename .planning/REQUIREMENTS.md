@@ -50,11 +50,11 @@
 
 ### OBS Control (OBS)
 
-- [ ] **OBS-01**: Il controller commuta la scena program su un OBS locale via `SetCurrentProgramScene`
-- [ ] **OBS-02**: PIP/multi-view via `SetSceneItemTransform` (bounds) + `SetSceneItemEnabled` usando `sceneItemId` numerici risolti e **cachati** all'avvio
-- [ ] **OBS-03**: Connessione persistente con reconnect+reauth; un `EventClient` su thread sincronizza i cambi scena manuali dell'operatore
-- [ ] **OBS-04**: È fornito un template di scene collection OBS (`CAM Wide`/`CAM Long`/`CAM Low`/`CAM Handler`, scena `SAFE`, `MULTIVIEW`, `PIP`)
-- [ ] **OBS-05**: I testi overlay si aggiornano via text source "read from file" (path primario) con fallback `SetInputSettings` per testi one-shot
+- [x] **OBS-01**: Il controller commuta la scena program su un OBS locale via `SetCurrentProgramScene`
+- [x] **OBS-02**: PIP/multi-view via `SetSceneItemTransform` (bounds) + `SetSceneItemEnabled` usando `sceneItemId` numerici risolti e **cachati** all'avvio
+- [x] **OBS-03**: Connessione persistente con reconnect+reauth; un `EventClient` su thread sincronizza i cambi scena manuali dell'operatore
+- [x] **OBS-04**: È fornito un template di scene collection OBS (`CAM Wide`/`CAM Long`/`CAM Low`/`CAM Handler`, scena `SAFE`, `MULTIVIEW`, `PIP`)
+- [x] **OBS-05**: I testi overlay si aggiornano via text source "read from file" (path primario) con fallback `SetInputSettings` per testi one-shot
 
 ### Score & Overlay (SCR)
 
@@ -138,11 +138,11 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | NDI-01 | Phase 5 | Complete |
 | NDI-02 | Phase 5 | Complete |
 | NDI-03 | Phase 5 | Complete |
-| OBS-01 | Phase 5 | Pending |
-| OBS-02 | Phase 5 | Pending |
-| OBS-03 | Phase 5 | Pending |
-| OBS-04 | Phase 5 | Pending |
-| OBS-05 | Phase 5 | Pending |
+| OBS-01 | Phase 5 | Complete |
+| OBS-02 | Phase 5 | Complete |
+| OBS-03 | Phase 5 | Complete |
+| OBS-04 | Phase 5 | Complete |
+| OBS-05 | Phase 5 | Complete |
 | SCR-01 | Phase 5 (05-01) | Complete |
 | SCR-02 | Phase 5 | Pending |
 | SCR-03 | Phase 5 | Pending |

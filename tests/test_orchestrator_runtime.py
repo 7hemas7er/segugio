@@ -178,3 +178,86 @@ def test_runtime_imports_with_heavy_stack_absent(monkeypatch) -> None:
     mod = importlib.import_module("segugio.orchestrator.runtime")
     assert mod is not None
     assert hasattr(mod, "build_orchestrator")
+
+
+# --------------------------------------------------------------------------- #
+# Task 2 — the `python -m segugio` entry point (main() wiring).
+# --------------------------------------------------------------------------- #
+
+
+class _FakeOrchestrator:
+    """Records run/shutdown; ``run_raises`` lets a test simulate the operator's Ctrl-C."""
+
+    def __init__(self, run_raises: BaseException | None = None) -> None:
+        self.run_calls: list[float] = []
+        self.shutdown_calls = 0
+        self._run_raises = run_raises
+
+    def run(self, rate_hz: float) -> None:
+        self.run_calls.append(rate_hz)
+        if self._run_raises is not None:
+            raise self._run_raises
+
+    def shutdown(self) -> None:
+        self.shutdown_calls += 1
+
+
+def _patch_main(monkeypatch, fake_orch, recorder):
+    """Patch segugio.__main__.build_orchestrator to record (config, channel_dir) and return fake."""
+    import segugio.__main__ as main_mod
+
+    def fake_build(config, channel_dir, **kwargs):
+        recorder["config"] = config
+        recorder["channel_dir"] = channel_dir
+        recorder["kwargs"] = kwargs
+        return fake_orch
+
+    monkeypatch.setattr(main_mod, "build_orchestrator", fake_build)
+    return main_mod
+
+
+def test_main_wires_config_factory_run(monkeypatch, tmp_path) -> None:
+    """Test 6: main([config]) -> load_config -> build_orchestrator -> run(rate) once."""
+    fake = _FakeOrchestrator()
+    rec: dict = {}
+    main_mod = _patch_main(monkeypatch, fake, rec)
+    rc = main_mod.main([str(DISC_EXAMPLE), "--opcomm-dir", str(tmp_path)])
+    assert rc == 0
+    # load_config produced a Config and the factory got the resolved channel_dir.
+    assert rec["config"].cameras  # a real validated Config flowed through
+    assert rec["channel_dir"] == str(tmp_path)
+    assert fake.run_calls == [30.0]  # default rate
+    assert fake.shutdown_calls == 0  # clean run does not double-shutdown in main
+
+
+def test_main_keyboardinterrupt_calls_shutdown(monkeypatch, tmp_path) -> None:
+    """Test 7: run() raising KeyboardInterrupt -> main calls shutdown() once, returns 0."""
+    fake = _FakeOrchestrator(run_raises=KeyboardInterrupt())
+    rec: dict = {}
+    main_mod = _patch_main(monkeypatch, fake, rec)
+    rc = main_mod.main([str(DISC_EXAMPLE), "--opcomm-dir", str(tmp_path)])
+    assert rc == 0  # Ctrl-C is a clean operator stop, NOT a crash
+    assert fake.shutdown_calls == 1  # SAFE coast on Ctrl-C (RBT-04)
+
+
+def test_main_rate_and_opcomm_dir_flow_through(monkeypatch, tmp_path) -> None:
+    """Test 8: --rate 25 -> run(25.0); --opcomm-dir -> build_orchestrator channel_dir."""
+    fake = _FakeOrchestrator()
+    rec: dict = {}
+    main_mod = _patch_main(monkeypatch, fake, rec)
+    rc = main_mod.main(
+        [str(DISC_EXAMPLE), "--rate", "25", "--opcomm-dir", str(tmp_path)]
+    )
+    assert rc == 0
+    assert fake.run_calls == [25.0]
+    assert rec["channel_dir"] == str(tmp_path)
+
+
+def test_main_module_imports_with_heavy_stack_absent(monkeypatch) -> None:
+    """Test 9: import segugio.__main__ succeeds with the heavy stack ABSENT (lazy boundary)."""
+    for name in ("torch", "ultralytics", "cyndilib", "obsws_python", "cv2"):
+        monkeypatch.setitem(sys.modules, name, None)
+    monkeypatch.delitem(sys.modules, "segugio.__main__", raising=False)
+    mod = importlib.import_module("segugio.__main__")
+    assert mod is not None
+    assert hasattr(mod, "main")

@@ -30,6 +30,8 @@ PHASE1_SURFACE = [
     "segugio.obs",  # 05-01: the ObsController interface (obsws lazy-imported in the real impl, Wave 2)
     "segugio.watchdog_feed",  # 05-04: the pure feed-liveness math (math + typing only)
     "segugio.orchestrator",  # 05-06: the fault-isolated tick + D-08 deriver (heavy clients inside injected impls)
+    "segugio.orchestrator.runtime",  # 05-09: the build_orchestrator compose/factory (heavy builders are LAZY)
+    "segugio.__main__",  # 05-09: the `python -m segugio` entry point (light imports only at module top)
 ]
 
 

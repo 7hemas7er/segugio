@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: gaps_found
-stopped_at: Phase 05 verification — gaps found (CR-01 startup fault-sink)
-last_updated: "2026-06-11T12:00:00.000Z"
+status: verifying
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-06-11T10:40:15.948Z"
 last_activity: 2026-06-11 -- Phase 05 verified 4/5 — gaps found; CR-01 breaks the never-crash contract on the real stack
 progress:
   total_phases: 5

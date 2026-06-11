@@ -150,17 +150,25 @@ Plans:
   4. The manual score-entry UI offers the discipline selector and the three per-discipline field sets plus run start/stop; entries are written atomically (temp + `os.replace`) and appear in the OBS read-from-file overlay — the system displays scores and never adjudicates
   5. The orchestrator runs a fixed-rate tick wiring all modules with fault isolation (try/except + supervised restarts), shuts down to the SAFE scene, never crashes the process, and the measured frame→YOLO→score→FSM→OBS decision loop stays under ~150ms (target <80ms)
 
-**Plans**: TBD
+**Plans**: 6 plans (Wave 1: 05-01 · Wave 2 parallel: 05-02, 05-03, 05-04, 05-05 · Wave 3: 05-06)
 **UI hint**: yes
 
 Plans:
 
-- [ ] 05-01: NDI ingest via cyndilib (FrameSync → numpy BGR, supervised per-camera threads) + empty-frame guard
-- [ ] 05-02: Mock/synthetic NDI source publishing recorded clips as named NDI sources
-- [ ] 05-03: OBS controller (cut, PIP via cached sceneItemId, reconnect, EventClient) + scene-collection template + read-from-file overlay
-- [ ] 05-04: Feed watchdog (last-new-frame timestamp) + automatic fallback + guarded rejoin
-- [ ] 05-05: Score manager (atomic file write) + manual score-entry UI (discipline selector, 3 field sets, run start/stop)
-- [ ] 05-06: Orchestrator tick + fault isolation + SAFE shutdown + decision-loop latency measurement
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Foundation: full Wave-0 test scaffold + conftest fixtures + `ndi`/`obs` markers + Flask dep; the atomic-file `opcomm` channel (atomic write + frozen records + boundary-safe channel, SCR-01); additive `ActionHoldParams` config (D-08 seeds); `FrameSource`/`ObsController` interfaces; additive `CompetitorLock.locked_motion_energy()` accessor [Wave 1]
+
+**Wave 2** *(parallel; blocked on Wave 1 — zero file overlap)*
+
+- [ ] 05-02-PLAN.md — NDI ingest: in-process clip-replay mock `FrameSource` + empty-frame guard (NDI-03); real cyndilib `FrameSource` (supervised per-camera threads, last-NEW-frame liveness, NDI-01); mock NDI `Sender` publishing named sources (NDI-02, E2E-only) [Wave 2]
+- [ ] 05-03-PLAN.md — OBS controller: `RecordingObsController` fake (camera→scene mapping + cached PIP id, OBS-01/02) + real obsws-python v5 controller (cut/PIP/overlay/reconnect/EventClient, OBS-01/02/03/05) + scene-collection template (OBS-04) [Wave 2]
+- [ ] 05-04-PLAN.md — Feed watchdog: pure last-NEW-frame `FeedWatchdog` liveness on injected timestamps (RBT-01) + feed-death fallback + guarded rejoin against the locked `DecisionEngine` (RBT-02) [Wave 2]
+- [ ] 05-05-PLAN.md — Score manager + UI: pure per-discipline overlay renderer (display-only, SCR-04) + Flask operator console (separate process, score/run/override POSTs + status poll, SCR-02/03, D-09/10/11) + Italian console page [Wave 2]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 05-06-PLAN.md — Orchestrator: action-hold from motion energy (D-08) + fixed-rate fault-isolated tick (the grown-up `run_clip_eval`) + SAFE shutdown + D-11 status write (RBT-04) + decision-loop latency harness (RBT-05) [Wave 3]
 
 ## Progress
 
@@ -173,4 +181,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
-| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Not started | - |
+| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 0/6 | Planned | - |

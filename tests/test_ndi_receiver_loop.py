@@ -20,7 +20,11 @@ from __future__ import annotations
 import pytest
 
 from segugio.ndi import ndi_source
-from segugio.ndi.ndi_source import NdiFrameSource, _RECEIVER_DISCONNECTED_SLEEP_S
+from segugio.ndi.ndi_source import (
+    NdiFrameSource,
+    _RECEIVER_DISCONNECTED_SLEEP_S,
+    _RECEIVER_POLL_INTERVAL_S,
+)
 
 
 class _FakeReceiver:
@@ -116,6 +120,63 @@ def test_receiver_loop_re_resolves_absent_source(monkeypatch):
     assert finder.resolve_calls >= 2
     # set_source was called AFTER the late source appeared → reconnect without stop()/start().
     assert receiver.set_source_calls == [("source", source_name)]
+
+
+class _FrameSyncStub:
+    """A non-blocking frame_sync, like real cyndilib: capture_video() just bumps a counter."""
+
+    def __init__(self):
+        self.captures = 0
+
+    def capture_video(self) -> None:
+        self.captures += 1
+
+
+class _ConnectedReceiver:
+    """Always-connected receiver exposing the non-blocking frame_sync.capture_video() seam."""
+
+    def __init__(self):
+        self.frame_sync = _FrameSyncStub()
+        self.set_source_calls: list[object] = []
+
+    def is_connected(self) -> bool:
+        return True
+
+    def set_source(self, source) -> None:  # pragma: no cover - not hit on the connected path
+        self.set_source_calls.append(source)
+
+
+class _ZeroResFrame:
+    """A video_frame whose xres/yres are 0 → the NDI-03 guard skips frame work (no cv2 needed)."""
+
+    xres = 0
+    yres = 0
+
+
+def test_receiver_loop_paces_connected_branch(monkeypatch):
+    """The CONNECTED branch SLEEPS the poll interval — no busy-spin (perf fix).
+
+    ``frame_sync.capture_video()`` is non-blocking (~0.2us on real cyndilib 0.1.1, ~5.6M
+    calls/s), so without pacing the connected loop pins a full CPU core PER camera — found in
+    the 05 UAT against a live NDI stream. The loop now sleeps ``_RECEIVER_POLL_INTERVAL_S`` each
+    connected pass; a regression that drops the sleep would busy-spin and HANG this bounded test.
+    """
+    src = _make_source()
+    sleeps: list[float] = []
+
+    def _record_sleep(dt):
+        sleeps.append(dt)
+        src._stop.set()  # bounded: stop after the first connected-branch pace sleep
+
+    monkeypatch.setattr(ndi_source.time, "sleep", _record_sleep)
+
+    receiver = _ConnectedReceiver()
+    finder = _FakeFinder(names_per_call=[[]])
+    src._run_receiver("cam_wide", "X", finder, receiver, video_frame=_ZeroResFrame(), cv2=None)
+
+    # It polled the frame_sync once, then PACED (slept the poll interval) instead of busy-spinning.
+    assert receiver.frame_sync.captures == 1
+    assert sleeps == [_RECEIVER_POLL_INTERVAL_S]
 
 
 def test_run_receiver_is_bounded_and_terminates_on_stop(monkeypatch):

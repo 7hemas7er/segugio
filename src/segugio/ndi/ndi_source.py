@@ -48,6 +48,16 @@ __all__ = ["NdiFrameSource"]
 # under @pytest.mark.ndi — this constant is the busy-spin FIX, not a tuned hardware value).
 _RECEIVER_DISCONNECTED_SLEEP_S = 0.05
 
+# Connected-branch poll pace. ``frame_sync.capture_video()`` is NON-BLOCKING — it copies the
+# latest synced frame and returns in ~0.2us (measured on real cyndilib 0.1.1: ~5.6M calls/s),
+# so a tight capture loop busy-spins a full CPU core PER camera (found in the 05 UAT against a
+# live NDI stream — ~1 core of the ~2-core/camera receiver cost was this spin; the rest is the
+# intrinsic NDI decode + per-frame 1080p cvtColor). Sleeping ~2ms paces the poll at ~500Hz —
+# far above the 30-60fps feed and the ~30Hz tick, so no added pickup latency in practice (the
+# frame_sync always hands back the NEWEST frame; a slower poll never builds a queue) — while
+# dropping the connected-path CPU from a pinned core to ~nothing.
+_RECEIVER_POLL_INTERVAL_S = 0.002
+
 
 class NdiFrameSource:
     """Real cyndilib ``FrameSource``: one supervised receiver thread per camera (NDI-01)."""
@@ -163,6 +173,10 @@ class NdiFrameSource:
                     bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
                     self._publish(cam_id, bgr, ts)
                     last_ts = ts
+            # Pace the NON-BLOCKING frame_sync poll (~500Hz) so the connected loop does not
+            # busy-spin a full CPU core per camera (see _RECEIVER_POLL_INTERVAL_S). The newest
+            # frame is always available on the next capture, so this adds no real pickup latency.
+            time.sleep(_RECEIVER_POLL_INTERVAL_S)
 
     @staticmethod
     def _resolve_source(finder, source_name: str):

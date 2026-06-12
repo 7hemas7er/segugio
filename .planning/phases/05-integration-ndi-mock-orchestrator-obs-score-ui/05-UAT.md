@@ -35,8 +35,16 @@ and exposed **4 real defects, all fixed**:
 - **Tooling/test (fixed `5707286`, `682aa89`):** ultralytics ships its own top-level `tests/`
   package that shadowed the repo's in any heavy venv (→ `tests/__init__.py` + qualify one import);
   and `test_app_imports_nothing_heavy` was brittle in a heavy env (→ force-absent pattern).
+- **NDI receiver busy-spin (fixed `06683a0`):** against a live NDI stream the connected receiver
+  loop pinned ~2 CPU cores PER camera. `frame_sync.capture_video()` is non-blocking (~0.2us,
+  5.6M calls/s) so the tight loop busy-spun. Paced to ~500Hz (mirrors CR-02) → ~2.09→~1.50
+  core/cam (busy-spin ~0.6 core/cam gone), frames + liveness preserved; +bounded regression test.
+  BUDGET NOTE: the remaining ~1.5 core/cam is INTRINSIC (NDI decode @bandwidth=highest + 1080p
+  per-frame cvtColor) — 4 cams ≈ ~6 cores of ingest before YOLO; mitigate on a smaller rig CPU
+  via a lower NDI bandwidth mode or downscaling before YOLO. (Measured on the 22-core dev box on
+  AC; battery throttling earlier inflated the % — measure perf on AC.)
 
-Headless suite: **318 passed** (global) / venv `-m "not ndi and not obs and not gpu"` all green.
+Headless suite: **319 passed** (global) / venv `-m "not ndi and not obs and not gpu"` all green.
 The 2 `@pytest.mark.ndi` loopback tests still fail in the venv — real NDI frame delivery (rig).
 
 ## Tests
@@ -55,7 +63,8 @@ expected: CPU for disconnected receiver threads is near-zero (no busy-spin); a n
 result: blocked
 blocked_by: physical-device
 partial_verified: "NDI-01 RECEIVER CORE VERIFIED on real cyndilib 0.1.1 + a live NDI stream (2026-06-12, OBS DistroAV output 'MASTER (OBS PGM)' as the source). NdiFrameSource([cam@'MASTER (OBS PGM)']).start() resolved the named source via Finder, connected, and yielded a real frame shape=(1080,1920,3) uint8 BGR (NDI-03 zero-res guard + reshape RGBA->BGR correct); 20 distinct NEW timestamps in ~2s confirm RBT-01 liveness (get_timestamp_posix advances per NEW frame — [ASSUMED A1] CONFIRMED); stop() joined the threads. Also confirmed the Finder API (get_source_names/get_source) exists on 0.1.1 (the _resolve_source 'API may differ' pragma)."
-reason: "STILL PENDING (the test's CR-02 headline): (a) auto-reconnect after a real drop/reappear without stop()/start() — needs the source toggled off then on mid-receive; (b) near-zero CPU on the disconnected branch (measurement); (c) the frozen-feed 'pull the cable' liveness (timestamp STOPS advancing → watchdog declares dead) — needs a real phone feed that freezes. NOTE: the phone NDI Camera was started but is NOT discoverable from the PC (only OBS PGM is) — almost certainly WiFi client-isolation / subnet split; a real-rig network item since the phones are the actual cameras."
+cpu_finding: "CONNECTED-PATH CPU measured on the live stream and a busy-spin FIXED (06683a0): the loop pinned ~2 cores/cam; frame_sync.capture_video() is non-blocking (~0.2us) so the unpaced loop busy-spun → paced to ~500Hz → ~2.09→~1.50 core/cam. Remaining ~1.5 core/cam is intrinsic NDI decode + 1080p cvtColor (perf-budget item, not a bug)."
+reason: "STILL PENDING (Test 2 headline not fully closed): (a) auto-reconnect after a real drop/reappear without stop()/start() — needs the source toggled off then on mid-receive (attempted, but the toggle never produced a gap in the timeline); (b) near-zero CPU specifically on the DISCONNECTED branch (the connected-path spin is now fixed+measured; the disconnected-coast CPU still wants a measured number); (c) frozen-feed 'pull the cable' liveness (timestamp STOPS advancing → watchdog declares dead) — needs a real phone feed that freezes. NOTE: the phone NDI Camera was started but is NOT discoverable from the PC (only OBS PGM is) — almost certainly WiFi client-isolation / subnet split; a real-rig network item since the phones are the actual cameras."
 
 ### 3. Anti-jitter grace empirical tuning (WR-02, RBT-02)
 expected: The shipped watchdog_grace=0.067 (~2 frames @30fps) tolerates single-late-frame jitter on real WiFi phone feeds without cut-storms; tune against measured jitter if needed.

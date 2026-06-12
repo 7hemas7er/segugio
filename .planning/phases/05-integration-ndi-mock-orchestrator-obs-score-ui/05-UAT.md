@@ -8,11 +8,16 @@ updated: 2026-06-12T00:30:00Z
 
 ## Current Test
 
-[Test 1 PASS — verified end-to-end against real OBS (connect + cut to SAFE confirmed by reading
-the program scene back + reconnect-after-drop, all on obsws-python v5). Heavy stack installed on
-the dev box; smoke test confirmed RBT-04 no-crash and fixed 4 defects (see findings). Tests 2-5
-(NDI receiver, anti-jitter, full E2E, GPU latency) still need a live NDI source + the RTX GPU.
-Resume the rest with `/gsd-verify-work 05` at the full rig.]
+number: 2
+name: Real NDI receiver auto-reconnect + liveness (HX phone, post-fix)
+result: issue (blocker) — recorded
+awaiting: decision on next step (continue live Tests 3-5 while rig is up, vs. /gsd-debug the watchdog blocker now with the live repro in hand)
+
+Phase 05 UAT live-at-rig progress: Test 1 PASS (real OBS), Test 2 ISSUE/blocker (HX decode
+works in-loop, but FrameSync-clock timestamps keep a dead feed 'alive' → watchdog never fires;
+[ASSUMED A1] false on the FrameSync path — see Gaps). Tests 3-5 not yet run this session.
+Resume any time with `/gsd-verify-work 05`. The watchdog blocker wants /gsd-debug + a real
+pull-the-cable repro (currently reproducible: close the sender app → stays alive).
 
 ## Smoke-test findings (heavy stack on dev box — 2026-06-12)
 
@@ -59,9 +64,12 @@ diagnosis: "NOT a wiring bug — the entry point ran argparse -> load_config -> 
 resolution: "FIXED (commit bc4c5f5, headlessly verified on this box with the heavy stack genuinely absent): (1) docs/run.md Prerequisites now installs `pip install -e \".[heavy]\"` with a headless-vs-rig note + the libndi requirement; (2) main() catches a HEAVY-stack ModuleNotFoundError and exits 2 with `Heavy runtime stack not installed (missing 'ultralytics'). Install it on the rig with: pip install -e \".[heavy]\"` instead of a traceback (a non-heavy ModuleNotFoundError is re-raised so real bugs are not masked). Re-running `python -m segugio config.example.yaml` now prints that line and exits 2. The REMAINING live confirmation — director ticks + reconnects against real OBS with the heavy stack installed — is D-07 hardware-deferred (needs the Windows/RTX rig)."
 
 ### 2. Real NDI receiver auto-reconnect + near-zero CPU (CR-02, NDI-01)
-expected: CPU for disconnected receiver threads is near-zero (no busy-spin); a named NDI source that appears after thread start auto-reconnects without stop()/start(). Watch for the WR-02 livelock risk — set_source re-issued every 50ms mid-handshake on real cyndilib.
-result: blocked
-blocked_by: physical-device
+expected: CPU for disconnected receiver threads is near-zero (no busy-spin); a named NDI source that appears after thread start auto-reconnects without stop()/start(). Watch for the WR-02 livelock risk — set_source re-issued every 50ms mid-handshake on real cyndilib. With the HX fix, a phone feed decodes into the loop AND a feed death is detected (alive→false→feed-dead) so the FSM can fall over.
+result: issue
+severity: blocker
+reported: "Live phone (config.rigtest.yaml, cam_wide -> 'LOCALHOST (iPhone Camera for OBS Studio App)'): decode WORKS — status.json shows {live_cam: SAFE, reason: subject-lost, alive: {cam_wide: true}} (feed alive, no dog → correct). BUT with the sender app CLOSED, status.json STAYS {reason: subject-lost, alive: {cam_wide: true}} — never transitions to feed-dead. The watchdog does not detect HX feed death."
+live_finding_2026-06-12: "DECODE-IN-LOOP CONFIRMED (step 1 PASS): with the live name in config, NdiFrameSource feeds decoded HX frames to the tick loop — alive.cam_wide=true, reason=subject-lost (not feed-dead). FEED-DEATH DETECTION FAILS (step 2): sender app closed → camera stays alive=true indefinitely. ROOT CAUSE (high confidence): the receiver reads receiver.frame_sync.capture_video() (cyndilib FrameSync), whose job is to deliver a frame at the RECEIVER clock — so on a dead sender it keeps emitting the repeated frame with an ADVANCING get_timestamp_posix(). The RBT-01 substrate (ndi_source.py:251-260, publish only when ts != last_ts) therefore never stalls → FeedWatchdog (now - last_frame_ts <= timeout+grace) keeps the camera alive forever. [ASSUMED A1] ('a frozen feed repeats its last frame with the SAME timestamp', ndi_source.py header L26-28, flagged load-bearing & needing a pull-the-cable test) is FALSE on the FrameSync path. Defeats the explicit live requirement (caduta feed → SAFE/fallback): in multi-cam a frozen feed with a dog in-frame would keep being aired. FIX CANDIDATES (for diagnosis): (a) liveness off the SENDER timecode (get_timecode) which a frozen sender repeats, not the receiver-clock timestamp; (b) raw Receiver.capture_video(timeout) which returns no-frame on starvation, instead of FrameSync, for the liveness substrate; (c) content-identity freeze detector (last decoded array unchanged > timeout). Needs a focused /gsd-debug — NOT a rushed fix."
+hx_finding: "RESOLVED 8048319 — superseded by live_finding above (decode now works in-loop). Historical: cyndilib 0.1.1 decoded ZERO iPhone HX frames until the system 6.3.2 runtime was preloaded."
 partial_verified: "NDI-01 RECEIVER CORE VERIFIED on real cyndilib 0.1.1 + a live NDI stream (2026-06-12, OBS DistroAV output 'MASTER (OBS PGM)' as the source). NdiFrameSource([cam@'MASTER (OBS PGM)']).start() resolved the named source via Finder, connected, and yielded a real frame shape=(1080,1920,3) uint8 BGR (NDI-03 zero-res guard + reshape RGBA->BGR correct); 20 distinct NEW timestamps in ~2s confirm RBT-01 liveness (get_timestamp_posix advances per NEW frame — [ASSUMED A1] CONFIRMED); stop() joined the threads. Also confirmed the Finder API (get_source_names/get_source) exists on 0.1.1 (the _resolve_source 'API may differ' pragma)."
 cpu_finding: "CONNECTED-PATH CPU measured on the live stream and a busy-spin FIXED (06683a0): the loop pinned ~2 cores/cam; frame_sync.capture_video() is non-blocking (~0.2us) so the unpaced loop busy-spun → paced to ~500Hz → ~2.09→~1.50 core/cam. Remaining ~1.5 core/cam is intrinsic NDI decode + 1080p cvtColor (perf-budget item, not a bug)."
 hx_finding: "CRITICAL (2026-06-12): cyndilib 0.1.1 does NOT decode the iPhone's NDI HX video. With a live iPhone 'NDI Camera' source, NdiFrameSource CONNECTS (receiver.is_connected()=True) but yields ZERO video frames (VideoFrameSync.xres/yres stay 0,0) across every color_format/bandwidth combo and even with OBS fully closed (so NOT a single-receiver limit). NDI Studio Monitor (system NDI runtime + the installed HX Driver) shows the SAME phone fine → the phone IS sending video and the system runtime decodes the HX. Root cause: cyndilib loads its OWN bundled NDI runtime (Processing.NDI.Lib.x64.dll v6.1.1 in site-packages) which does not load the NDI HX decoder; NDI_RUNTIME_DIR_V6 is ignored, so it can't be redirected to the system 6.3.2 runtime by env var. This BLOCKS the real use case — the phones are ALL NDI HX. Invisible until now because the headless tests use the mock clip source and the only live source tested before was OBS PGM (full/uncompressed NDI, which cyndilib decodes fine — that path IS verified). The receiver LOGIC is correct (validated on OBS PGM); the blocker is HX decode in cyndilib's bundled runtime — a dependency/packaging issue needing a focused investigation (HX-codec loading, a newer cyndilib, or an alternative NDI binding)."
@@ -89,12 +97,26 @@ reason: "Needs the RTX 4000 Ada GPU box with yolo26s.pt. Independent of the runn
 
 total: 5
 passed: 1
-issues: 0
+issues: 1
 pending: 0
 skipped: 0
-blocked: 4
+blocked: 3
 
 ## Gaps
+
+- truth: "A dead/closed NDI HX phone feed is detected as dead (alive→false→feed-dead within ~watchdog_timeout) so the FSM degrades to SAFE / another live camera — the explicit live-robustness requirement (caduta feed → degrado a SAFE/fallback)."
+  status: failed
+  reason: "User reported (UAT Test 2, live iPhone): decode into the loop works (alive.cam_wide=true, reason=subject-lost), but with the sender app CLOSED status.json stays {reason: subject-lost, alive: {cam_wide: true}} forever — never feed-dead. The watchdog does not detect HX feed death."
+  severity: blocker
+  test: 2
+  root_cause: "The receiver reads cyndilib FrameSync (receiver.frame_sync.capture_video()), which delivers frames at the RECEIVER clock and keeps emitting the repeated frame with an ADVANCING get_timestamp_posix() after the sender dies. The RBT-01 substrate publishes whenever ts != last_ts (ndi_source.py:251-260), so last_frame_ts never stalls and FeedWatchdog (now - last_frame_ts <= timeout+grace, liveness.py) keeps the camera alive indefinitely. [ASSUMED A1] (ndi_source.py header L26-28: 'a frozen feed repeats its last frame with the SAME timestamp' — flagged load-bearing, pull-the-cable test) is FALSE on the FrameSync path."
+  artifacts:
+    - "src/segugio/ndi/ndi_source.py:248-260 — reads receiver.frame_sync.capture_video() and publishes on ts != last_ts; the FrameSync clock keeps ts advancing on a dead sender."
+    - "src/segugio/ndi/ndi_source.py:12-28 — [ASSUMED A1] header note (frozen feed = same timestamp) that this disproves; explicitly flagged as needing a Windows pull-the-cable test."
+    - "src/segugio/watchdog_feed/liveness.py — FeedWatchdog is correct given a stalling substrate; the substrate is the defect, not the math."
+    - "config.rigtest.yaml — throwaway single-cam config used to reproduce (NOT committed)."
+  missing:
+    - "A liveness substrate that actually stalls on a dead HX feed. Candidates: (a) sender timecode (get_timecode) which a frozen sender repeats; (b) raw Receiver.capture_video(timeout) no-frame-on-starvation instead of FrameSync; (c) decoded-array content-identity freeze detector. Pick via /gsd-debug + a real pull-the-cable repro."
 
 - truth: "Following docs/run.md exactly, `python -m segugio <config>` launches (or fails with an actionable message) — the operator can stand the rig up from the documented procedure without hitting a raw Python traceback."
   status: resolved

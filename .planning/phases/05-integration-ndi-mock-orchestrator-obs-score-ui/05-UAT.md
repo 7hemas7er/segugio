@@ -8,16 +8,15 @@ updated: 2026-06-12T00:30:00Z
 
 ## Current Test
 
-number: 2
-name: Real NDI receiver auto-reconnect + liveness (HX phone, post-fix)
-result: issue (blocker) — recorded
-awaiting: decision on next step (continue live Tests 3-5 while rig is up, vs. /gsd-debug the watchdog blocker now with the live repro in hand)
+number: 3
+name: Anti-jitter grace empirical tuning (WR-02, RBT-02)
+result: blocked (physical-device) — next to run live
+awaiting: user response
 
-Phase 05 UAT live-at-rig progress: Test 1 PASS (real OBS), Test 2 ISSUE/blocker (HX decode
-works in-loop, but FrameSync-clock timestamps keep a dead feed 'alive' → watchdog never fires;
-[ASSUMED A1] false on the FrameSync path — see Gaps). Tests 3-5 not yet run this session.
-Resume any time with `/gsd-verify-work 05`. The watchdog blocker wants /gsd-debug + a real
-pull-the-cable repro (currently reproducible: close the sender app → stays alive).
+Phase 05 UAT live-at-rig progress: Test 1 PASS (real OBS), Test 2 PASS (HX decode in-loop +
+feed-death detection + auto-reconnect, after the watchdog fix commit 95a592c — was a blocker,
+now live-verified). Tests 3 (anti-jitter), 4 (full E2E), 5 (GPU latency) still to run.
+Resume any time with `/gsd-verify-work 05`.
 
 ## Smoke-test findings (heavy stack on dev box — 2026-06-12)
 
@@ -65,8 +64,9 @@ resolution: "FIXED (commit bc4c5f5, headlessly verified on this box with the hea
 
 ### 2. Real NDI receiver auto-reconnect + near-zero CPU (CR-02, NDI-01)
 expected: CPU for disconnected receiver threads is near-zero (no busy-spin); a named NDI source that appears after thread start auto-reconnects without stop()/start(). Watch for the WR-02 livelock risk — set_source re-issued every 50ms mid-handshake on real cyndilib. With the HX fix, a phone feed decodes into the loop AND a feed death is detected (alive→false→feed-dead) so the FSM can fall over.
-result: issue
-severity: blocker
+result: pass
+severity: blocker (RESOLVED — commit 95a592c, live-verified at rig 2026-06-13)
+resolved_by: "Debug session watchdog-hx-feed-death (.planning/debug/resolved/). Two defects fixed in NdiFrameSource: liveness now gates on decoded-content change (not the FrameSync timestamp) and last_frame_ts is stamped with time.monotonic() (the watchdog's clock). LIVE-VERIFIED: closing the iPhone HX app flips cam_wide to feed-dead and reopening restores alive (probe fingerprint froze on close → NEW on reopen; python -m segugio status.json feed-dead↔alive). Decode-in-loop (step 1), feed-death detection (step 2), and auto-reconnect all confirmed; disconnected CPU near-zero unchanged. Headless 323 passed (+4 regression tests)."
 reported: "Live phone (config.rigtest.yaml, cam_wide -> 'LOCALHOST (iPhone Camera for OBS Studio App)'): decode WORKS — status.json shows {live_cam: SAFE, reason: subject-lost, alive: {cam_wide: true}} (feed alive, no dog → correct). BUT with the sender app CLOSED, status.json STAYS {reason: subject-lost, alive: {cam_wide: true}} — never transitions to feed-dead. The watchdog does not detect HX feed death."
 live_finding_2026-06-12: "DECODE-IN-LOOP CONFIRMED (step 1 PASS): with the live name in config, NdiFrameSource feeds decoded HX frames to the tick loop — alive.cam_wide=true, reason=subject-lost (not feed-dead). FEED-DEATH DETECTION FAILS (step 2): sender app closed → camera stays alive=true indefinitely. ROOT CAUSE (high confidence): the receiver reads receiver.frame_sync.capture_video() (cyndilib FrameSync), whose job is to deliver a frame at the RECEIVER clock — so on a dead sender it keeps emitting the repeated frame with an ADVANCING get_timestamp_posix(). The RBT-01 substrate (ndi_source.py:251-260, publish only when ts != last_ts) therefore never stalls → FeedWatchdog (now - last_frame_ts <= timeout+grace) keeps the camera alive forever. [ASSUMED A1] ('a frozen feed repeats its last frame with the SAME timestamp', ndi_source.py header L26-28, flagged load-bearing & needing a pull-the-cable test) is FALSE on the FrameSync path. Defeats the explicit live requirement (caduta feed → SAFE/fallback): in multi-cam a frozen feed with a dog in-frame would keep being aired. FIX CANDIDATES (for diagnosis): (a) liveness off the SENDER timecode (get_timecode) which a frozen sender repeats, not the receiver-clock timestamp; (b) raw Receiver.capture_video(timeout) which returns no-frame on starvation, instead of FrameSync, for the liveness substrate; (c) content-identity freeze detector (last decoded array unchanged > timeout). Needs a focused /gsd-debug — NOT a rushed fix."
 hx_finding: "RESOLVED 8048319 — superseded by live_finding above (decode now works in-loop). Historical: cyndilib 0.1.1 decoded ZERO iPhone HX frames until the system 6.3.2 runtime was preloaded."
@@ -96,8 +96,8 @@ reason: "Needs the RTX 4000 Ada GPU box with yolo26s.pt. Independent of the runn
 ## Summary
 
 total: 5
-passed: 1
-issues: 1
+passed: 2
+issues: 0
 pending: 0
 skipped: 0
 blocked: 3
@@ -105,7 +105,8 @@ blocked: 3
 ## Gaps
 
 - truth: "A dead/closed NDI HX phone feed is detected as dead (alive→false→feed-dead within ~watchdog_timeout) so the FSM degrades to SAFE / another live camera — the explicit live-robustness requirement (caduta feed → degrado a SAFE/fallback)."
-  status: failed
+  status: resolved
+  resolved_by: "Debug session watchdog-hx-feed-death (commit 95a592c, live-verified at rig 2026-06-13). NdiFrameSource liveness now gates on decoded-content change + a time.monotonic() stamp (was: FrameSync get_timestamp_posix(), which re-clocks, + a POSIX stamp in a different clock domain than the watchdog's monotonic `now`). Closing the iPhone HX app now flips cam_wide to feed-dead and reopening restores alive. Headless 323 passed (+4 regression tests). FeedWatchdog unchanged; mock/OBS-PGM paths unaffected. Archived: .planning/debug/resolved/watchdog-hx-feed-death.md."
   reason: "User reported (UAT Test 2, live iPhone): decode into the loop works (alive.cam_wide=true, reason=subject-lost), but with the sender app CLOSED status.json stays {reason: subject-lost, alive: {cam_wide: true}} forever — never feed-dead. The watchdog does not detect HX feed death."
   severity: blocker
   test: 2

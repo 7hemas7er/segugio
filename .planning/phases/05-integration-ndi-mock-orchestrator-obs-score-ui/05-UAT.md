@@ -8,18 +8,18 @@ updated: 2026-06-12T00:30:00Z
 
 ## Current Test
 
-number: 5
-name: GPU latency budget (RBT-05)
-result: FAIL — 4× yolo26s eager-FP32 p95 ≈ 231-247ms vs 150ms budget (CUDA env provisioned + measured on AC)
-awaiting: nothing — session paused
+[session wrapped 2026-06-13 — see Tests + Gaps]
 
-UAT tally (2026-06-13): PASS Tests 1, 2, 4(positive-path). ISSUE Test 4 (FSM release-from-auto
-blocker, headless-fixable) + Test 5 (latency budget miss — needs TensorRT FP16 / batched inference;
-yolo26n ineffective on GPU). BLOCKED Test 3 (anti-jitter, needs ≥2 phones). GPU env for -m gpu lives
-at C:\\Users\\mirko\\venvs\\segugio-gpu312 (py3.12 + torch 2.6.0+cu124); the default py3.14 venv is
-CPU-only. NEXT (no rig/phone needed): (1) /gsd-debug the FSM release bug; (2) latency-optimization
-task (TensorRT export + batch/parallel inference). DEFERRED to ≥2 phones: Test 3 + Test 4 multi-cam
-switching + override leg. Resume with /gsd-verify-work 05.
+UAT FINAL TALLY (2026-06-13): PASS Tests 1, 2, 4(positive-path + FSM-release fix). ISSUE Test 5
+(latency budget miss — 4× yolo26s eager-FP32 p95 ≈231-247ms vs 150ms; needs TensorRT FP16 +
+batched/parallel inference; yolo26n ineffective on GPU). BLOCKED Test 3 (anti-jitter, ≥2 phones).
+FIXED THIS SESSION (live blockers found by UAT): watchdog HX feed-death (95a592c) + FSM
+release-from-auto MachineError (b03165b) — both headless-regression-tested, 325 passed.
+GPU env for -m gpu: C:\\Users\\mirko\\venvs\\segugio-gpu312 (py3.12 + torch 2.6.0+cu124); default
+py3.14 venv is CPU-only. OPEN: (1) latency-optimization effort (TensorRT export + batch inference) —
+likely a new roadmap phase; (2) DEFERRED to ≥2 phones: Test 3 anti-jitter + Test 4 multi-cam
+switching/fallback + live override leg + the hold-last-vs-fall-to-wide design decision. Resume with
+/gsd-verify-work 05.
 
 Phase 05 UAT live-at-rig progress (2026-06-13): Test 1 PASS (real OBS), Test 2 PASS (HX decode +
 feed-death detection + reconnect, watchdog fix 95a592c live-verified), Test 4 POSITIVE PATH PASS
@@ -95,11 +95,12 @@ reason: "Now launchable via the runner; empirical tuning needs the live system a
 
 ### 4. Full E2E real-stack run (D-07 — v1 milestone validation)
 expected: mock NDI sender -> cyndilib -> YOLO -> score -> FSM -> OBS cut/PIP/overlay -> feed death -> SAFE fallback -> UI score entry -> overlay update all work end-to-end; OBS overlay shows operator scores; feed death triggers SAFE; UI status panel shows live camera + reason.
-result: issue
-severity: blocker
+result: pass
+severity: blocker (RESOLVED — commit b03165b)
+disposition: "POSITIVE PATH PASS (detect→cut→overlay→status, single phone) + the FSM release-from-auto blocker is FIXED & headless-verified (commit b03165b, +2 regression tests, 325 passed). REMAINING (deferred, not a failure): multi-cam switching/fallback + the live override Forza/Rilascia leg need ≥2 phones; the hold-last-vs-fall-to-wide design decision is open."
 reported: "Live (config.rigtest.yaml, single phone). PASSED legs: overlay (console score → overlay.txt → OBS 'Score Text' shows it) and the console status panel (live cam + reason). NOT verified: detection→cut. Two operator-control findings: (1) reason stayed 'override' — a stale/active force_cam in command.json (operator UX, not a bug). (2) After 'Avvia' (start) + 'Rilascia' (release), the orchestrator throws every tick: transitions.core.MachineError 'Can't trigger event release from state auto!' (loop _tick_once:437 → SAFE coast), wedging the director permanently in SAFE so detection→cut can never be reached."
 positive_path_verified: "PASS (live, single phone, via the command.json-delete workaround). Dog in frame → live_cam: cam_wide and OBS program scene cut SAFE → CAM Wide (the core value: la camera giusta al momento giusto). Score overlay (console → overlay.txt → OBS Score Text) and the console status panel (live cam + reason) both confirmed. NOTE — 'never returns to SAFE on subject loss' is BY DESIGN (anti-flicker / no cut tremolanti): the auto FSM HOLDS the last camera; SAFE is reached only on cold start, feed-death-with-no-alive-camera (verified Test 2), or run-stop (Ferma). On a live camera the status reason is 'auto', never 'subject-lost' (subject-lost is reported only when parked on SAFE — loop.py:350). DESIGN QUESTION (multi-cam, ≥2 phones, deferred): when the dog is gone from ALL cameras for a sustained stretch, hold the last (possibly tight) angle vs fall back to the wide/SAFE after a grace — a product decision, not a v1 bug; moot with one cam (the wide == safe)."
-fsm_release_bug: "REAL BUG (headlessly reproducible, no rig needed). engine.py tick() fires self.release(override) whenever override.release is True (level-triggered: command.json persists release=True and is re-read every tick). The 'release' transition has source='override' ONLY (engine.py:140-145). First release: override→auto (valid). Every subsequent tick: release from 'auto' → MachineError → tick fault → SAFE coast. Fix: guard the release fire on self.mode_is_override (a release when already in auto is a no-op), or add ignore_invalid_triggers / a no-op release self-loop. FSM is pure → fix + regression test are headless. Workaround to unblock the live detection test: stop orchestrator, delete ./opcomm/command.json (read_command→None on absent, channel.py:50), restart, do NOT touch Forza/Rilascia."
+fsm_release_bug: "RESOLVED — commit b03165b (debug session .planning/debug/resolved/fsm-release-from-auto.md). Gated the release fire on self.mode_is_override (engine.py:556) so a release while already in auto is a no-op, mirroring the existing feed_emergency state-guard; D-06 resume semantics unchanged. +2 regression tests in tests/test_decision_override.py (persistent OverrideCmd(release=True) over multiple ticks from auto no longer raises; normal force→release still transitions override→auto). Headless 325 passed (+2). ORIGINAL FINDING: REAL BUG (headlessly reproducible, no rig needed). engine.py tick() fires self.release(override) whenever override.release is True (level-triggered: command.json persists release=True and is re-read every tick). The 'release' transition has source='override' ONLY (engine.py:140-145). First release: override→auto (valid). Every subsequent tick: release from 'auto' → MachineError → tick fault → SAFE coast. Fix: guard the release fire on self.mode_is_override (a release when already in auto is a no-op), or add ignore_invalid_triggers / a no-op release self-loop. FSM is pure → fix + regression test are headless. Workaround to unblock the live detection test: stop orchestrator, delete ./opcomm/command.json (read_command→None on absent, channel.py:50), restart, do NOT touch Forza/Rilascia."
 
 ### 5. GPU latency budget (RBT-05)
 expected: `python -m pytest tests/test_latency.py -m gpu` on the RTX 4000 Ada with yolo26s.pt and real clip frames shows decision-loop p95 < 150ms (target <80ms). If over budget, apply the _DEGRADATION_LADDER logged in loop.py. (Wiring overhead proven headless: mock-timed p95 < 50ms.)
@@ -112,8 +113,8 @@ remediation: "NOT a code bug — an optimization gap. Primary lever: TensorRT FP
 ## Summary
 
 total: 5
-passed: 2
-issues: 2
+passed: 3
+issues: 1
 pending: 0
 skipped: 0
 blocked: 1
@@ -135,7 +136,8 @@ blocked: 1
     - "TensorRT FP16 export of yolo26s on this exact CUDA/TensorRT combo (primary lever; research targets single-digit-ms inference vs ~58ms eager). AND/OR batch the 4 frames into one inference call or run the per-camera trackers in parallel. Re-measure p95 against 150ms after each. A dedicated latency-optimization task/phase — not a quick fix."
 
 - truth: "An operator override RELEASE returns the FSM to auto WITHOUT faulting on subsequent ticks — the director resumes automatic selection, it does not wedge in SAFE. (D-06 auto-resume + the explicit 'nessun crash ammesso' / no-stuck-SAFE robustness constraint.)"
-  status: failed
+  status: resolved
+  resolved_by: "Commit b03165b (debug session .planning/debug/resolved/fsm-release-from-auto.md). Gated the release fire on self.mode_is_override (engine.py:556) — a release while already in auto is a no-op, mirroring the feed_emergency state-guard; D-06 semantics unchanged. +2 regression tests (tests/test_decision_override.py): persistent OverrideCmd(release=True) over multiple ticks from auto no longer raises; normal force→release still transitions override→auto on the release tick. Headless 325 passed (+2 vs the 323 baseline), 3 skipped."
   reason: "User reported (UAT Test 4, live): after 'Avvia' + 'Rilascia' the orchestrator throws every tick — transitions.core.MachineError 'Can't trigger event release from state auto!' (loop _tick_once:437 → SAFE coast) — wedging the director in SAFE so detection→cut is unreachable."
   severity: blocker
   test: 4

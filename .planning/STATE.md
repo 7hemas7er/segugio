@@ -138,6 +138,12 @@ None yet.
 - [Phase 1]: Framing-scorer math (Phase 2) is dense/novel — flagged for `--research-phase` during planning (lead-room, motion-adaptive alpha, conf-norm, size band, zone multiplier)
 - [Phase 4 — RESOLVED 2026-06-10 GPU UAT]: Native-ReID engagement on yolo26s VERIFIED on RTX 4000 Ada (assert_native_reid_engaged does not raise with end2end=False → no silent yolo26n-cls.pt fallback). COCO dog recall MEASURED on the 6 hard slices: strong on close/clear (handler_close cam_c 0.89, dusk_distant 0.76, sprint_blur 0.69), weak on distant/small + crowd (distant 0.04, crowd_distractor 0.16) — candidate for dog-detector fine-tuning later. NOTE: GPU UAT also found+fixed a real bug — the tracker yaml was passed as a bare name and never resolved, so TRK-01/TRK-02 were dead on the real path (silent coast every frame); fixed in detector.py with fail-loud abs-path resolution + CPU regression test.
 
+## Quick Tasks Completed
+
+| Date | Slug | Summary |
+|------|------|---------|
+| 2026-06-12 | run-md-ndi-hx-ops-notes | docs/run.md Prerequisites: NDI Tools/HX Driver required on rig (HX decode depends on system 6.3.2 runtime), multi-homed discovery via NDI Access Manager, active camera view, don't-hardcode source names |
+
 ## Deferred Items
 
 Items acknowledged and carried forward from previous milestone close:

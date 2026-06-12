@@ -22,11 +22,30 @@ They must point at the **same opcomm directory** (see "Channel directory" below)
   > `pip install -e .` (base deps only) is the **headless/dev** install — it runs the test
   > suite but NOT `python -m segugio`, which exits with an actionable
   > `Heavy runtime stack not installed (missing 'ultralytics')` message the moment it builds
-  > the first tracker. cyndilib also needs the **libndi** native library installed on the box
-  > (see the DistroAV / NDI Tools install).
+  > the first tracker. cyndilib also needs a **system NDI runtime** installed on the box —
+  > see the next bullet (this is what makes phone HX feeds decode).
+- **NDI runtime on the rig — install NDI Tools (or the HX Driver).** Phone feeds are **NDI HX**,
+  and HX decode is done by a separate, **version-paired** plugin (`Processing.NDI.Plugins.IPCam…`,
+  v6.3.2) that only works when driven by a **matching system base runtime** (6.3.2). cyndilib
+  bundles an older 6.1.1 base; on its own it *discovers* a phone but decodes **zero frames**.
+  The orchestrator's `_prefer_system_ndi_runtime()` (in `src/segugio/ndi/ndi_source.py`) preloads
+  the **system 6.3.2** base so cyndilib pairs base+plugin at 6.3.2 — but that only works **if a
+  system NDI runtime is actually installed**. So:
+  - **No NDI Tools / HX Driver on the box → no phone HX video** (mock-clip and full/uncompressed
+    NDI still decode through the bundled runtime, which is why this can stay hidden until a real
+    phone is tested). Install NDI Tools on the rig before the live run.
 - **Config** points each camera's `ndi_source` at the discovered phone / mock sender name
   (the `ndi_source:` values in `config.example.yaml` — e.g. `"PHONE-WIDE (NDI HX3)"`). The names
-  must match what the NDI senders actually advertise on the dedicated WiFi.
+  must match what the NDI senders actually advertise on the dedicated WiFi. Two field gotchas:
+  - **Source names are not stable — discover them, don't hardcode.** Different sender apps/versions
+    advertise different names for the *same* phone (e.g. `LOCALHOST (iPhone)` vs
+    `LOCALHOST (iPhone Camera for OBS Studio App)`). Read the live name from NDI Studio Monitor /
+    OBS source list and paste *that* into `ndi_source`; never assume a fixed string.
+  - **The phone must have its camera view ACTIVE** in the sender app — a backgrounded or
+    preview-paused app may register the source name but serve no frames.
+  - **Discovery on a multi-homed PC needs NDI Access Manager.** Virtual NICs (VPN, Docker,
+    Hyper-V, WSL) break the mDNS discovery cyndilib relies on. Use NDI Access Manager to bind
+    discovery to the dedicated-WiFi NIC/subnet (or add the senders manually) so the phones appear.
 - **OBS Studio** running with the DistroAV (NDI) plugin and the imported scene collection
   (one scene per camera + a SAFE scene). See [`docs/obs-setup.md`](obs-setup.md) for the scene
   collection, the obs-websocket v5 host/port/password, and the read-from-file overlay text source.

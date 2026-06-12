@@ -8,10 +8,18 @@ updated: 2026-06-12T00:30:00Z
 
 ## Current Test
 
-number: 4
-name: Full E2E real-stack run — POSITIVE PATH (single phone) (D-07)
-result: positive-path PASS; one open blocker (FSM release-from-auto) + deferrals
-awaiting: nothing — rig session paused
+number: 5
+name: GPU latency budget (RBT-05)
+result: FAIL — 4× yolo26s eager-FP32 p95 ≈ 231-247ms vs 150ms budget (CUDA env provisioned + measured on AC)
+awaiting: nothing — session paused
+
+UAT tally (2026-06-13): PASS Tests 1, 2, 4(positive-path). ISSUE Test 4 (FSM release-from-auto
+blocker, headless-fixable) + Test 5 (latency budget miss — needs TensorRT FP16 / batched inference;
+yolo26n ineffective on GPU). BLOCKED Test 3 (anti-jitter, needs ≥2 phones). GPU env for -m gpu lives
+at C:\\Users\\mirko\\venvs\\segugio-gpu312 (py3.12 + torch 2.6.0+cu124); the default py3.14 venv is
+CPU-only. NEXT (no rig/phone needed): (1) /gsd-debug the FSM release bug; (2) latency-optimization
+task (TensorRT export + batch/parallel inference). DEFERRED to ≥2 phones: Test 3 + Test 4 multi-cam
+switching + override leg. Resume with /gsd-verify-work 05.
 
 Phase 05 UAT live-at-rig progress (2026-06-13): Test 1 PASS (real OBS), Test 2 PASS (HX decode +
 feed-death detection + reconnect, watchdog fix 95a592c live-verified), Test 4 POSITIVE PATH PASS
@@ -95,20 +103,36 @@ fsm_release_bug: "REAL BUG (headlessly reproducible, no rig needed). engine.py t
 
 ### 5. GPU latency budget (RBT-05)
 expected: `python -m pytest tests/test_latency.py -m gpu` on the RTX 4000 Ada with yolo26s.pt and real clip frames shows decision-loop p95 < 150ms (target <80ms). If over budget, apply the _DEGRADATION_LADDER logged in loop.py. (Wiring overhead proven headless: mock-timed p95 < 50ms.)
-result: blocked
-blocked_by: toolchain
-reason: "Attempted 2026-06-13 on this box: GPU IS present (NVIDIA RTX 4000 Ada Generation Laptop GPU, driver 596.36) but the installed torch is the CPU-only wheel (torch 2.12.0+cpu, torch.version.cuda=None) → torch.cuda.is_available()=False → the gpu test AUTO-SKIPS (conftest gpu gate). NOT a hardware gap and NOT a code issue. Root: the venv is Python 3.14, for which PyTorch does not yet publish CUDA wheels, so pip resolved torch+cpu. To run Test 5: provision a CUDA-enabled torch (PyTorch cu12x wheels — practically a Python 3.12 venv with `pip install -e \".[heavy]\"` + a cuXX torch), then `pytest tests/test_latency.py -m gpu` (4-cam canonical config, 100-tick window, p95<150ms target<80ms). Measure ON AC (laptop GPU throttles on battery). Headless WIRING-overhead p95<50ms already proven by the two mock-timed tests (test_latency.py)."
+result: issue
+severity: major
+env_resolved: "The toolchain blocker was provisioned 2026-06-13: created a Python 3.12 venv (C:\\Users\\mirko\\venvs\\segugio-gpu312, OUT of repo) via uv, installed CUDA torch (torch 2.6.0+cu124, torch.cuda.is_available()=True, device 'NVIDIA RTX 4000 Ada Generation Laptop GPU') + `-e \".[heavy]\"` + `.[dev]`. Native ReID engaged (assert_native_reid_engaged OK, end2end=False — no yolo26n-cls fallback). Measured ON AC. (The default Python 3.14 venv has torch+cpu — no cp314 CUDA wheels — so the gpu test auto-skips there; see memory gpu-torch-cpu-only-py314.)"
+reason: "FAIL — decision-loop total p95 = 231-247ms over repeated runs, exceeding the 150ms budget (target <80ms), on the v1 baseline (4× yolo26s, EAGER torch FP32, NO TensorRT, serialized per tick). pytest assertion: `assert 247.38 < 150.0`. Profile (RTX 4000 Ada Laptop, torch 2.6.0+cu124 eager FP32, 100-tick p95): yolo26s×4=231ms (yolo stage 230.9 — i.e. ~100% of the loop; ingest/score/fsm/obs sum ~0.5ms); yolo26n×4=239ms (NANO DOES NOT HELP on GPU — ladder rung 1 ineffective); yolo26s×1=62ms; yolo26n×1=58ms. Latency scales ~linearly with camera count (~58-62ms per serialized single inference) — ONE camera is under budget, FOUR is ~1.5× over."
+remediation: "NOT a code bug — an optimization gap. Primary lever: TensorRT FP16 export (the documented prod path; the test runs un-exported eager torch FP32 — research targets 1.7-11.8ms/inf on T4 TensorRT vs the ~58ms eager here). Secondary: BATCH or PARALLELIZE the 4 per-camera inferences (currently sequential per tick — one model.track() call per camera). yolo26n swap is INEFFECTIVE on GPU (measured). Reducing active cameras meets budget but defeats the multi-cam product purpose. Wiring overhead is already negligible. Belongs in a dedicated latency-optimization effort (TensorRT export path needs re-verification on this exact CUDA/TensorRT combo per CLAUDE.md)."
 
 ## Summary
 
 total: 5
 passed: 2
-issues: 1
+issues: 2
 pending: 0
 skipped: 0
-blocked: 2
+blocked: 1
 
 ## Gaps
+
+- truth: "The decision loop meets the latency budget on the live GPU: total p95 < 150ms (target <80ms) for the v1 multi-camera baseline (RBT-05) — the dominant project risk (la camera giusta al momento giusto within budget)."
+  status: failed
+  reason: "UAT Test 5 (RTX 4000 Ada Laptop, torch 2.6.0+cu124 EAGER FP32, on AC): 4× yolo26s total p95 = 231-247ms, ~1.5× over the 150ms budget. YOLO inference is ~100% of the loop (per-stage: yolo 230.9ms, all else ~0.5ms). Scales ~linearly with camera count (~58-62ms per serialized single inference; 1 cam = 62ms under budget, 4 cam = 231ms over)."
+  severity: major
+  test: 5
+  root_cause: "The v1 baseline runs FOUR un-exported eager-torch-FP32 yolo26s inferences SERIALLY per tick. No TensorRT export (the documented prod path); no batching/parallelism across the per-camera trackers. yolo26n does NOT reduce GPU latency (measured 239ms ×4 — the nano model's CPU advantage doesn't apply on GPU), so degradation-ladder rung 1 is ineffective here."
+  artifacts:
+    - "tests/test_latency.py::test_loop_latency_p95_under_budget — the gpu-marked budget assertion (assert p95<150ms) that fails at 231-247ms."
+    - "src/segugio/orchestrator/loop.py — the per-tick fan-out calls each PerCameraTracker sequentially; the _DEGRADATION_LADDER comment lists yolo26n→fewer-cams→lower-imgsz/fps (rung 1 now measured ineffective on GPU)."
+    - "src/segugio/tracking/detector.py — PerCameraTracker runs eager torch model.track(); no TensorRT engine export path is used."
+    - "GPU env: C:\\Users\\mirko\\venvs\\segugio-gpu312 (py3.12, torch 2.6.0+cu124) — the env that can run -m gpu (the default py3.14 venv is CPU-only)."
+  missing:
+    - "TensorRT FP16 export of yolo26s on this exact CUDA/TensorRT combo (primary lever; research targets single-digit-ms inference vs ~58ms eager). AND/OR batch the 4 frames into one inference call or run the per-camera trackers in parallel. Re-measure p95 against 150ms after each. A dedicated latency-optimization task/phase — not a quick fix."
 
 - truth: "An operator override RELEASE returns the FSM to auto WITHOUT faulting on subsequent ticks — the director resumes automatic selection, it does not wedge in SAFE. (D-06 auto-resume + the explicit 'nessun crash ammesso' / no-stuck-SAFE robustness constraint.)"
   status: failed

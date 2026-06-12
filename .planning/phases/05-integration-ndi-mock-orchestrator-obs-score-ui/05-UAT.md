@@ -10,14 +10,17 @@ updated: 2026-06-12T00:30:00Z
 
 number: 4
 name: Full E2E real-stack run — POSITIVE PATH (single phone) (D-07)
-result: in-progress (single-cam positive chain; multi-cam switch/fallback deferred to ≥2 phones)
-awaiting: user response
+result: positive-path PASS; one open blocker (FSM release-from-auto) + deferrals
+awaiting: nothing — rig session paused
 
-Phase 05 UAT live-at-rig progress: Test 1 PASS (real OBS), Test 2 PASS (HX decode + feed-death
-detection + reconnect, watchdog fix 95a592c live-verified). Running Test 4 POSITIVE PATH with one
-phone: NDI→YOLO detect→score→FSM→OBS cut to CAM Wide→console score→overlay→UI status. Multi-cam
-switching/fallback + Test 3 anti-jitter need ≥2 phones (deferred); Test 5 GPU latency desk-anytime.
-Resume any time with `/gsd-verify-work 05`.
+Phase 05 UAT live-at-rig progress (2026-06-13): Test 1 PASS (real OBS), Test 2 PASS (HX decode +
+feed-death detection + reconnect, watchdog fix 95a592c live-verified), Test 4 POSITIVE PATH PASS
+(dog → cam_wide → OBS cut SAFE→CAM Wide; overlay + status panel confirmed; "no return to SAFE on
+subject loss" is BY DESIGN anti-flicker). OPEN: (1) FSM release-from-auto MachineError blocker —
+headless-fixable, no rig (see Gaps + Test 4 fsm_release_bug); (2) Test 3 anti-jitter + Test 4
+multi-cam switching/fallback + override Forza/Rilascia leg — need ≥2 phones; (3) Test 5 GPU latency
+— desk-anytime (pytest -m gpu). NEXT: fix the FSM release bug via /gsd-debug (no rig), then resume
+/gsd-verify-work 05 for the multi-cam/override legs when ≥2 phones are available.
 
 ## Smoke-test findings (heavy stack on dev box — 2026-06-12)
 
@@ -87,6 +90,7 @@ expected: mock NDI sender -> cyndilib -> YOLO -> score -> FSM -> OBS cut/PIP/ove
 result: issue
 severity: blocker
 reported: "Live (config.rigtest.yaml, single phone). PASSED legs: overlay (console score → overlay.txt → OBS 'Score Text' shows it) and the console status panel (live cam + reason). NOT verified: detection→cut. Two operator-control findings: (1) reason stayed 'override' — a stale/active force_cam in command.json (operator UX, not a bug). (2) After 'Avvia' (start) + 'Rilascia' (release), the orchestrator throws every tick: transitions.core.MachineError 'Can't trigger event release from state auto!' (loop _tick_once:437 → SAFE coast), wedging the director permanently in SAFE so detection→cut can never be reached."
+positive_path_verified: "PASS (live, single phone, via the command.json-delete workaround). Dog in frame → live_cam: cam_wide and OBS program scene cut SAFE → CAM Wide (the core value: la camera giusta al momento giusto). Score overlay (console → overlay.txt → OBS Score Text) and the console status panel (live cam + reason) both confirmed. NOTE — 'never returns to SAFE on subject loss' is BY DESIGN (anti-flicker / no cut tremolanti): the auto FSM HOLDS the last camera; SAFE is reached only on cold start, feed-death-with-no-alive-camera (verified Test 2), or run-stop (Ferma). On a live camera the status reason is 'auto', never 'subject-lost' (subject-lost is reported only when parked on SAFE — loop.py:350). DESIGN QUESTION (multi-cam, ≥2 phones, deferred): when the dog is gone from ALL cameras for a sustained stretch, hold the last (possibly tight) angle vs fall back to the wide/SAFE after a grace — a product decision, not a v1 bug; moot with one cam (the wide == safe)."
 fsm_release_bug: "REAL BUG (headlessly reproducible, no rig needed). engine.py tick() fires self.release(override) whenever override.release is True (level-triggered: command.json persists release=True and is re-read every tick). The 'release' transition has source='override' ONLY (engine.py:140-145). First release: override→auto (valid). Every subsequent tick: release from 'auto' → MachineError → tick fault → SAFE coast. Fix: guard the release fire on self.mode_is_override (a release when already in auto is a no-op), or add ignore_invalid_triggers / a no-op release self-loop. FSM is pure → fix + regression test are headless. Workaround to unblock the live detection test: stop orchestrator, delete ./opcomm/command.json (read_command→None on absent, channel.py:50), restart, do NOT touch Forza/Rilascia."
 
 ### 5. GPU latency budget (RBT-05)

@@ -8,14 +8,15 @@ updated: 2026-06-12T00:30:00Z
 
 ## Current Test
 
-number: 3
-name: Anti-jitter grace empirical tuning (WR-02, RBT-02)
-result: blocked (physical-device) — next to run live
+number: 4
+name: Full E2E real-stack run — POSITIVE PATH (single phone) (D-07)
+result: in-progress (single-cam positive chain; multi-cam switch/fallback deferred to ≥2 phones)
 awaiting: user response
 
-Phase 05 UAT live-at-rig progress: Test 1 PASS (real OBS), Test 2 PASS (HX decode in-loop +
-feed-death detection + auto-reconnect, after the watchdog fix commit 95a592c — was a blocker,
-now live-verified). Tests 3 (anti-jitter), 4 (full E2E), 5 (GPU latency) still to run.
+Phase 05 UAT live-at-rig progress: Test 1 PASS (real OBS), Test 2 PASS (HX decode + feed-death
+detection + reconnect, watchdog fix 95a592c live-verified). Running Test 4 POSITIVE PATH with one
+phone: NDI→YOLO detect→score→FSM→OBS cut to CAM Wide→console score→overlay→UI status. Multi-cam
+switching/fallback + Test 3 anti-jitter need ≥2 phones (deferred); Test 5 GPU latency desk-anytime.
 Resume any time with `/gsd-verify-work 05`.
 
 ## Smoke-test findings (heavy stack on dev box — 2026-06-12)
@@ -83,9 +84,10 @@ reason: "Now launchable via the runner; empirical tuning needs the live system a
 
 ### 4. Full E2E real-stack run (D-07 — v1 milestone validation)
 expected: mock NDI sender -> cyndilib -> YOLO -> score -> FSM -> OBS cut/PIP/overlay -> feed death -> SAFE fallback -> UI score entry -> overlay update all work end-to-end; OBS overlay shows operator scores; feed death triggers SAFE; UI status panel shows live camera + reason.
-result: blocked
-blocked_by: physical-device
-reason: "Now launchable — `python -m segugio config.example.yaml` + the operator console (docs/run.md). cyndilib/obsws/cv2/CUDA/ultralytics are absent in dev (@pytest.mark.ndi/obs auto-skip). This is the v1 milestone on-Windows hardware validation (D-07)."
+result: issue
+severity: blocker
+reported: "Live (config.rigtest.yaml, single phone). PASSED legs: overlay (console score → overlay.txt → OBS 'Score Text' shows it) and the console status panel (live cam + reason). NOT verified: detection→cut. Two operator-control findings: (1) reason stayed 'override' — a stale/active force_cam in command.json (operator UX, not a bug). (2) After 'Avvia' (start) + 'Rilascia' (release), the orchestrator throws every tick: transitions.core.MachineError 'Can't trigger event release from state auto!' (loop _tick_once:437 → SAFE coast), wedging the director permanently in SAFE so detection→cut can never be reached."
+fsm_release_bug: "REAL BUG (headlessly reproducible, no rig needed). engine.py tick() fires self.release(override) whenever override.release is True (level-triggered: command.json persists release=True and is re-read every tick). The 'release' transition has source='override' ONLY (engine.py:140-145). First release: override→auto (valid). Every subsequent tick: release from 'auto' → MachineError → tick fault → SAFE coast. Fix: guard the release fire on self.mode_is_override (a release when already in auto is a no-op), or add ignore_invalid_triggers / a no-op release self-loop. FSM is pure → fix + regression test are headless. Workaround to unblock the live detection test: stop orchestrator, delete ./opcomm/command.json (read_command→None on absent, channel.py:50), restart, do NOT touch Forza/Rilascia."
 
 ### 5. GPU latency budget (RBT-05)
 expected: `python -m pytest tests/test_latency.py -m gpu` on the RTX 4000 Ada with yolo26s.pt and real clip frames shows decision-loop p95 < 150ms (target <80ms). If over budget, apply the _DEGRADATION_LADDER logged in loop.py. (Wiring overhead proven headless: mock-timed p95 < 50ms.)
@@ -97,12 +99,25 @@ reason: "Needs the RTX 4000 Ada GPU box with yolo26s.pt. Independent of the runn
 
 total: 5
 passed: 2
-issues: 0
+issues: 1
 pending: 0
 skipped: 0
-blocked: 3
+blocked: 2
 
 ## Gaps
+
+- truth: "An operator override RELEASE returns the FSM to auto WITHOUT faulting on subsequent ticks — the director resumes automatic selection, it does not wedge in SAFE. (D-06 auto-resume + the explicit 'nessun crash ammesso' / no-stuck-SAFE robustness constraint.)"
+  status: failed
+  reason: "User reported (UAT Test 4, live): after 'Avvia' + 'Rilascia' the orchestrator throws every tick — transitions.core.MachineError 'Can't trigger event release from state auto!' (loop _tick_once:437 → SAFE coast) — wedging the director in SAFE so detection→cut is unreachable."
+  severity: blocker
+  test: 4
+  root_cause: "engine.py tick() (L556-557) fires self.release(override) whenever override.release is True, ungated on FSM state. command.json persists release=True and the loop re-reads it every tick (level-triggered). The 'release' transition is source='override' only (engine.py:140-145). First tick releases override→auto; every subsequent tick fires release from 'auto' → MachineError → per-tick fault → permanent SAFE coast. Headlessly reproducible (pure FSM, no hardware)."
+  artifacts:
+    - "src/segugio/decision/engine.py:553-557 — tick() fires force/release purely on the OverrideCmd flags, without gating release on self.mode_is_override."
+    - "src/segugio/decision/engine.py:140-145 — the 'release' transition: source='override' only, so release from 'auto' is an invalid trigger."
+    - "src/segugio/orchestrator/loop.py:_tick_once (~437) — the per-tick catch-all that turns the MachineError into a 'fault' SAFE coast; the fault recurs every tick."
+  missing:
+    - "Guard the release fire on self.mode_is_override (release when already auto = no-op), or set ignore_invalid_triggers / add a no-op release self-loop from auto/safe. + a headless regression test: a persistent release command must not fault once the FSM is in auto. Fix via /gsd-debug (no rig)."
 
 - truth: "A dead/closed NDI HX phone feed is detected as dead (alive→false→feed-dead within ~watchdog_timeout) so the FSM degrades to SAFE / another live camera — the explicit live-robustness requirement (caduta feed → degrado a SAFE/fallback)."
   status: resolved

@@ -58,6 +58,83 @@ _RECEIVER_DISCONNECTED_SLEEP_S = 0.05
 # dropping the connected-path CPU from a pinned core to ~nothing.
 _RECEIVER_POLL_INTERVAL_S = 0.002
 
+# Candidate install locations of the SYSTEM NDI base runtime (newest-first). The runtime DLL
+# (``Processing.NDI.Lib.x64.dll``) sits directly inside one of these. ``NDI_RUNTIME_DIR_V6`` is
+# the env var the NDI installer sets (on this box -> ``...\NDI 6 Tools\Runtime``); the literals
+# are the standard NDI 6 install paths as a fallback when the env var is unset.
+_SYSTEM_NDI_RUNTIME_DIRS = (
+    r"C:\Program Files\NDI\NDI 6 Tools\Runtime",
+    r"C:\Program Files\NDI\NDI 6 Runtime\v6",
+)
+_NDI_BASE_DLL_NAME = "Processing.NDI.Lib.x64.dll"
+# True once we have attempted the preload (idempotent across threads/cameras).
+_SYSTEM_NDI_RUNTIME_PRELOADED = False
+
+
+def _prefer_system_ndi_runtime() -> str | None:
+    """Preload the SYSTEM NDI base runtime so cyndilib decodes NDI|HX (debug: cyndilib-ndi-hx-no-decode).
+
+    cyndilib 0.1.1 bundles the NDI **6.1.1** base runtime, but NDI|HX (compressed phone) decode is
+    done by a separate, *version-paired* plugin — ``Processing.NDI.Plugins.IPCam.x64.dll`` (FileVersion
+    **6.3.2.0**), installed by the **HX Driver** and registered in ``C:\\ProgramData\\NDI\\ndi-plugins.v1.json``.
+    A 6.1.1 base cannot drive the 6.3.2 HX plugin: the receiver connects to the phone but every frame
+    is ``xres/yres == 0`` (zero decoded frames). OBS / NDI Studio Monitor decode the same phone because
+    they pair the **system 6.3.2** base with the **6.3.2** HX plugin.
+
+    The fix: load the *system* 6.3.2 base ``Processing.NDI.Lib.x64.dll`` **by absolute path** into this
+    process BEFORE the first ``import cyndilib``. cyndilib imports the runtime *by name*
+    (``os.add_dll_directory(wrapper/bin)`` in ``cyndilib/__init__.py``), so Windows reuses the
+    already-loaded 6.3.2 module for that by-name import — pairing base+plugin at 6.3.2 with **no
+    site-packages edit, no dependency bump, fully reversible** (it only changes which DLL is resolved
+    in *this* process). Uncompressed/full NDI (e.g. OBS PGM) is unaffected — 6.3.2 is a strict
+    superset of 6.1.1's decode surface.
+
+    Idempotent and best-effort: runs once per process; if the system runtime is absent (CI / headless /
+    Linux) it is a **silent no-op** and cyndilib falls back to its bundled 6.1.1 runtime — preserving
+    the headless mock-clip path and the full-NDI path on machines without the HX Driver.
+
+    Returns:
+        The absolute path of the system runtime DLL that was preloaded, or ``None`` if none was found
+        / the platform is not Windows / the preload was already attempted.
+    """
+    global _SYSTEM_NDI_RUNTIME_PRELOADED
+    if _SYSTEM_NDI_RUNTIME_PRELOADED:
+        return None
+    _SYSTEM_NDI_RUNTIME_PRELOADED = True  # attempt-once, even if it fails below
+
+    import os
+    import sys
+
+    if sys.platform != "win32":
+        return None
+
+    import ctypes
+
+    # Prefer the installer-set env var (newest installed runtime), then the standard paths.
+    candidate_dirs: list[str] = []
+    env_dir = os.environ.get("NDI_RUNTIME_DIR_V6")
+    if env_dir:
+        candidate_dirs.append(env_dir)
+    candidate_dirs.extend(_SYSTEM_NDI_RUNTIME_DIRS)
+
+    for d in candidate_dirs:
+        dll = os.path.join(d, _NDI_BASE_DLL_NAME)
+        if not os.path.isfile(dll):
+            continue
+        try:
+            # Make this dir (and the HX Driver dir, for the plugin's sibling FFmpeg DLLs)
+            # resolvable for any dependent loads, then preload the base runtime by abspath.
+            os.add_dll_directory(d)
+            hx_dir = r"C:\Program Files\NDI\NDI 6 Tools\HX Driver\x64"
+            if os.path.isdir(hx_dir):
+                os.add_dll_directory(hx_dir)
+            ctypes.WinDLL(dll)
+        except OSError:
+            # Could not load this candidate — try the next, else fall back to bundled.
+            continue
+        return dll
+    return None
+
 
 class NdiFrameSource:
     """Real cyndilib ``FrameSource``: one supervised receiver thread per camera (NDI-01)."""
@@ -108,6 +185,14 @@ class NdiFrameSource:
         NDI-03 zero-resolution guard → NEW-frame timestamp check → reshape ``(yres, xres, 4)``
         → ``cvtColor(RGBA2BGR)`` → ``_publish``. Runs until ``stop()`` sets the event.
         """
+        # Pair the system NDI 6.3.2 base runtime with the 6.3.2 HX plugin BEFORE importing
+        # cyndilib, so NDI|HX (compressed phone) sources actually decode. cyndilib bundles a
+        # 6.1.1 base that connects to HX but yields zero-resolution frames; the system 6.3.2
+        # base loaded here is reused for cyndilib's by-name DLL import. Silent no-op when the
+        # system runtime is absent (then cyndilib uses its bundled runtime — full/mock NDI is
+        # unaffected). See _prefer_system_ndi_runtime + debug/cyndilib-ndi-hx-no-decode.
+        _prefer_system_ndi_runtime()
+
         import cv2
         from cyndilib.finder import Finder
         from cyndilib.receiver import Receiver

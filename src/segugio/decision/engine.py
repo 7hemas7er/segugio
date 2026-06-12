@@ -553,8 +553,17 @@ class DecisionEngine:
         if override is not None and override.force_cam is not None:
             self.force(override)  # immediate force (D-05); _apply_force takes the cmd
             override_fired = True
-        elif override is not None and override.release:
-            self.release(override)  # manual release (D-06); begins resume qualification
+        elif override is not None and override.release and self.mode_is_override:
+            # Manual release (D-06); begins resume qualification. GATED on being IN override: a
+            # release while already in `auto` is a semantic no-op (override has already ended).
+            # The opcomm command.json PERSISTS release=True and the loop re-reads it every tick
+            # (level-triggered), so after the first valid override→auto release this branch would
+            # otherwise fire `release` from `auto` every tick — and the `release` transition has
+            # source="override" only (Machine built without ignore_invalid_triggers), raising
+            # MachineError → tick fault → permanent SAFE coast. This guard (mirroring the
+            # feed_emergency state-guard below) prevents that recurring fault; `override_fired`
+            # stays False on the no-op so the auto tiers still run normally.
+            self.release(override)
             override_fired = True
         elif self.mode_is_override:
             # No new command while in OVERRIDE → reconcile the aired target to liveness (D-03).

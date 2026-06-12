@@ -319,3 +319,79 @@ def test_force_death_recover_release_resume(thresholds) -> None:
     assert resumed_at > death_at_rel + recover_after + 11, (
         "auto-resume fired too early — it must clear hysteresis + debounce_N + min_dwell first"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Regression — persistent release from `auto` must not fault (Phase 05 UAT     #
+# Test 4 blocker: level-triggered command.json re-read wedged the director in  #
+# SAFE).                                                                        #
+# --------------------------------------------------------------------------- #
+
+
+def test_persistent_release_from_auto_never_faults(thresholds) -> None:
+    """A held ``OverrideCmd(release=True)`` over many AUTO ticks must NOT raise (REGRESSION).
+
+    The opcomm ``command.json`` PERSISTS ``release=True`` and the orchestrator loop re-reads it
+    EVERY tick (level-triggered). So once a valid override→auto release has fired, the FSM is back
+    in ``auto`` and every subsequent tick re-presents ``release=True`` — a release FROM ``auto``.
+    The ``release`` transition has ``source="override"`` only and the Machine is built WITHOUT
+    ``ignore_invalid_triggers``, so before the fix this raised
+    ``transitions.core.MachineError: "Can't trigger event release from state auto!"`` every tick,
+    faulting ``tick()`` and wedging the director permanently in SAFE.
+
+    A release while already in ``auto`` is a semantic no-op (override has already ended): the FSM
+    must stay in ``auto`` (resume qualification holds), each tick must return a ``Decision``, and
+    nothing may raise — across MULTIPLE consecutive ticks.
+    """
+    eng = _engine(thresholds)
+    # Drive to a steady AUTO incumbent (cam_a), then HOLD a release command every tick. cam_a is
+    # the argmax throughout, but the streak was zeroed by resume qualification so no cut fires.
+    t = _acquire_auto(eng, _CAM_A, other=_CAM_B)
+    assert eng.mode_is_override is False and eng.state == "auto"
+
+    for _ in range(10):  # well past 2-3 — proves the level-triggered re-read no longer faults
+        prev = eng.target
+        alive = {_CAM_A: True, _CAM_B: True}
+        # Must NOT raise (regression: was MachineError every tick).
+        d = eng.tick(
+            [_sc(_CAM_A, 0.95, t), _sc(_CAM_B, 0.05, t)],
+            alive=alive,
+            override=OverrideCmd(release=True),
+        )
+        _assert_safety_invariants(d, alive, prev)
+        assert d is not None, "tick must return a Decision even on a no-op release from auto"
+        assert eng.state == "auto", "a release from `auto` must leave the FSM in `auto` (no-op)"
+        assert d.mode == Mode.auto
+        t += 1
+
+
+def test_force_then_release_cycle_still_transitions(thresholds) -> None:
+    """A normal force→release cycle STILL transitions override→auto on the release tick (D-06).
+
+    Guards against the regression fix over-suppressing: a release that is genuinely IN override
+    must still leave override on that tick. Force cam_b (lands override), then a single release
+    tick must transition override→auto and clear the sticky ``override_cam`` — D-06 unchanged.
+    """
+    eng = _engine(thresholds)
+    t = _acquire_auto(eng, _CAM_A, other=_CAM_B)
+
+    # Force cam_b → enter OVERRIDE.
+    eng.tick(
+        [_sc(_CAM_A, 0.10, t), _sc(_CAM_B, 0.90, t)],
+        alive={_CAM_A: True, _CAM_B: True},
+        override=OverrideCmd(force_cam=_CAM_B),
+    )
+    assert eng.mode_is_override and eng.target == _CAM_B
+    t += 1
+
+    # Release while IN override → must transition override→auto on this tick.
+    d = eng.tick(
+        [_sc(_CAM_A, 0.99, t), _sc(_CAM_B, 0.05, t)],
+        alive={_CAM_A: True, _CAM_B: True},
+        override=OverrideCmd(release=True),
+    )
+    assert d.mode == Mode.auto, "release in OVERRIDE must transition override→auto (D-06)"
+    assert eng.state == "auto"
+    assert eng.override_cam is None, "release must clear the sticky override_cam"
+    # D-06: no snap to argmax on the release tick (the last aired target holds).
+    assert d.target == _CAM_B, "release snapped to argmax — D-06 violation"

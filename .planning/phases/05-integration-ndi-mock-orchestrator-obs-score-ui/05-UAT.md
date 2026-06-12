@@ -96,8 +96,8 @@ fsm_release_bug: "REAL BUG (headlessly reproducible, no rig needed). engine.py t
 ### 5. GPU latency budget (RBT-05)
 expected: `python -m pytest tests/test_latency.py -m gpu` on the RTX 4000 Ada with yolo26s.pt and real clip frames shows decision-loop p95 < 150ms (target <80ms). If over budget, apply the _DEGRADATION_LADDER logged in loop.py. (Wiring overhead proven headless: mock-timed p95 < 50ms.)
 result: blocked
-blocked_by: physical-device
-reason: "Needs the RTX 4000 Ada GPU box with yolo26s.pt. Independent of the runner — runnable any time via `pytest tests/test_latency.py -m gpu` on the GPU machine."
+blocked_by: toolchain
+reason: "Attempted 2026-06-13 on this box: GPU IS present (NVIDIA RTX 4000 Ada Generation Laptop GPU, driver 596.36) but the installed torch is the CPU-only wheel (torch 2.12.0+cpu, torch.version.cuda=None) → torch.cuda.is_available()=False → the gpu test AUTO-SKIPS (conftest gpu gate). NOT a hardware gap and NOT a code issue. Root: the venv is Python 3.14, for which PyTorch does not yet publish CUDA wheels, so pip resolved torch+cpu. To run Test 5: provision a CUDA-enabled torch (PyTorch cu12x wheels — practically a Python 3.12 venv with `pip install -e \".[heavy]\"` + a cuXX torch), then `pytest tests/test_latency.py -m gpu` (4-cam canonical config, 100-tick window, p95<150ms target<80ms). Measure ON AC (laptop GPU throttles on battery). Headless WIRING-overhead p95<50ms already proven by the two mock-timed tests (test_latency.py)."
 
 ## Summary
 

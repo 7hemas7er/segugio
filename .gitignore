@@ -49,3 +49,9 @@ tests/fixtures/**/*.tags
 # Keep the catalogue + provenance docs tracked even though binaries are ignored.
 !tests/fixtures/README.md
 !tests/fixtures/clip_manifest.yaml
+
+# --- throwaway rig-test config(s) ---
+# Machine-specific live NDI source names (the live name from NDI Studio Monitor) — kept
+# local, never committed. config.example.yaml stays the committed reference. See docs/run.md.
+config.rigtest.yaml
+config.*.rigtest.yaml

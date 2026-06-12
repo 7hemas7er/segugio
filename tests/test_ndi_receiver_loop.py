@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import pytest
 
+import numpy as np
+
 from segugio.ndi import ndi_source
 from segugio.ndi.ndi_source import (
     NdiFrameSource,
+    _frame_fingerprint,
     _RECEIVER_DISCONNECTED_SLEEP_S,
     _RECEIVER_POLL_INTERVAL_S,
 )
@@ -194,3 +197,156 @@ def test_run_receiver_is_bounded_and_terminates_on_stop(monkeypatch):
 
     src._run_receiver("cam_wide", "X", finder, receiver, video_frame=None, cv2=None)
     assert receiver.set_source_calls == []
+
+
+# --------------------------------------------------------------------------- #
+# RBT-01 NEW-frame liveness substrate (debug:watchdog-hx-feed-death)
+#
+# The bug: cyndilib FrameSync re-clocks get_timestamp_posix() even when it re-delivers the LAST
+# (frozen) frame after the sender dies, so a dead HX feed kept advancing last_frame_ts forever and
+# the watchdog never declared it dead. The fix gates liveness on whether the DECODED CONTENT
+# changed (a frozen feed re-delivers byte-identical pixels → fingerprint stalls) and stamps
+# last_frame_ts with time.monotonic() (the watchdog's clock domain). These pure-fake tests model a
+# STALLING (frozen) vs NON-STALLING (live) decoded-content substrate and assert last_frame_ts
+# behaves correctly — the headless-provable core of the live close-app repro.
+# --------------------------------------------------------------------------- #
+
+
+class _FakeCv2:
+    """A cv2 stub: cvtColor is identity (the loop only needs SOMETHING array-shaped to publish)."""
+
+    COLOR_RGBA2BGR = 0
+
+    @staticmethod
+    def cvtColor(arr, code):
+        # Return a cheap BGR-shaped view; the test only inspects last_frame_ts, not pixels.
+        return arr[..., :3]
+
+
+class _ScriptedVideoFrame:
+    """A VideoFrameSync-shaped fake whose get_array() returns a scripted RGBA buffer per poll.
+
+    Each entry in ``arrays`` is a 1-D uint8 RGBA buffer returned on successive capture polls.
+    Repeating the SAME buffer models a frozen feed (FrameSync re-delivering the last frame); a
+    DIFFERENT buffer models a genuinely-new frame. reshape() is honored so the loop's
+    ``(yres, xres, 4)`` reshape works on the flat buffer.
+    """
+
+    def __init__(self, arrays, xres=2, yres=2):
+        self._arrays = list(arrays)
+        self._i = 0
+        self.xres = xres
+        self.yres = yres
+
+    def get_array(self):
+        arr = self._arrays[min(self._i, len(self._arrays) - 1)]
+        self._i += 1
+        return arr
+
+
+def _rgba(values):
+    """Build a 1-D uint8 RGBA buffer for a 2x2 frame (16 bytes) from a 16-int list."""
+    return np.array(values, dtype=np.uint8)
+
+
+def test_fingerprint_changes_with_content_and_stalls_when_frozen():
+    """_frame_fingerprint: changes iff sampled content changes (the live/dead discriminator)."""
+    a = _rgba([10] * 16)
+    b = _rgba([10] * 16)  # byte-identical → frozen-feed re-delivery
+    c = _rgba([10] * 15 + [200])  # one byte different → genuinely-new frame
+
+    # Stride 1 so the tiny test buffers are fully sampled.
+    fa = _frame_fingerprint(a, stride=1)
+    fb = _frame_fingerprint(b, stride=1)
+    fc = _frame_fingerprint(c, stride=1)
+
+    assert fa == fb, "byte-identical (frozen) frames must share a fingerprint → no false 'new'"
+    assert fc != fa, "a changed frame must produce a different fingerprint → genuine 'new'"
+
+
+def test_fingerprint_never_raises_on_non_array():
+    """Defensive: a non-subscriptable / odd input falls back, never raises into the loop."""
+    assert isinstance(_frame_fingerprint(object()), int)
+
+
+def _run_connected_n_polls(src, video_frame, n, monkeypatch):
+    """Drive _run_receiver for exactly ``n`` connected polls, then stop. Returns sleep count."""
+    receiver = _ConnectedReceiver()
+    finder = _FakeFinder(names_per_call=[[]] * (n + 1))
+    polls = {"n": 0}
+
+    def _record_sleep(dt):
+        # Only the connected-branch pace sleep matters here; stop after n polls.
+        if dt == _RECEIVER_POLL_INTERVAL_S:
+            polls["n"] += 1
+            if polls["n"] >= n:
+                src._stop.set()
+
+    monkeypatch.setattr(ndi_source.time, "sleep", _record_sleep)
+    src._run_receiver("cam_wide", "X", finder, receiver, video_frame, _FakeCv2())
+    return polls["n"]
+
+
+def test_live_feed_advances_last_frame_ts(monkeypatch):
+    """A NON-STALLING (changing-content) substrate keeps advancing last_frame_ts (feed alive)."""
+    src = _make_source()
+    # Three DISTINCT frames over three polls → three genuine 'new' frames.
+    frames = [
+        _rgba([i] * 16) for i in (10, 20, 30)
+    ]
+    video_frame = _ScriptedVideoFrame(frames)
+
+    # A monotonic clock we control so the assertion is deterministic (and proves the
+    # time.monotonic() stamp domain — the fix's second leg).
+    clock = {"t": 100.0}
+    monkeypatch.setattr(ndi_source.time, "monotonic", lambda: clock["t"])
+
+    stamps = []
+    orig_publish = src._publish
+
+    def _record(cam_id, bgr, ts):
+        stamps.append(ts)
+        clock["t"] += 1.0  # advance the monotonic clock between published frames
+        orig_publish(cam_id, bgr, ts)
+
+    monkeypatch.setattr(src, "_publish", _record)
+
+    _run_connected_n_polls(src, video_frame, n=3, monkeypatch=monkeypatch)
+
+    # Each distinct frame advanced last_frame_ts with a monotonic stamp (the live, alive case).
+    assert stamps == [100.0, 101.0, 102.0]
+    assert src.last_frame_ts("cam_wide") == 102.0
+
+
+def test_frozen_feed_stalls_last_frame_ts(monkeypatch):
+    """A STALLING (byte-identical re-delivery) substrate FREEZES last_frame_ts → watchdog dead.
+
+    This is the headless analogue of the live close-app repro: after one real frame the feed
+    'dies' and FrameSync re-delivers byte-identical pixels. last_frame_ts must be published ONCE
+    (the last real frame) and then STOP advancing, no matter how many more frozen polls occur — so
+    the orchestrator's FeedWatchdog (now - last_frame_ts > timeout) declares the camera dead.
+    """
+    src = _make_source()
+    # One real frame, then the SAME bytes re-delivered forever (frozen sender).
+    real = _rgba([42] * 16)
+    frozen = _rgba([42] * 16)  # byte-identical re-delivery
+    video_frame = _ScriptedVideoFrame([real, frozen, frozen, frozen, frozen])
+
+    clock = {"t": 500.0}
+    monkeypatch.setattr(ndi_source.time, "monotonic", lambda: clock["t"])
+
+    stamps = []
+    orig_publish = src._publish
+
+    def _record(cam_id, bgr, ts):
+        stamps.append(ts)
+        clock["t"] += 1.0  # if a frozen frame were (wrongly) published, the stamp would advance
+        orig_publish(cam_id, bgr, ts)
+
+    monkeypatch.setattr(src, "_publish", _record)
+
+    _run_connected_n_polls(src, video_frame, n=5, monkeypatch=monkeypatch)
+
+    # Exactly ONE publish (the single real frame); the 4 frozen re-deliveries advanced nothing.
+    assert stamps == [500.0], "a frozen feed must NOT keep advancing last_frame_ts (the bug)"
+    assert src.last_frame_ts("cam_wide") == 500.0

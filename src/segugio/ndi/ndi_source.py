@@ -23,9 +23,24 @@ Lazy-import boundary: ``cv2`` and every ``cyndilib`` symbol are imported INSIDE 
 ``import segugio.ndi.ndi_source`` succeeds with cyndilib/cv2 ABSENT. Exercised end-to-end only by
 the ``@pytest.mark.ndi`` Windows run against a live (mock or real) named NDI source.
 
-[ASSUMED A1] ``VideoFrameSync.get_timestamp_posix()`` advances per NEW frame and stalls on a
-repeated/frozen frame; if it advances on repeats, switch to ``get_timecode_posix()``. Confirm on
-the Windows box with a pull-the-cable test (load-bearing for RBT-01 liveness).
+[RESOLVED A1 — debug/watchdog-hx-feed-death] The original RBT-01 substrate keyed liveness on
+``VideoFrameSync.get_timestamp_posix()`` (the receiver-SDK timestamp), ASSUMING it stalls on a
+frozen feed. That assumption is FALSE on the cyndilib **FrameSync** path: NDIlib_framesync
+re-clocks delivery and ADVANCES ``timestamp`` even when it re-delivers the last (frozen) frame
+after the sender dies (HX phone app closed). So a dead HX feed kept looking "new" forever and the
+watchdog never declared it dead (Phase 05 UAT Test 2 blocker). Two coupled defects were fixed in
+``_run_receiver`` below:
+  1. **Liveness now gates on DECODED-CONTENT CHANGE**, not on the re-clocked timestamp. A lossy
+     HX sender never emits two bit-identical frames; a dead sender re-delivers byte-identical
+     pixels — so a cheap strided fingerprint of the decoded buffer is a sound live/dead signal,
+     INDEPENDENT of which NDI time field the library re-clocks. (Real cameras are never bit-stable;
+     a synthetic perfectly-static source is the documented edge — see ``_frame_fingerprint``.)
+  2. **``last_frame_ts`` is stamped with ``time.monotonic()``** — the SAME clock the orchestrator's
+     live ``run()`` passes as ``now`` to ``FeedWatchdog`` (loop.py). The old POSIX
+     ``get_timestamp_posix()`` value lived in a different clock domain than ``time.monotonic()``,
+     so even a true stall could not compute a correct ``now - last_frame_ts`` gap.
+``FeedWatchdog`` itself was already correct and is unchanged. The headless mock-clip path
+(``ClipReplayFrameSource``) and the full/uncompressed OBS-PGM path are separate code and unaffected.
 """
 
 from __future__ import annotations
@@ -57,6 +72,19 @@ _RECEIVER_DISCONNECTED_SLEEP_S = 0.05
 # frame_sync always hands back the NEWEST frame; a slower poll never builds a queue) — while
 # dropping the connected-path CPU from a pinned core to ~nothing.
 _RECEIVER_POLL_INTERVAL_S = 0.002
+
+# Decoded-content liveness fingerprint stride (RBT-01 / debug:watchdog-hx-feed-death). The
+# liveness substrate is "did the SENDER produce new imagery?", which we read from whether the
+# DECODED frame buffer changed — NOT from the cyndilib FrameSync timestamp (which the NDI library
+# re-clocks even on a re-delivered frozen frame, so a dead HX feed kept looking 'new' forever).
+# We sample the raw RGBA buffer every Nth byte and sum it: a lossy-compressed HX sender never
+# emits two bit-identical frames (sensor noise + re-quantization), while a dead sender re-delivers
+# byte-identical pixels — so a change in this cheap fingerprint is a sound NEW-frame signal. The
+# stride keeps the per-poll cost tiny (a ~1080p RGBA buffer is ~8.3M bytes; stride 4096 samples
+# ~2k bytes) — far inside the ~500Hz poll budget. A genuinely bit-stable source (a synthetic test
+# pattern, NOT a real camera) is the documented edge: it would be treated as frozen; real HX
+# cameras are never bit-stable, which is the live-verified case this fix targets.
+_FINGERPRINT_STRIDE = 4096
 
 # Candidate install locations of the SYSTEM NDI base runtime (newest-first). The runtime DLL
 # (``Processing.NDI.Lib.x64.dll``) sits directly inside one of these. ``NDI_RUNTIME_DIR_V6`` is
@@ -136,6 +164,35 @@ def _prefer_system_ndi_runtime() -> str | None:
     return None
 
 
+def _frame_fingerprint(arr, stride: int = _FINGERPRINT_STRIDE) -> int:
+    """Cheap content fingerprint of a decoded frame buffer — the NEW-frame liveness signal.
+
+    Sums a strided sample of the 1-D ``uint8`` frame buffer (``VideoFrameSync.get_array()``).
+    Two genuinely-new HX frames differ (lossy compression + sensor noise) so the fingerprint
+    changes; a dead sender's re-delivered frozen frame is byte-identical so the fingerprint is
+    stable — exactly the substrate the liveness gate needs (it never advances on a frozen feed,
+    unlike the cyndilib FrameSync timestamp). Falls back to a length-only fingerprint if ``arr``
+    is not subscriptable (defensive — never raises into the receiver loop).
+
+    Args:
+        arr: a 1-D ``numpy`` ``uint8`` buffer (the ``get_array()`` result), or any array-like.
+        stride: sample every ``stride``-th byte (keeps the per-poll cost tiny on a 1080p buffer).
+
+    Returns:
+        An ``int`` fingerprint that changes iff the sampled content changed.
+    """
+    try:
+        sample = arr[::stride]
+        # numpy path: int(sample.sum()) is a single vectorized reduction over the small sample.
+        total = sample.sum()
+        return int(total)
+    except Exception:  # pragma: no cover - defensive: never raise into the receiver loop
+        try:
+            return int(len(arr))
+        except Exception:
+            return 0
+
+
 class NdiFrameSource:
     """Real cyndilib ``FrameSource``: one supervised receiver thread per camera (NDI-01)."""
 
@@ -182,8 +239,9 @@ class NdiFrameSource:
 
         Heavy imports live HERE (the lazy boundary). Opens a Finder, resolves ``source_name``,
         sets a ``VideoFrameSync`` on the receiver, then loops: ``capture_video()`` →
-        NDI-03 zero-resolution guard → NEW-frame timestamp check → reshape ``(yres, xres, 4)``
-        → ``cvtColor(RGBA2BGR)`` → ``_publish``. Runs until ``stop()`` sets the event.
+        NDI-03 zero-resolution guard → reshape ``(yres, xres, 4)`` → NEW-frame CONTENT-CHANGE
+        check (a frozen feed stops here) → ``cvtColor(RGBA2BGR)`` → ``_publish`` with a
+        ``time.monotonic()`` stamp. Runs until ``stop()`` sets the event.
         """
         # Pair the system NDI 6.3.2 base runtime with the 6.3.2 HX plugin BEFORE importing
         # cyndilib, so NDI|HX (compressed phone) sources actually decode. cyndilib bundles a
@@ -233,8 +291,15 @@ class NdiFrameSource:
         reconnected WITHOUT a ``stop()``/``start()`` cycle (auto-reconnect). The real near-zero
         CPU + live cyndilib reconnect are HARDWARE-verified (@pytest.mark.ndi); this code path
         is the headless-provable logic.
+
+        Connected branch (RBT-01 liveness, debug:watchdog-hx-feed-death): a frame is published
+        (advancing ``last_frame_ts``) ONLY when its decoded-content fingerprint CHANGES — a frozen
+        HX feed re-delivers byte-identical pixels, so its fingerprint stalls and ``last_frame_ts``
+        stops advancing → the watchdog declares it dead. The stamp is ``time.monotonic()`` (the
+        watchdog's own clock domain), not the FrameSync POSIX timestamp (which re-clocks on a
+        repeated frame and lives in a different clock domain).
         """
-        last_ts: float | None = None
+        last_fingerprint: int | None = None
         while not self._stop.is_set():
             if not receiver.is_connected():
                 # CR-02: no busy-spin — coast a short interval (no CPU pin) ...
@@ -248,16 +313,26 @@ class NdiFrameSource:
             receiver.frame_sync.capture_video()
             # NDI-03: the first frames after set_source are often zero-resolution.
             if min(video_frame.xres, video_frame.yres) != 0:
-                ts = video_frame.get_timestamp_posix()  # RBT-01 NEW-frame substrate
-                # Only a genuinely NEW frame advances liveness (Pitfall 1: a frozen
-                # feed repeats its last frame for ~75 min with the same timestamp).
-                if ts != last_ts:
-                    arr = video_frame.get_array().reshape(
-                        video_frame.yres, video_frame.xres, 4
-                    )
+                # RBT-01 NEW-frame substrate (debug:watchdog-hx-feed-death): liveness is gated on
+                # whether the DECODED CONTENT changed, NOT on the FrameSync timestamp. cyndilib
+                # FrameSync re-clocks (advances) get_timestamp_posix() even when it re-delivers
+                # the last frozen frame after the sender dies, so a dead HX feed used to look
+                # 'new' forever. A lossy HX sender never emits two bit-identical frames; a dead
+                # sender re-delivers byte-identical pixels — so a change in the content
+                # fingerprint is the genuine NEW-frame signal that STALLS on a dead feed.
+                arr = video_frame.get_array().reshape(
+                    video_frame.yres, video_frame.xres, 4
+                )
+                fingerprint = _frame_fingerprint(arr)
+                if fingerprint != last_fingerprint:
                     bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
-                    self._publish(cam_id, bgr, ts)
-                    last_ts = ts
+                    # Stamp with time.monotonic() — the SAME clock the orchestrator's live run()
+                    # passes to FeedWatchdog as `now`, so (now - last_frame_ts) is a correct,
+                    # single-domain gap (the old get_timestamp_posix() was real POSIX, a different
+                    # clock than time.monotonic() → a meaningless gap). On a frozen feed the
+                    # fingerprint stops changing → last_frame_ts stops advancing → watchdog dead.
+                    self._publish(cam_id, bgr, time.monotonic())
+                    last_fingerprint = fingerprint
             # Pace the NON-BLOCKING frame_sync poll (~500Hz) so the connected loop does not
             # busy-spin a full CPU core per camera (see _RECEIVER_POLL_INTERVAL_S). The newest
             # frame is always available on the next capture, so this adds no real pickup latency.
@@ -279,7 +354,12 @@ class NdiFrameSource:
         return None
 
     def _publish(self, cam_id: str, bgr: "np.ndarray", ts: float) -> None:
-        """Store the newest frame + its NEW-frame timestamp under the lock (RBT-01)."""
+        """Store the newest frame + its NEW-frame ``time.monotonic()`` stamp under the lock (RBT-01).
+
+        ``ts`` is a ``time.monotonic()`` reading taken at the moment a genuinely-new frame
+        (content fingerprint changed) was observed — the same clock domain the watchdog's ``now``
+        uses, so ``now - last_frame_ts`` is a correct gap.
+        """
         with self._lock:
             self._latest[cam_id] = bgr
             self._ts[cam_id] = ts
@@ -290,7 +370,11 @@ class NdiFrameSource:
             return self._latest.get(cam_id)
 
     def last_frame_ts(self, cam_id: str) -> float | None:
-        """POSIX timestamp of the last NEW frame for ``cam_id`` (RBT-01), or ``None``."""
+        """``time.monotonic()`` stamp of the last CONTENT-CHANGED frame for ``cam_id``, or ``None``.
+
+        Advances only when the decoded content actually changed (a frozen HX feed stalls it); read
+        by ``FeedWatchdog`` against a ``time.monotonic()`` ``now`` (same clock domain) — RBT-01.
+        """
         with self._lock:
             return self._ts.get(cam_id)
 

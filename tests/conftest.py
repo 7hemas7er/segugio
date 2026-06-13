@@ -287,13 +287,35 @@ def make_config() -> Callable[..., object]:
 
     ``Config`` is imported in-body to keep this conftest heavy-import-free. The dict is
     deep-copied per call so a test mutating ``overrides`` never leaks into another test.
+
+    Overrides are DEEP-merged (WR-03): a nested override like
+    ``{"model": {"use_fp16": True}}`` updates only that sub-key and PRESERVES the sibling
+    ``model`` keys, rather than a shallow top-level ``update`` that would replace the whole
+    ``model`` block and silently reset un-restated sub-keys to their defaults.
     """
     from segugio.config import Config
+
+    def _deep_merge(base: dict, over: dict) -> dict:
+        """Recursively merge ``over`` into ``base`` (mutating ``base``), dict-into-dict only.
+
+        A value that is a dict on BOTH sides recurses; any other value (scalar, list, or a
+        type mismatch) REPLACES wholesale. Lists are intentionally not merged element-wise.
+        """
+        for key, value in over.items():
+            if (
+                key in base
+                and isinstance(base[key], dict)
+                and isinstance(value, dict)
+            ):
+                _deep_merge(base[key], value)
+            else:
+                base[key] = value
+        return base
 
     def _build(overrides: dict | None = None) -> object:
         raw = copy.deepcopy(_PHASE5_CONFIG)
         if overrides:
-            raw.update(copy.deepcopy(overrides))
+            _deep_merge(raw, copy.deepcopy(overrides))
         return Config.model_validate(raw)
 
     return _build

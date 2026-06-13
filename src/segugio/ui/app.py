@@ -116,6 +116,30 @@ def create_app(channel_dir: str, cam_ids=()):
         atomic_write_text(_path(_OVERLAY_FILE), render_overlay_text(doc))
         return ("", 204)
 
+    @app.post("/score/preview")
+    def post_score_preview():
+        # SCV-01 server-side drift-guard: return the EXACT render_overlay_text line for the posted
+        # ScoreDoc WITHOUT writing any channel file. The client-side JS overlay mirror asserts
+        # server === client against this endpoint on blur/submit (NEVER per keystroke — the route
+        # is pure, no IO, T-09-01-03). It mirrors post_score's input handling exactly so the
+        # rendered string matches what /score would write, but it touches NOTHING on disk.
+        form = request.form
+        # Same closed-Enum whitelist as /score (T-09-01-01) — unknown discipline → 400, nothing rendered.
+        raw_discipline = form.get("discipline", Discipline.disc_tf.value)
+        try:
+            discipline = Discipline(raw_discipline)
+        except ValueError:
+            return ("disciplina sconosciuta", 400)
+        # Same empty-drop filter as /score (WR-05) so the hidden fieldsets don't leak stray keys.
+        fields = {k: v for k, v in form.items() if k not in _NON_SCORE_KEYS and v.strip()}
+        doc = ScoreDoc(discipline=discipline, fields=fields)
+        # Pure render — NO write_score, NO atomic_write_text. This route never writes a channel file.
+        return (
+            render_overlay_text(doc),
+            200,
+            {"Content-Type": "text/plain; charset=utf-8"},
+        )
+
     @app.post("/run")
     def post_run():
         action = request.form.get("action", "")

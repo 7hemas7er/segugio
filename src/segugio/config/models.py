@@ -162,6 +162,44 @@ class PreviewParams(BaseModel):
     fps: Annotated[float, Field(gt=0.0, le=30.0)] = 5.0  # ~5 fps publish cadence
     max_width: Annotated[int, Field(ge=64, le=1920)] = 384  # downscale target width (px)
     jpeg_quality: Annotated[int, Field(ge=1, le=100)] = 55  # cv2 IMWRITE_JPEG_QUALITY
+    # D-01 HARD preview-bandwidth ceiling (Mbps). The ≤5-8 Mbps band (PITFALLS Pitfall 1):
+    # WiFi contention is the #1 domain risk (3-4 phones already push 60-200 Mbps of NDI HX3),
+    # so the worst-case preview traffic (fps × thumbnail bytes × N_cams) is capped here and
+    # enforced fail-fast at config load by ``Config._preview_bitrate_within_cap`` — NOT by a
+    # runtime throttle (anti-pattern, declined; a feedback loop overlaps Phase-9 UXT-03). This
+    # is the tunable knob: raising it admits a higher-fidelity preview (T-08-05).
+    max_total_mbps: Annotated[float, Field(gt=0.0)] = 8.0
+
+
+# --------------------------------------------------------------------------- #
+# Preview-bandwidth estimation (D-01). The bpp constant below is the one
+# LOW-confidence calibration point — surfaced as a comment + gated by the
+# default-passes/cranked-fails test, and tunable via ``PreviewParams.max_total_mbps``.
+# --------------------------------------------------------------------------- #
+
+# Bytes-per-pixel of an encoded 16:9 JPEG thumbnail at the Phase-7 default fidelity.
+# CALIBRATION: the Phase-7 publish measurement was 0.3-0.8 MB/s per the live preview at
+# the 5 fps / 384 px / q55 / 4-cam defaults [07-CONTEXT D-05 / ARCHITECTURE.md L219] →
+# ~2.4-6.4 Mbps. With those defaults a 384×216 thumbnail is 82_944 px; 0.30 bpp →
+# ~24.9 KB/frame → 24_883 × 8 × 5 × 4 / 1e6 ≈ 3.98 Mbps, landing mid-band. This is a
+# DOCUMENTED estimate, not a measured per-config encode — quality scaling is linear here
+# (good enough to gate fps/width/quality blow-ups); the test pins both directions and the
+# ceiling is tunable if real footage shifts the constant.
+_JPEG_BYTES_PER_PIXEL = 0.30
+
+
+def _estimate_jpeg_bytes(max_width: int, jpeg_quality: int) -> float:
+    """Estimate the encoded bytes of one 16:9 preview JPEG thumbnail.
+
+    ``height = max_width × 9 / 16`` (16:9 thumbnail); bytes ≈ ``width × height × bpp`` where
+    ``bpp`` is calibrated at q55 (see ``_JPEG_BYTES_PER_PIXEL``) and scaled linearly by the
+    quality ratio ``jpeg_quality / 55`` so a cranked ``jpeg_quality=100`` estimates a larger
+    frame. Pure float math — no cv2, no encode — so this stays inside the light-import
+    config boundary (the validator runs at load time, not on the tick).
+    """
+    height = max_width * 9.0 / 16.0
+    bpp = _JPEG_BYTES_PER_PIXEL * (jpeg_quality / 55.0)
+    return max_width * height * bpp
 
 
 class Config(BaseModel):
@@ -197,5 +235,34 @@ class Config(BaseModel):
         if not any(c.is_safe for c in self.cameras):
             raise ValueError(
                 "at least one camera must have is_safe: true (SAFE fallback)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _preview_bitrate_within_cap(self) -> "Config":
+        """D-01 HARD preview-bandwidth cap — a CONFIG-TIME guarantee, no runtime throttle.
+
+        Computes the worst-case preview bitrate
+        ``est_bytes_per_frame(max_width, jpeg_quality) × 8 × fps × N_cams`` and REJECTS any
+        config whose value exceeds ``preview.max_total_mbps``. A raised ``ValueError`` here
+        aggregates into the loader's fail-fast ``SystemExit(2)`` (CFG-01) — an over-budget
+        preview config is a startup error, not a live surprise (the preview degrades — is
+        rejected — before the contended WiFi LAN can starve the NDI feeds, threat T-08-04).
+
+        ``preview.enabled=false`` short-circuits: no JPEGs are written → there is nothing to
+        budget (the D-09 source-side off-switch).
+        """
+        p = self.preview
+        if not p.enabled:
+            return self  # disabled → no JPEGs published → nothing to budget
+        n = len(self.cameras)
+        est_bytes = _estimate_jpeg_bytes(p.max_width, p.jpeg_quality)
+        total_mbps = est_bytes * 8 * p.fps * n / 1_000_000
+        if total_mbps > p.max_total_mbps:
+            raise ValueError(
+                f"preview bitrate {total_mbps:.2f} Mbps exceeds the cap "
+                f"max_total_mbps={p.max_total_mbps} Mbps "
+                f"(fps={p.fps}, max_width={p.max_width}, jpeg_quality={p.jpeg_quality}, "
+                f"cameras={n}) — lower fps/max_width/jpeg_quality or raise max_total_mbps"
             )
         return self

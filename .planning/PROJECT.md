@@ -8,6 +8,19 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 
 **La camera giusta al momento giusto, in automatico.** Il sistema deve mantenere il cane ben inquadrato commutando tra le telecamere in modo fluido — senza operatore e senza cut tremolanti. Se tutto il resto fallisce, questo deve funzionare.
 
+## Current Milestone: v1.1 Console Regia — visibilità live
+
+**Goal:** Trasformare la console operatore Flask da pannello "alla cieca" a una vera regia con visibilità live — l'operatore vede le camere, capisce quale è in onda e *perché*, e fa override informato — preservando il contratto di crash-isolation (console = solo Flask + opcomm, mai l'orchestrator).
+
+**Target features:**
+- Anteprima/**multiview** live delle camere nella console
+- **Camera live + motivo**: score per-camera + stato tracking del cane (estende `status.json`, canale inverso D-11)
+- **Override con thumbnail** (non più alla cieca)
+- **Preview del punteggio** come apparirà sull'overlay OBS
+- **Restyling tablet-friendly** (responsive per tablet operatore su WiFi LAN)
+
+**Nodo di design chiave:** la console è crash-isolata (D-03/RBT-04, importa solo Flask + `segugio.opcomm`) → serve un nuovo canale di pubblicazione frame/thumbnail dall'orchestrator alla console (opzioni: JPEG nel dir opcomm / endpoint MJPEG o WebSocket / embedding multiview OBS). Parte dopo v1.0 (software-complete, 6/6 fasi); numerazione fasi continua da Phase 7.
+
 ## Requirements
 
 ### Validated
@@ -94,4 +107,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-13 — Phase 6 complete (decision-loop latency: TensorRT FP16 export CLI + inferenza FP16 batched, loader engine-aware con fallback eager graceful; RBT-05 MET sotto il budget rivisto <300ms — path canonico FP16+batch eager ~256ms con ReID nativa sul RTX 4000 Ada Laptop, engine TensorRT ~197ms opzionale; venv312 cu126+tensorrt-cu12 in piedi). **Milestone v1 software-complete (6/6 fasi).** ⚠ Carry-forward: GPU desktop di deploy per gare prolungate (varianza termica laptop; raggiungerebbe <150ms); spot-check recall FP16 su clip difficili; 2 test NDI loopback falliscono per ambiente (no runtime NDI sul box). Nota: PROJECT.md "Active" elenca ancora i requisiti di Phase 5 (config/OBS/NDI/watchdog/orchestrator/score) come non-validati — sono in realtà completati in Phase 5; da spostare in Validated in un cleanup.*
+*Last updated: 2026-06-13 — **Milestone v1.1 "Console Regia — visibilità live" avviata** (parte da Phase 7; potenzia la console operatore con multiview/preview live, camera-live-e-perché, override con thumbnail, preview punteggio, restyling tablet; vincolo crash-isolation → nuovo canale frame/thumbnail dall'orchestrator). Stato precedente: Milestone v1.0 software-complete (6/6 fasi); Phase 6 RBT-05 MET sotto budget rivisto <300ms (FP16+batch eager ~256ms con ReID nativa; engine TensorRT ~197ms opzionale; venv312 in piedi). ⚠ Carry-forward v1.0: GPU desktop di deploy per gare prolungate (varianza termica laptop); spot-check recall FP16; 2 test NDI loopback ambientali.*

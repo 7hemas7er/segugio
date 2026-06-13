@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: complete
-stopped_at: Phase 06 COMPLETE — RBT-05 met (<300ms revised budget); canonical FP16+batch eager p95 ~256ms cool on RTX 4000 Ada Laptop. Milestone v1 software-complete.
-last_updated: "2026-06-13T07:50:00.000Z"
-last_activity: 2026-06-13 -- Phase 06 verified complete (RBT-05 budget revised 150→300ms; eager FP16+batch ~256ms PASS); milestone v1 software-complete
+milestone: v1.1
+milestone_name: Console Regia - visibilita live
+status: planning
+last_updated: "2026-06-13T07:53:48.364Z"
+last_activity: 2026-06-13
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 28
-  completed_plans: 28
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 06 — COMPLETE (last phase; milestone v1 software-complete)
-Plan: 3 of 3 complete
-Status: Phase 06 verified complete — RBT-05 MET under the revised <300ms budget. Canonical path = FP16+batch eager (native ReID), p95 ~256ms cool < 300ms on the RTX 4000 Ada Laptop GPU; TensorRT engine ~197ms kept as optional higher-margin lever. ⚠ Carry-forward: thermal variance on the Laptop GPU (heat-soaked ~546ms) → prefer a desktop deploy GPU for sustained gare (would also reach <150ms); FP16 dog-recall spot-check on hard clips deferred. See 06-VERIFICATION.md.
-Last activity: 2026-06-13 -- Phase 06 verified complete; milestone v1 software-complete
-
-Progress: [██████████] 100% (6/6 phases verified-complete)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-13 — Milestone v1.1 started
 
 ## Performance Metrics
 

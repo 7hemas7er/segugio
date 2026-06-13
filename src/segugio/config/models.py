@@ -193,11 +193,21 @@ def _estimate_jpeg_bytes(max_width: int, jpeg_quality: int) -> float:
 
     ``height = max_width × 9 / 16`` (16:9 thumbnail); bytes ≈ ``width × height × bpp`` where
     ``bpp`` is calibrated at q55 (see ``_JPEG_BYTES_PER_PIXEL``) and scaled linearly by the
-    quality ratio ``jpeg_quality / 55`` so a cranked ``jpeg_quality=100`` estimates a larger
-    frame. Pure float math — no cv2, no encode — so this stays inside the light-import
-    config boundary (the validator runs at load time, not on the tick).
+    quality ratio ``jpeg_quality / 55``. Pure float math — no cv2, no encode — so this stays
+    inside the light-import config boundary (the validator runs at load time, not on the tick).
+
+    WR-04 — the LINEAR ``jpeg_quality / 55`` term is a DELIBERATE OVER-ESTIMATE above q55: real
+    JPEG size is strongly SUBLINEAR in the quality factor (q100 is typically well under 2× the q55
+    bytes, not the ``100/55 ≈ 1.82×`` this asserts). The safety direction is intentional — the
+    estimate can OVER-reject a config but can NEVER under-budget, so an over-budget preview is never
+    admitted onto the contended WiFi. If a real per-config measurement comes in lower than this gate
+    rejects, the remediation is to raise ``PreviewParams.max_total_mbps`` (the tunable ceiling), not
+    to soften this conservative estimate.
     """
     height = max_width * 9.0 / 16.0
+    # LINEAR quality term is a deliberate OVER-estimate above q55 (real JPEG is sublinear): it can
+    # over-reject but never under-budget. Raise max_total_mbps if a real per-config measurement is
+    # lower than this gate admits.
     bpp = _JPEG_BYTES_PER_PIXEL * (jpeg_quality / 55.0)
     return max_width * height * bpp
 

@@ -298,21 +298,24 @@ pytest tests/test_latency.py -m gpu -x
 | A4 | Padding a dead camera's slot with a blank frame keeps a static `batch=4` engine valid (the loop already coasts blanks) | Pitfall 4 | If padding misbehaves, `dynamic=True` is the fallback (small perf cost) |
 | A5 | FP16 (TensorRT) does not materially hurt small/distant-dog recall vs FP32 | Standard Stack | If recall drops on the hard slices (Phase 4 already flagged distant=0.04), may need to keep FP32 detection or accept the tradeoff — measure on the curated clips |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **ReID story for the engine path (the blocking decision).**
    - What we know: a `.engine` structurally cannot use native-feature ReID; `assert_native_reid_engaged` would raise (`[VERIFIED: track.py:45-59]`).
    - What's unclear: whether to (a) accept the cheap `yolo26n-cls.pt` ReID fallback on the engine and relax the gate to a warning, or (b) keep tracking on an eager `.pt` and engine-accelerate only the detection forward.
    - Recommendation: **plan Track A around Option (a)** (simplest, likely sufficient for one subject) but keep Option (b) as a documented fallback if competitor-lock continuity regresses on the curated multi-dog clips. This is a `checkpoint:human-verify` candidate.
+   - **RESOLVED → decision checkpoint in 06-03 Task 1 (Options a/b); gate made engine-aware in 06-01 Task 2.**
 
 2. **Is FP16 + batching ALONE (eager, no engine) already under 150ms?**
    - What we know: the loop is inference-bound; FP16 roughly halves compute, batching collapses 4 forwards into 1.
    - What's unclear: whether the cheaper eager-FP16 + batched path clears 150ms without the engine's complexity (and WITHOUT the ReID conflict — an eager FP16 model keeps native ReID).
    - Recommendation: **measure eager `half=True` + batched detect FIRST** as a cheap rung; it may meet the budget AND preserve native ReID, sidestepping Pitfall 1 entirely. Only build the engine if that misses.
+   - **RESOLVED → measured first in 06-02 Task 3; gates whether 06-03 runs at all.**
 
 3. **Static `batch=4` vs `dynamic=True` for the engine.**
    - What we know: degradation may reduce active cameras; a dead feed shrinks the batch.
    - Recommendation: pad-to-4 with blank frames (loop already coasts blanks) OR `dynamic=True`. Decide based on whether reduced-camera operation must run on the engine.
+   - **RESOLVED → static batch=4 with a `--dynamic` flag in 06-03 Task 2.**
 
 ## Environment Availability
 

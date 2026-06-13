@@ -59,10 +59,11 @@ System font, exactly **4 sizes** and **2 weights**. All sizes are the RENDERED c
 |------|------|--------|-------------|
 | Display (page H1, "ON AIR" banner) | 20px (1.25rem) | 700 (bold) | 1.2 |
 | Body / inputs / buttons / reason text | 16px (1rem) | 400 (regular) | 1.5 |
-| Label / leaderboard cam-label / badge / history row | 14px (0.875rem) | 600 (semibold) for labels & badges; 400 for history body | 1.4 |
-| Micro (leaderboard value, freshness stamp, track-id) | 12px (0.75rem) | 600 (semibold, tabular) | 1.3 |
+| Label / leaderboard cam-label / badge / history row | 14px (0.875rem) | 700 (bold) for labels & badges; 400 for history body | 1.4 |
+| Micro (leaderboard value, freshness stamp, track-id) | 12px (0.75rem) | 700 (bold, tabular) | 1.3 |
 
-- Weights: **400 regular + 600 semibold** only. No 500, no 700 except the single Display role (H1 + ON-AIR banner) which keeps the existing `700`. (The existing template uses 700 on `.onair`/legend and 600 on legend/label — consolidate: Display=700, everything emphatic=600.)
+- Weights: 400 regular + 700 bold only — no 500, no 600. Every emphatic role (Display/H1/ON-AIR, Label, badges, leaderboard cam-label, Micro values) renders at **700**; body, inputs, buttons, reason text, and history body render at **400**.
+- **Implementation delta:** the existing template's `legend { font-weight: 600 }` becomes `font-weight: 700` (legend is an emphatic section label, so it reads strong on the regia at a glance — matching the existing `700` on `.onair`). The existing `.onair`/Display 700 is unchanged. No 500 or 600 may appear anywhere in the inline CSS.
 - Leaderboard numeric values and the freshness/age stamp use **tabular figures** (`font-variant-numeric: tabular-nums`) so 2-decimal scores (`.81`) don't jitter column width as they update.
 - Body line-height 1.5; heading/Display 1.2 (existing `#stato` 1.6 may stay — it is a status block, not body copy).
 
@@ -77,7 +78,9 @@ System font, exactly **4 sizes** and **2 weights**. All sizes are the RENDERED c
 | Dominant (60%) | `#14161a` | Page background, multiview area (existing) |
 | Secondary (30%) | `#1d2026` panel / `#222` chips / `#1a1d22` sidebar | Sidebar column, cards, input bg, badge bg, fieldsets |
 | Accent (10%) | `#2d6cdf` | **Primary action only** — "Aggiorna punteggio" submit, "Avvia run". Reserved list below. |
-| Destructive | `#b23b3b` | **"Ferma run" only** (a true destructive/stop action). NOT used for LIVE status anymore. |
+| Destructive | `#9b2c2c` | **"Ferma run" only** (a true destructive/stop action). NOT used for LIVE status anymore. |
+
+**Destructive contrast (resolved):** white `#fff` text on `#9b2c2c` ≈ **5.3:1** — clears the 4.5:1 normal-text threshold (the legacy `#b23b3b` gave only ≈4.14:1 white-on-bg and is retired for the button). `#9b2c2c` as a border/large element against the `#14161a` page background ≈ **3.4:1** — clears the ≥3:1 non-text floor. **Implementation delta:** the existing template's `.danger { background:#b23b3b }` becomes `.danger { background:#9b2c2c }`.
 
 **Body / neutral text** (existing, verified): body text `#e8e8e8` (14.78:1), muted label `#b9b9b9` (9.23:1). Phase-9 status LABEL text renders in off-white `#E6E9EF` (14.89:1) when a hue would be borderline; the hue lives on the border/badge.
 
@@ -96,7 +99,7 @@ System font, exactly **4 sizes** and **2 weights**. All sizes are the RENDERED c
 - the score-form submit button ("Aggiorna punteggio")
 - the "Avvia run" button
 
-Everything else interactive uses neutral/secondary surfaces: tiles (status hue governs their border), "Rilascia (auto)" = secondary (`#3a3f47`, large), "Ferma run" = destructive (`#b23b3b`). The force gesture is the **tile itself** (no accent-colored force button — the blind text force buttons are removed, D-02).
+Everything else interactive uses neutral/secondary surfaces: tiles (status hue governs their border), "Rilascia (auto)" = secondary (`#3a3f47`, large), "Ferma run" = destructive (`#9b2c2c`). The force gesture is the **tile itself** (no accent-colored force button — the blind text force buttons are removed, D-02).
 
 Green(LIVE) and red(MORTO) MUST differ by border-style + icon + label as well as hue (CVD). LIVE = solid green; MORTO = dim/desaturate (no solid colored border) — the treatments are categorically different, not just two hues.
 
@@ -137,7 +140,7 @@ All copy is **Italian** (the operator console language). Plain, imperative, glan
 
 **Destructive / live-affecting confirmations:** per D-02/D-03 there is **NO pre-confirmation dialog** — the regia must be fast. Mitigation is **immediate undo**, not a confirm step:
 - **Tap tile = force immediately** (no dialog). Undo = the always-visible large **"Rilascia (auto)"**.
-- **"Ferma run"** is destructive-styled (`#b23b3b`) but also fires immediately (no dialog); it is reversible via "Avvia run".
+- **"Ferma run"** is destructive-styled (`#9b2c2c`) but also fires immediately (no dialog); it is reversible via "Avvia run".
 
 ---
 
@@ -206,7 +209,7 @@ Each tile is a `role="button"` element (whole tile = tap-to-force, D-02). State 
 ### Score leaderboard (WHY-02) — [VERIFIED]
 
 - **Horizontal bars, height 24–32px** (`lg`–`xl`), gap ≈ half bar height (`sm`/8px). Fixed full-width track anchored at a **zero baseline**, **sorted highest-first** by `score` (or `ema`).
-- Per row: **camera label left** (14px/600) · **proportional 0..1 fill** (the score) · **2-decimal value right-aligned** (12px tabular, e.g. `.81`). Matches the approved mockup `①▓▓▓ .81 / ②▓▓ .40 / ③·· lost`.
+- Per row: **camera label left** (14px/700) · **proportional 0..1 fill** (the score) · **2-decimal value right-aligned** (12px tabular, e.g. `.81`). Matches the approved mockup `①▓▓▓ .81 / ②▓▓ .40 / ③·· lost`.
 - **Fill treatment encodes track state** (from `cams[id].state`):
   - tracking → **solid** filled bar, `#34D399`-family fill + `●`
   - coast → **hatched** bar, `#9CA3AF` + `◐` + "coast"

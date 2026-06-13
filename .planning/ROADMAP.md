@@ -189,14 +189,14 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
-| 6. Decision-loop latency optimization | 1/3 | In Progress|  |
+| 6. Decision-loop latency optimization | 2/3 | In Progress|  |
 
 ### Phase 6: Decision-loop latency optimization — TensorRT FP16 export + batched/parallel per-camera inference to meet the <150ms budget (RBT-05)
 
 **Goal:** Bring the multi-camera decision loop within the **<150ms p95** budget (target <80ms, RBT-05) on the production CUDA GPU. Phase 05 UAT Test 5 measured the v1 baseline — **4× yolo26s, eager torch FP32, serialized per tick — at 231–247ms p95** (YOLO inference ≈100% of the loop; ingest/score/fsm/obs sum ~0.5ms; ~58–62ms per single serialized inference; **yolo26n does NOT help on GPU**, so the degradation ladder's rung 1 is a dead end). Deliver, with re-measurement after each: (1) **TensorRT FP16 export** of the detector on the exact deploy CUDA/TensorRT combo (the documented prod path — eager FP32 is the slow path); (2) **batch or parallelize the per-camera inferences** (today the loop calls one `model.track()` per camera sequentially); (3) re-run `tests/test_latency.py -m gpu` and confirm p95 < 150ms (4-cam canonical config) on the CUDA env. Treat the existing `_DEGRADATION_LADDER` (fewer cams / lower imgsz·fps) as a last resort only — reducing cameras defeats the multi-cam product. Wiring overhead is already negligible; this phase is purely the inference path.
 **Requirements**: RBT-05 (decision-loop latency p95 < 150ms, target < 80ms — the dominant project risk).
 **Depends on:** Phase 5 (the integrated orchestrator loop + `run_measured` latency harness + the gpu-marked `test_latency.py`)
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 
@@ -206,8 +206,8 @@ Plans:
 
 **Wave 1** *(the cheap rung first — blocked on 06-01)*
 
-- [ ] 06-02-PLAN.md — Eager FP16 + batched detection (preserves native ReID): thread `half=True` through the batched forward + switch `_fan_out` to ONE batched forward per tick with per-camera tracker dispatch (every Phase-5 loop invariant preserved) + re-run the gpu latency gate and RECORD the 4-cam p95 (PASS <150ms → phase done, 06-03 skipped; FAIL → 06-03 authorized) [Wave 1]
+- [x] 06-02-PLAN.md — Eager FP16 + batched detection (preserves native ReID): thread `half=True` through the batched forward + switch `_fan_out` to ONE batched forward per tick with per-camera tracker dispatch (every Phase-5 loop invariant preserved) + re-run the gpu latency gate and RECORD the 4-cam p95. **MEASURED p95 ~210ms (211.4/209.5 two runs) on the RTX 4000 Ada, AC power, batched FP16 path with native ReID confirmed engaged → FAIL (≥150ms) → 06-03 AUTHORIZED** [Wave 1]
 
-**Wave 2** *(the engine track — gated on 06-02 still over budget)*
+**Wave 2** *(the engine track — AUTHORIZED: 06-02 measured ~210ms, still over the 150ms budget)*
 
 - [ ] 06-03-PLAN.md — TensorRT FP16 engine: `checkpoint:decision` resolving the engine↔ReID story (Open Q1, Option a/b) + `tools/build_engine.py` one-time cached build CLI + engine-aware `PerCameraTracker` loader with graceful eager fallback (RBT-04, never crash) + `is_engine` threaded into the reid gate + build the engine on the rig and confirm 4-cam p95 < 150ms (RBT-05 — the phase goal) [Wave 2]

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-06-13T00:48:48.036Z"
-last_activity: 2026-06-13 -- Phase 06 execution started
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-06-13T03:45:00.000Z"
+last_activity: 2026-06-13 -- 06-02 batched FP16 rung measured (p95 ~210ms FAIL → 06-03 authorized)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 28
-  completed_plans: 25
-  percent: 83
+  completed_plans: 27
+  percent: 89
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 06 (decision-loop-latency-optimization-tensorrt-fp16-export-batc) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 06 — 06-01 headless tasks done; GPU-env checkpoint OPEN
-Last activity: 2026-06-13 -- 06-01 Tasks 2-4 landed headless; Task 1 GPU-env human-verify checkpoint awaiting rig stand-up
+Plan: 3 of 3
+Status: Executing Phase 06 — 06-01 + 06-02 complete; 06-03 (engine build) AUTHORIZED by the 06-02 p95 gate
+Last activity: 2026-06-13 -- 06-02 batched FP16 _fan_out landed + GPU gate RUN on the rig (p95 ~210ms, FAIL → 06-03 authorized)
 
-Progress: [████████░░] 80% (4/5 phases verified-complete)
+Progress: [████████░░] 80% (4/5 phases verified-complete; Phase 06 plans 2/3 done)
 
 ## Performance Metrics
 
@@ -80,6 +80,8 @@ Progress: [████████░░] 80% (4/5 phases verified-complete)
 | Phase 05 P07 | 12min | 2 tasks | 5 files |
 | Phase 05 P08 | 8min | 2 tasks | 4 files |
 | Phase 05 P09 | 4min | 2 tasks | 6 files |
+| Phase 06 P01 | 18min | 4 tasks | 8 files |
+| Phase 06 P02 | 40min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -132,6 +134,7 @@ Recent decisions affecting current work:
 
 - [Phase 05 / 05-07]: CR-01 closed (the FAILED truth, SC-5/RBT-04) — _safe_startup fault-isolates source.start()/obs.connect() in run()/run_measured() so a down OBS/NDI at launch coasts into the tick loop (the per-tick _safe_call heals OBS, the watchdog handles a dead source — reaching the loop is sufficient for "never crash"). ObsWsController.connect() guards _cache_pip_ids() (partial connect cannot crash; ids re-cache via EventClient/per-tick reconnect). Additive Thresholds.watchdog_grace=0.067 seed; from_config sources it on grace=None, explicit wins (WR-02). Tick catch-all reason "fault" not "feed-dead" (WR-09); dead live_cam removed (WR-01, no behavior change). NEW tests/test_orchestrator_startup.py exercises the REAL run_measured startup with start()/connect() RAISING and proves the loop ticks 5× — the regression that flips Truth #5. Full headless suite 297 passed / 3 skipped / 0 failures. watchdog_grace SHIPPED tuning + real-OBS startup confirmation stay HARDWARE-deferred (D-07).
 - [Phase ?]: [Phase 05 / 05-09]: UAT gap closed — build_orchestrator runtime factory maps Config -> real NdiFrameSource + ObsWsController + per-camera PerCameraTracker + opcomm channel_paths, then Orchestrator.from_config (signature unchanged); python -m segugio entry point (load_config -> build -> run; Ctrl-C -> shutdown SAFE coast, RBT-04); docs/run.md OBS-up/OBS-down rig launch. Injectable *_factory seam keeps it headless-unit-tested with the heavy stack absent; lazy-import boundary held. 314 passed / 3 skipped (+12, zero regression). UAT Tests 1-4 now launchable on the Windows/RTX rig (D-07).
+- [Phase 06 / 06-02]: Batched FP16 decision-loop (the cheap rung) — Orchestrator._fan_out now runs ONE batched detection forward per tick (half=config.model.use_fp16, end2end=False) then per-camera tracker.update() dispatch (#13107-safe), selected via _supports_batched() with a serial .track() fallback so the mock-timed wiring/attribution tests stay green. PerCameraTracker gained update()/_ensure_persistent_tracker (lazy track() warmup registers the native-ReID hook + builds the persistent BoT-SORT, then drives trackers[0].update() on the batched result.feats), plus use_fp16/is_engine attributes (is_engine threaded into the once-before-loop HARD ReID gate). batched_detect_dispatch gained use_fp16. MEASURED on the RTX 4000 Ada (venv312, AC power): 4-cam loop total p95 ~210ms (211.4/209.5 two runs) on the batched FP16 path with native ReID confirmed engaged — improved from the 231-247ms FP32-serial baseline but DID NOT clear 150ms. VERDICT: FAIL → 06-03 (TensorRT engine build) AUTHORIZED. RBT-05 still NOT complete.
 - [Phase 06 / 06-01]: Wave-0 latency seams landed headless (Tasks 2-4; Task 1 = blocking-human GPU-env checkpoint, see Blockers). assert_native_reid_engaged is engine-aware — an is_engine: bool = False kwarg downgrades the cls-fallback / missing-hook would-be RuntimeError to a logger.warning ONLY on engine-backed models (Open Q1 Option a; a TensorRT .engine loads via AutoBackend and structurally cannot expose the in-graph Detect head — Pitfall 1), while is_engine=False keeps the eager .pt HARD gate byte-for-byte (TRK-02). ModelConfig gained additive engine_path (Path|None=None) + use_fp16 (bool=False) defaulting to today's eager-FP32 .pt (extra=forbid preserved). New batched.py: batched_detect_dispatch runs ONE model.predict([frames]) detection forward then per-camera tracker.update() — never model.track([frames]) (#13107) — with Pitfall-4 static-batch padding of dead None slots and per-slot degrade-to-None (RBT-04), proven headless with fakes. docs/run.md "GPU latency env" section + .gitignore *.engine/*.onnx. Full headless suite green, lazy-import boundary held. RBT-05 NOT complete — every GPU measurement is blocked on Task 1.
 
 ### Pending Todos
@@ -142,7 +145,8 @@ None yet.
 
 - [Phase 1]: Framing-scorer math (Phase 2) is dense/novel — flagged for `--research-phase` during planning (lead-room, motion-adaptive alpha, conf-norm, size band, zone multiplier)
 - [Phase 4 — RESOLVED 2026-06-10 GPU UAT]: Native-ReID engagement on yolo26s VERIFIED on RTX 4000 Ada (assert_native_reid_engaged does not raise with end2end=False → no silent yolo26n-cls.pt fallback). COCO dog recall MEASURED on the 6 hard slices: strong on close/clear (handler_close cam_c 0.89, dusk_distant 0.76, sprint_blur 0.69), weak on distant/small + crowd (distant 0.04, crowd_distractor 0.16) — candidate for dog-detector fine-tuning later. NOTE: GPU UAT also found+fixed a real bug — the tracker yaml was passed as a bare name and never resolved, so TRK-01/TRK-02 were dead on the real path (silent coast every frame); fixed in detector.py with fail-loud abs-path resolution + CPU regression test.
-- [Phase 6 / 06-01 — OPEN, blocking-human]: The py3.12 cu12x-torch + tensorrt GPU env on the RTX 4000 Ada rig is the Wave-0 hard prerequisite and is NOT yet stood up. The current py3.14 venv has CPU-only torch and no tensorrt cp314 wheel (project memory gpu-torch-cpu-only-py314.md), so every `-m gpu` measurement test SKIPs and RBT-05 cannot be measured. Human setup per docs/run.md "GPU latency env" (on AC power): confirm torch.cuda.is_available()=True + RTX 4000 Ada, tensorrt 10.x imports, ultralytics 8.4.62, and `pytest tests/test_latency.py -m gpu --co -q` collects the gpu latency test. Every Wave-1/Wave-2 latency task is blocked until this passes.
+- [Phase 6 / 06-01 — RESOLVED 2026-06-13]: The py3.12 cu12x-torch + tensorrt GPU env (venv312: Python 3.12.10, torch 2.12.0+cu126, ultralytics 8.4.62, tensorrt-cu12 10.16.1.11, RTX 4000 Ada driver 596.36) is LIVE — torch.cuda.is_available()=True and the gpu latency test collects+runs. 06-02 RAN the gpu gate on it (p95 ~210ms). All Wave-1/Wave-2 latency work unblocked.
+- [Phase 6 / 06-02 — RBT-05 gate, INFORMS 06-03]: The cheap rung (eager FP16 + ONE batched forward per tick) measured p95 ~210ms ≥ 150ms on the RTX 4000 Ada — it did NOT meet RBT-05. 06-03 (TensorRT FP16 engine build) is AUTHORIZED and required to cross the budget. 06-03 should weigh keeping FP32 detection if FP16 visibly regresses recall on real distant/dusk footage (RESEARCH A5 — not spot-checked this run; the gpu gate uses synthetic frames).
 
 ## Quick Tasks Completed
 
@@ -160,6 +164,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T00:48:48.036Z
-Stopped at: 06-01 Tasks 2-4 complete (headless); Task 1 GPU-env human-verify checkpoint OPEN
-Resume file: .planning/phases/06-decision-loop-latency-optimization-tensorrt-fp16-export-batc/06-01-PLAN.md
+Last session: 2026-06-13T03:45:00.000Z
+Stopped at: 06-02 complete — batched FP16 rung measured on the rig (p95 ~210ms, FAIL → 06-03 authorized)
+Resume file: .planning/phases/06-decision-loop-latency-optimization-tensorrt-fp16-export-batc/06-03-PLAN.md

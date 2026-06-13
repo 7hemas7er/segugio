@@ -82,7 +82,7 @@
 
 ### Canale di pubblicazione frame (PRV)
 
-- [ ] **PRV-01**: L'orchestrator pubblica thumbnail JPEG downscalate per-camera **fuori dal tick critico** (thread daemon `PreviewPublisher` con mailbox latest-only, frame-drop ammesso) in una media dir **separata e limitata** — il p95 del gate RBT-05 resta invariato con la preview attiva (gate di latenza)
+- [x] **PRV-01**: L'orchestrator pubblica thumbnail JPEG downscalate per-camera **fuori dal tick critico** (thread daemon `PreviewPublisher` con mailbox latest-only, frame-drop ammesso) in una media dir **separata e limitata** — il p95 del gate RBT-05 resta invariato con la preview attiva (gate di latenza)
 - [x] **PRV-02**: Un sidecar `preview.json` (`PreviewDoc`, frozen + reader con default sicuro che non solleva mai) porta per-camera lo score di framing + lo stato tracking (tracking/coast/lost) + il bbox normalizzato del cane + il candidato-auto della FSM + un ring degli ultimi cut — **separato** da `status.json` (che resta invariato/safety-critical)
 - [x] **PRV-03**: Primitiva di scrittura atomica binaria (`atomic_write_bytes`, speculare alla testuale, senza fsync per i frame effimeri); la console continua a importare **solo Flask + `segugio.opcomm`** (test di crash-isolation: import OK con lo stack pesante assente)
 
@@ -195,7 +195,7 @@ Ogni requisito v1.1 → esattamente una fase (100% coverage, nessun orfano). La 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PRV-01 | Phase 7 | Pending |
+| PRV-01 | Phase 7 | Complete |
 | PRV-02 | Phase 7 | Complete |
 | PRV-03 | Phase 7 | Complete |
 | MVW-01 | Phase 8 | Pending |

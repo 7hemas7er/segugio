@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: — Console Regia
 status: executing
 stopped_at: Phase 7 context gathered
-last_updated: "2026-06-13T11:28:43.538Z"
+last_updated: "2026-06-13T11:37:06.284Z"
 last_activity: 2026-06-13 -- Phase 07 execution started
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 32
-  completed_plans: 30
+  completed_plans: 31
   percent: 67
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 ## Current Position
 
 Phase: 07 (off-tick-frame-publishing-channel) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-13 -- Phase 07 execution started
 Next: `/gsd-plan-phase 7`
@@ -85,6 +85,7 @@ Next: `/gsd-plan-phase 7`
 | Phase 06 P03 | 55min | 5 tasks tasks | 9 files files |
 | Phase 07 P01 | 9min | 3 tasks tasks | 5 files files |
 | Phase 07 P02 | 4min | 1 task tasks | 1 file files |
+| Phase 07 P03 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 06 / 06-03]: Q1 RESOLVED -> Option (a) cls-ReID fallback on the engine (gate WARNS-not-raises when is_engine=True; single-dog A2). tools/build_engine.py ships the one-time cached TensorRT FP16 build (format=engine half=True batch=4 end2end=False, static batch=4, --dynamic escape hatch). Engine-aware PerCameraTracker: loads .engine when on-disk (is_engine True), graceful eager .pt fallback on ANY failure/missing-file (RBT-04 never crash). Rule-1 fix found on the rig: a static batch=N engine REJECTS the single-frame track() warmup, so the per-camera BOTSORT is built DIRECTLY; reid gate downgrades predictor-None AND empty-predictor.trackers to warnings on the engine. MEASURED engine-path 4-cam p95 ~193-195ms on the RTX 4000 Ada Laptop GPU (AC) — STILL >= 150ms. VERDICT FAIL, RBT-05 NOT met; next lever surfaced (Option b re-plan / yolo26n engine / flagged camera-reduction ladder), re-measure on desktop deploy GPU.
 - [Phase ?]: [Phase 07 / 07-01]: preview channel = existing atomic-file opcomm channel + bytes (atomic_write_bytes, fsync=False for ephemeral JPEGs, default fsync=True for durable sidecars, D-04) + one typed sidecar PreviewDoc — no new IPC/dep (D-01). preview.json rides atomic_write_json (always fsyncs); PreviewDoc mirrors DirectorStatus (frozen+normalizing, order-independent ==, hashable); read_preview reuses _read_json, safe-defaults to PreviewDoc() never raising (RBT-04). status.json/DirectorStatus byte-stable (D-03). PreviewParams additive (Config.preview ON by default D-06); Phase 8 owns the HARD bandwidth cap. 23 opcomm tests green, leaf import holds.
 - [Phase ?]: [Phase 07 / 07-02]: HARD GATE 2 locked — test_app_imports_nothing_heavy now forces numpy absent too (Pitfall 2 false-green closed) AND proves the console STARTS not just imports (create_app(tmp) + GET /status → 200 with ultralytics/torch/numpy/cv2/cyndilib/obsws_python all absent, D-09 gate 2). Locks the clean Flask + segugio.opcomm import surface as a regression guard before Phase 8 adds GET /preview; ui/app.py intentionally unmodified (PRV-03).
+- [Phase ?]: [Phase 07 / 07-03]: PreviewPublisher off-tick daemon — offer() is a single locked 1-slot mailbox (last-writer-wins, never blocks, D-02/PRV-01); the daemon _run does ALL resize/encode/IO off the tick at ~1/fps and coasts on fault (RBT-04 extended). _build_doc PURE (no cv2) maps the full D-07 why-payload (ema==score L242, in_zone==det-present A1, energy default 0.0); _publish writes per-cam JPEGs via atomic_write_bytes(fsync=False, D-04) then write_preview(preview.json). cv2/numpy lazy inside _cv2_encode (gate-2: imports with cv2 absent); injectable encode_fn = headless-tested. PRV-01/PRV-02 done; plan 04 wires it.
 
 ### Pending Todos
 
@@ -182,6 +184,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T11:28:34.082Z
+Last session: 2026-06-13T11:36:45.244Z
 Stopped at: Phase 7 context gathered
 Resume file: .planning/phases/07-off-tick-frame-publishing-channel/07-CONTEXT.md

@@ -158,3 +158,100 @@ def test_hidden_tile_data_uri(client):
     # we must NOT switch off tiles via display:none in the refresh path.
     m = re.search(r"function blankTile\(cam\)\s*\{(.*?)\n    \}", script, re.DOTALL)
     assert m and "display" not in m.group(1)
+
+
+# --- UXT-03 lifecycle / freshness watchdog / sleep-wake resume --------------- #
+
+
+def test_lifecycle_wiring_present(client):
+    """The served script registers visibilitychange + pageshow + pagehide ONLY, and registers
+    NONE of focus/blur/unload/freeze/resume; the poll intervals are NAMED handles torn down on
+    hide (UXT-03 lifecycle)."""
+    c, _ = client
+    script = _script(_served_html(c))
+    # mandatory lifecycle events.
+    assert 'addEventListener("visibilitychange"' in script
+    assert '"pageshow"' in script
+    assert '"pagehide"' in script
+    # FORBIDDEN lifecycle events must NOT be registered on document/window (the SCV-01 input-field
+    # `blur` drift-check is unrelated — it is an <input> blur, not a lifecycle trigger). Scope the
+    # ban to the document./window. lifecycle surface.
+    for forbidden in ("focus", "blur", "unload", "freeze", "resume"):
+        assert 'document.addEventListener("' + forbidden + '"' not in script, forbidden
+        assert 'window.addEventListener("' + forbidden + '"' not in script, forbidden
+    # NAMED interval handles (torn down on hide), not anonymous setInterval-and-forget.
+    assert "previewTimer" in script and "statusTimer" in script
+    assert "clearInterval(previewTimer)" in script and "clearInterval(statusTimer)" in script
+    # hide tears the polls down; resume restarts them.
+    assert "function onHide" in script and "function onResume" in script
+    assert "stopPolling()" in script and "startPolling()" in script
+
+
+def test_resume_defers_fetch(client):
+    """The resume handler defers the first fetch via setTimeout(...) and records resumeAt; a tile
+    renders LIVE only once a frame post-dating resumeAt arrives (UXT-03 iOS Load-failed dodge)."""
+    c, _ = client
+    script = _script(_served_html(c))
+    m = re.search(r"function onResume\(\)\s*\{(.*?)\n    \}", script, re.DOTALL)
+    assert m, "onResume must exist"
+    body = m.group(1)
+    # resumeAt recorded + the first resume fetch wrapped in setTimeout (never sync inside handler).
+    assert "resumeAt = Date.now()" in body
+    assert "setTimeout(" in body
+    assert "RESUME_DEFER_MS" in script
+    # a verified-fresh frame post-dating resumeAt clears the just-resumed gate (LIVE only then).
+    assert "lastGenAt > resumeAt" in script
+    assert "justResumed" in script
+
+
+def test_gen_age_staleness_watchdog(client):
+    """markTiles sets a per-tile STALE state on a stalled gen (the foreground gen-age watchdog) and
+    NEVER labels a stale tile LIVE; the bbox overlay hides on STALE (UXT-03 PRIMARY watchdog)."""
+    c, _ = client
+    html = _served_html(c)
+    script = _script(html)
+    # the foreground gen-age check (gen vs local clock) is the primary watchdog.
+    assert "function isStale" in script
+    assert "STALE_MS" in script and "lastGenAt" in script
+    m = re.search(r"function markTiles\(status\)\s*\{(.*?)\n    \}", script, re.DOTALL)
+    assert m
+    body = m.group(1)
+    # a frozen tile is forced to the "stale" state, NOT "live".
+    assert 'state = "stale"' in body
+    # the live-cam computation excludes a frozen tile (so a stale tile can never be LIVE).
+    assert "!frozen" in body or "!stale" in body
+    # the bbox overlay is hidden on .stale (CSS contract preserved from 09-02).
+    assert ".tile.dead .bbox-overlay, .tile.stale .bbox-overlay" in html
+    # WR-02 load-time seed preserved (no false MORTO on first paint).
+    assert "lastGenAt = Date.now()" in script
+    assert "lastGen < 0" in script or "lastGen >= 0" in script
+
+
+def test_freshness_stamp_copy(client):
+    """The freshness stamp shows "agg. {n}s fa" and "frame non aggiornato" when stale (UXT-03)."""
+    c, _ = client
+    html = _served_html(c)
+    script = _script(html)
+    assert "function freshnessStamp" in script
+    assert '"agg. "' in script and 'agg.' in html
+    assert '"frame non aggiornato"' in script
+    # the stale stamp is visually distinct (turns red).
+    assert ".freshness.stale" in html
+    # never "LIVE" on a stale tile: the stale overlay copy is STALE / RICONNESSIONE…, not LIVE.
+    assert '"RICONNESSIONE…"' in script and '"STALE"' in script
+
+
+def test_resume_marks_all_stale_and_named_intervals(client):
+    """On resume ALL tiles are marked stale immediately + fresh NAMED intervals start; the WR-02
+    load-time lastGenAt seed is preserved (UXT-03)."""
+    c, _ = client
+    script = _script(_served_html(c))
+    m = re.search(r"function onResume\(\)\s*\{(.*?)\n    \}", script, re.DOTALL)
+    assert m
+    body = m.group(1)
+    # all tiles painted stale on resume (either via markTiles(lastStatus) or the explicit fallback).
+    assert "markTiles(lastStatus)" in body or 'setTileState(c, "stale")' in body
+    assert "startPolling()" in body
+    # startPolling builds the named handles via setInterval.
+    assert "previewTimer = setInterval(pollPreview" in script
+    assert "statusTimer = setInterval(pollStatus" in script

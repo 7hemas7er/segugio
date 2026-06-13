@@ -621,6 +621,18 @@
     const PUBLISH_MS = 200;            // ~5 fps publish cadence
     const STALE_MS = PUBLISH_MS * 3;   // gen not advancing within ~2-3x → whole-channel stale (D-05)
 
+    // UXT-03 sleep/wake resume state (UI-SPEC §Lifecycle/freshness, VERIFIED load-bearing):
+    //   resumeAt   = the wall-clock at the last wake; a tile may render LIVE only once a frame whose
+    //                local arrival (lastGenAt) post-dates resumeAt is seen → never a stale frozen one.
+    //   justResumed= drives the "RICONNESSIONE…" label (vs plain "STALE") right after a wake, until a
+    //                verified-fresh frame clears it.
+    //   RESUME_DEFER_MS = the deferral for the FIRST resume fetch (iOS "Load failed" TypeError bug,
+    //                ~150–250ms window) — the exact value is confirmed on-device in Task 3.
+    let resumeAt = 0;                  // 0 = never suspended yet (cold load is not a resume)
+    let justResumed = false;
+    const RESUME_DEFER_MS = 200;       // mid-band 150–250ms; Task-3 records the working 26.x value
+    let previewTimer = null, statusTimer = null;   // NAMED interval handles (torn down on hide)
+
     // UXT-03 flicker-free + leak-free refresh (UI-SPEC §Flicker-free leak-free refresh, VERIFIED):
     // ONE persistent off-DOM Image() preloader PER TILE, created ONCE into `preloaders` — NEVER a
     // fresh Image per frame (the pre-09-04 leak). Per gen advance: set the preloader.src to the
@@ -700,6 +712,9 @@
         if (p.gen > lastGen) {            // gen-strictly-advances gate: refresh ONLY on a NEW frame
           lastGen = p.gen;
           lastGenAt = Date.now();
+          // UXT-03: a frame whose local arrival post-dates the last wake is the FIRST verified-fresh
+          // frame after a resume → clear the RICONNESSIONE… state (tiles may go LIVE again).
+          if (justResumed && lastGenAt > resumeAt) justResumed = false;
           CAMS.forEach(c => {
             // UXT-03 leak-free: a cam present in `cams` decode-swaps; an off/dropped cam (not in
             // `cams`) is blanked to the 1×1 data-URI so its decoded bitmap frees deterministically.
@@ -713,30 +728,66 @@
         }
       } catch (e) { /* coast — a poll error never breaks the page */ }
     }
-    setInterval(pollPreview, PUBLISH_MS);
 
-    // Drive the 5 tile states from /status (live_cam + reason + alive) and gen-freshness (D-04
-    // belt-and-suspenders: alive==false OR whole-channel stale → MORTO). FORZATA when the live cam
-    // is an operator override; LIVE (green) only for an auto-selected live cam.
+    // UXT-03 freshness watchdog helper: TRUE when a gen WAS advancing and then stalled past the
+    // window. PRIMARY/FOREGROUND signal (gen-age vs local clock) — catches a frozen frame within one
+    // poll cycle even if NO lifecycle event fired, and on a COLD load (lastGen < 0) it is NOT stale
+    // (WR-02: the first frame simply hasn't arrived; never falsely paint MORTO on first paint).
+    function isStale() {
+      return lastGen >= 0 && (Date.now() - lastGenAt) > STALE_MS;
+    }
+
+    // UXT-03 freshness stamp (UI-SPEC §Copywriting): "agg. {n}s fa" (n = whole seconds since the
+    // last verified-fresh frame), or "frame non aggiornato" when stale. The #freshness element turns
+    // red while stale so a frozen feed reads as degraded, NEVER as live.
+    function freshnessStamp() {
+      const el = document.getElementById("freshness");
+      if (!el) return;
+      if (isStale()) {
+        el.textContent = "frame non aggiornato";
+        el.classList.add("stale");
+        return;
+      }
+      const n = lastGen < 0 ? 0 : Math.max(0, Math.round((Date.now() - lastGenAt) / 1000));
+      el.textContent = "agg. " + n + "s fa";
+      el.classList.remove("stale");
+    }
+
+    // UXT-03 per-tile STALE overlay copy: "RICONNESSIONE…" right after a wake (until a verified-fresh
+    // frame), else "STALE". Never "LIVE" on a stale tile.
+    function setStaleOverlay(cam) {
+      const ov = document.getElementById("stale-" + cam);
+      if (ov) ov.textContent = justResumed ? "RICONNESSIONE…" : "STALE";
+    }
+
+    // Drive the 5 tile states from /status (live_cam + reason + alive) and gen-freshness — the
+    // FOREGROUND gen-age watchdog is PRIMARY (D-04 belt-and-suspenders: alive==false OR whole-channel
+    // stale → never LIVE). FORZATA when the live cam is an operator override; LIVE (green) only for an
+    // auto-selected live cam AND only once a frame post-dating resumeAt has arrived (UXT-03 resume).
     function markTiles(status) {
       // WR-02: "no gen seen yet" (lastGen < 0) is NOT stale — staleness only means a gen WAS
       // advancing and then stopped, not that the first frame simply hasn't arrived.
-      const stale = lastGen >= 0 && (Date.now() - lastGenAt) > STALE_MS;
+      const stale = isStale();
       const overriding = status.reason === "override";
       CAMS.forEach(cam => {
         // WR-03: a liveness signal must FAIL SAFE — a missing/non-true alive entry is dead.
         const aliveKnown = status.alive && Object.prototype.hasOwnProperty.call(status.alive, cam);
         const dead = (aliveKnown ? status.alive[cam] !== true : true);
-        const isLiveCam = cam === status.live_cam && !dead && !stale;
+        // A tile is "frozen" if the whole channel is stale OR we just resumed and no fresh frame has
+        // landed yet — in BOTH cases it must show STALE/RICONNESSIONE…, never LIVE (UXT-03 resume).
+        const frozen = stale || justResumed;
+        const isLiveCam = cam === status.live_cam && !dead && !frozen;
         let state;
         if (dead) state = "dead";
-        else if (stale) state = "stale";
+        else if (frozen) state = "stale";
         else if (isLiveCam && overriding) state = "forzata";     // FORZATA vs LIVE distinct (D-04)
         else if (isLiveCam) state = "live";
         else if (overriding && cam === lastAutoCandidate) state = "auto-wants";  // WHY-04
         else state = "idle";
         setTileState(cam, state);
+        if (state === "stale") setStaleOverlay(cam);             // "RICONNESSIONE…" vs "STALE"
       });
+      freshnessStamp();   // keep the "agg. {n}s fa" / "frame non aggiornato" stamp current
       // D-03 minimal banner (NOT the plain-Italian reason — that is 09-03 WHY-01).
       document.getElementById("onair-cam").textContent = status.live_cam || "—";
     }
@@ -764,8 +815,62 @@
         renderAutoWants(s, lastPreview);
       } catch (e) { /* coast — a poll error never breaks the page */ }
     }
+    // --- UXT-03 lifecycle: NAMED interval handles + sleep/wake resume (UI-SPEC §Lifecycle/freshness,
+    //     VERIFIED load-bearing). The poll loops live behind named handles so they can be torn down
+    //     on hide and restarted on resume. The FOREGROUND gen-age watchdog (isStale/markTiles) is the
+    //     PRIMARY freshness signal — these lifecycle hooks are belt-and-suspenders, because Safari
+    //     does NOT fire pagehide on app-switch-then-kill and pageshow.persisted may be false. ---
+    function startPolling() {
+      stopPolling();                       // idempotent: never stack two intervals
+      previewTimer = setInterval(pollPreview, PUBLISH_MS);
+      statusTimer = setInterval(pollStatus, 1000);
+    }
+    function stopPolling() {
+      if (previewTimer) { clearInterval(previewTimer); previewTimer = null; }
+      if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
+    }
+
+    // On HIDE (tab backgrounded / app-switched / device-locked): tear down the polls + record the
+    // hide time. No fetch fires while hidden (saves the contended WiFi + dodges suspended timers).
+    function onHide() {
+      stopPolling();
+    }
+
+    // On RESUME (pageshow.persisted===true OR visibilitychange→visible): record resumeAt, mark ALL
+    // tiles stale immediately (RICONNESSIONE…), restart fresh intervals, and DEFER the first resume
+    // fetch in setTimeout(~150–250ms) — never fetch() synchronously inside the handler (iOS "Load
+    // failed" TypeError bug). Retry once on failure. A tile renders LIVE only once a frame whose
+    // local arrival post-dates resumeAt is seen (handled in pollPreview/markTiles).
+    function onResume() {
+      resumeAt = Date.now();
+      justResumed = true;
+      lastGen = -1;                        // force the next frame to count as a strictly-new gen
+      // Immediately paint every tile stale (RICONNESSIONE…) + the "frame non aggiornato" stamp.
+      if (lastStatus) markTiles(lastStatus);
+      else CAMS.forEach(c => { setTileState(c, "stale"); setStaleOverlay(c); });
+      freshnessStamp();
+      startPolling();                      // fresh intervals (teardown happened on hide or here)
+      // Deferred first resume fetch (iOS Load-failed dodge) + one retry.
+      setTimeout(() => {
+        pollStatus();
+        pollPreview().catch(() => setTimeout(() => pollPreview(), RESUME_DEFER_MS));
+      }, RESUME_DEFER_MS);
+    }
+
+    // Lifecycle registration — visibilitychange + pageshow/pagehide ONLY. FORBID focus/blur/unload/
+    // freeze/resume (Safari iOS does not implement freeze/resume; focus/blur double-fire).
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") onHide();
+      else onResume();
+    });
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pageshow", e => { if (e.persisted) onResume(); });
+    // Wake Lock (Screen-Wake-Lock, Safari 16.4+) is OUT of strict scope — re-acquire on resume only
+    // if a screen-on requirement is added later. Intentionally not wired here.
+
+    // Cold start: seed the status read + start the foreground poll loops.
     pollStatus();
-    setInterval(pollStatus, 1000);
+    startPolling();
   </script>
 </body>
 </html>

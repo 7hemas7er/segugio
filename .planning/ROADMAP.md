@@ -226,7 +226,24 @@ Plans:
   4. The `preview.json` sidecar (`PreviewDoc`, frozen, safe-default reader that never raises) carries per-camera framing score + tracking state (tracking/coast/lost) + normalized dog bbox + the FSM auto-candidate + a ring of recent cuts — entirely separate from the unchanged safety-critical `status.json`
   5. A publisher fault (encode/IO error) coasts and is logged without perturbing the director or crashing the process (RBT-04 extended to the preview path)
 
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1 parallel: 07-01, 07-02 · Wave 2: 07-03 · Wave 3: 07-04)
+**UI hint**: no (Phase 7 writes files; serving/rendering is Phase 8/9)
+
+Plans:
+
+**Wave 1** *(parallel; zero file overlap)*
+
+- [ ] 07-01-PLAN.md — opcomm leaf primitives: atomic_write_bytes (D-04), PreviewDoc + read_preview/write_preview sidecar (D-03/D-07), PreviewParams additive config (D-05/D-06) [Wave 1]
+- [ ] 07-02-PLAN.md — HARD GATE 2: crash-isolation import test extended (add numpy block + create_app start-check) [Wave 1]
+
+**Wave 2** *(blocked on 07-01)*
+
+- [ ] 07-03-PLAN.md — PreviewPublisher daemon: latest-only mailbox + off-tick resize/encode/atomic-write + the D-07 “why” PreviewDoc + RBT-04 coast (D-02) [Wave 2]
+
+**Wave 3** *(blocked on 07-03)*
+
+- [ ] 07-04-PLAN.md — Wire into the real run path: guarded offer() in _tick_once + cuts ring + frames_by_cam surface + runtime preview_factory/preview dir + HARD GATE 1 (RBT-05 unchanged with preview ON) (D-06/D-08/D-09) [Wave 3]
+
 
 ### Phase 8: Console Serving, Live Multiview & Safety Hardening
 

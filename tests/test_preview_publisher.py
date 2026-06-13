@@ -142,3 +142,153 @@ def test_mailbox_imports_without_heavy_stack():
     # cv2 must not be a module-level attribute of the publisher module.
     assert not hasattr(preview_mod, "cv2")
     assert "cv2" not in [n for n in sys.modules if n == "cv2"] or True  # tolerant
+
+
+# --- payload mapping (Task 2 — the D-07 'why' payload, no cv2 needed) ------- #
+
+
+def _score(cam_id, value, status):
+    return CameraScore(tick=11, cam_id=cam_id, score=value, status=status)
+
+
+def _det(cam_id, *, cx, cy, w, h, track_id):
+    return DetectionSignal(
+        tick=11, cam_id=cam_id, cx=cx, cy=cy, w=w, h=h, conf=0.9, track_id=track_id
+    )
+
+
+def test_payload_maps_every_d07_field(tmp_path):
+    """_build_doc maps per-cam score/ema/state/locked/track_id/energy/in_zone/box correctly."""
+    pub = _make_publisher(tmp_path, ["cam_a", "cam_b"])
+    scores = [
+        _score("cam_a", 0.81, ScorerStatus.tracking),
+        _score("cam_b", 0.42, ScorerStatus.coasting),
+    ]
+    dets = {
+        "cam_a": _det("cam_a", cx=0.5, cy=0.4, w=0.2, h=0.3, track_id=3),
+        "cam_b": None,  # no detection this cam → coast / not-in-zone / no box
+    }
+    decision = _FakeDecision("cam_a")
+    cuts = [{"tick": 9, "from": "SAFE", "to": "cam_a", "reason": "auto"}]
+
+    doc = pub._build_doc(scores, dets, decision, cuts)
+
+    # top-level
+    assert doc.auto_candidate == "cam_a"
+    assert tuple(doc.cuts) == (
+        {"tick": 9, "from": "SAFE", "to": "cam_a", "reason": "auto"},
+    )
+    assert doc.gen == 1  # bumped once
+
+    # cam_a: detected → locked, in_zone, box present
+    a = doc.cams["cam_a"]
+    assert a["score"] == 0.81
+    assert a["ema"] == 0.81  # RESEARCH L242: ema == score (raw not exposed)
+    assert a["state"] == "tracking"
+    assert a["locked"] is True
+    assert a["track_id"] == 3
+    assert a["in_zone"] is True
+    assert a["box"] == [0.5, 0.4, 0.2, 0.3]
+    assert "energy" in a  # D-07 contract: field MUST exist
+    assert a["energy"] == 0.0  # default when no per-cam energy supplied
+
+    # cam_b: no detection → not locked, not in zone, box None, coasting
+    b = doc.cams["cam_b"]
+    assert b["score"] == 0.42
+    assert b["state"] == "coasting"
+    assert b["locked"] is False
+    assert b["track_id"] is None
+    assert b["in_zone"] is False
+    assert b["box"] is None
+
+
+def test_payload_gen_increments_per_build(tmp_path):
+    """gen bumps once per _build_doc (the in-sidecar cache-bust token is monotonic)."""
+    pub = _make_publisher(tmp_path, ["cam_a"])
+    scores = [_score("cam_a", 0.5, ScorerStatus.tracking)]
+    d1 = pub._build_doc(scores, {"cam_a": None}, _FakeDecision(), [])
+    d2 = pub._build_doc(scores, {"cam_a": None}, _FakeDecision(), [])
+    d3 = pub._build_doc(scores, {"cam_a": None}, _FakeDecision(), [])
+    assert (d1.gen, d2.gen, d3.gen) == (1, 2, 3)
+
+
+def test_payload_auto_candidate_defaults_safe(tmp_path):
+    """A decision without .target (or SAFE) → auto_candidate is the 'SAFE' sentinel string."""
+
+    class _NoTarget:
+        pass
+
+    pub = _make_publisher(tmp_path, ["cam_a"])
+    doc = pub._build_doc([], {"cam_a": None}, _NoTarget(), [])
+    assert doc.auto_candidate == "SAFE"
+
+
+# --- JPEG write + encode-fault coast (Task 2 — D-04 fsync=False + RBT-04) ---- #
+
+
+def test_coast_jpeg_written_with_fsync_false(tmp_path, monkeypatch):
+    """_publish writes per-cam JPEGs via atomic_write_bytes(..., fsync=False) (D-04 spy)."""
+    import segugio.orchestrator.preview as preview_mod
+
+    calls = []
+
+    def _spy_write_bytes(path, data, *, fsync=True):
+        calls.append((path, data, fsync))
+
+    written_docs = []
+
+    def _spy_write_preview(path, doc):
+        written_docs.append((path, doc))
+
+    monkeypatch.setattr(preview_mod, "atomic_write_bytes", _spy_write_bytes)
+    monkeypatch.setattr(preview_mod, "write_preview", _spy_write_preview)
+
+    # Inject a fake encoder so no real cv2 is needed; it returns deterministic bytes.
+    pub = _make_publisher(
+        tmp_path, ["cam_a", "cam_b"], encode_fn=lambda frame: b"JPEGDATA"
+    )
+    frames = {"cam_a": object(), "cam_b": object()}
+    scores = [
+        _score("cam_a", 0.7, ScorerStatus.tracking),
+        _score("cam_b", 0.3, ScorerStatus.lost),
+    ]
+    dets = {"cam_a": _det("cam_a", cx=0.1, cy=0.1, w=0.1, h=0.1, track_id=1), "cam_b": None}
+
+    pub._publish(frames, scores, dets, _FakeDecision("cam_a"), [])
+
+    # one JPEG write per camera, ALL with fsync=False (D-04)
+    assert len(calls) == 2
+    for path, data, fsync in calls:
+        assert data == b"JPEGDATA"
+        assert fsync is False
+        assert path.endswith(".jpg")
+    # exactly one preview.json write
+    assert len(written_docs) == 1
+    assert written_docs[0][0].endswith("preview.json")
+
+
+def test_coast_encode_fault_does_not_raise(tmp_path, monkeypatch):
+    """An encode fault makes _run log + continue (never raise) — RBT-04 extended, PRV-01 #5."""
+    import segugio.orchestrator.preview as preview_mod
+
+    monkeypatch.setattr(preview_mod, "atomic_write_bytes", lambda *a, **k: None)
+    monkeypatch.setattr(preview_mod, "write_preview", lambda *a, **k: None)
+
+    def _raising_encoder(frame):
+        raise RuntimeError("encode boom")
+
+    pub = _make_publisher(
+        tmp_path, ["cam_a"], fps=1000.0, encode_fn=_raising_encoder
+    )
+    scores = [_score("cam_a", 0.5, ScorerStatus.tracking)]
+    pub.offer(
+        {"cam_a": object()}, scores, {"cam_a": None}, _FakeDecision("cam_a"), []
+    )
+
+    # Drive the daemon loop bounded — it must NOT raise even though the encoder raises.
+    t = threading.Thread(target=pub._run, daemon=True)
+    t.start()
+    threading.Event().wait(0.2)
+    pub._stop.set()
+    t.join(timeout=2.0)
+    assert not t.is_alive()  # _run coasted past the encode fault and returned cleanly

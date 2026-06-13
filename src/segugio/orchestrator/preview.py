@@ -150,4 +150,106 @@ class PreviewPublisher:
             logger.warning("preview publisher stop coasted: {}", exc)
 
     # ----- the publish (resize/encode/IO + the D-07 'why' payload) ---------- #
-    # Implemented in Task 2 — see the same-file _publish/_build_doc/_cv2_encode below.
+
+    def _cv2_encode(self, frame) -> bytes:
+        """Resize ``frame`` to ``max_width`` (aspect-preserving) → encode JPEG → bytes.
+
+        The LIVE encoder. ``cv2``/``numpy`` import LAZILY HERE (gate-2 boundary — the module
+        imports with the heavy stack absent; only an actual publish pulls cv2 in). Aspect ratio
+        is preserved: the target height is derived from ``max_width / frame.width``. The JPEG
+        quality is the configured ``jpeg_quality`` (cv2 ``IMWRITE_JPEG_QUALITY``).
+        """
+        import cv2  # lazy heavy import — keeps the module importable without cv2 (gate 2)
+        import numpy as np  # noqa: F401 — imported lazily alongside cv2 per the boundary
+
+        h, w = frame.shape[0], frame.shape[1]
+        max_width = self._params.max_width
+        if w > max_width:
+            scale = max_width / float(w)
+            target = (max_width, max(1, int(round(h * scale))))
+            resized = cv2.resize(frame, target, interpolation=cv2.INTER_AREA)
+        else:
+            resized = frame
+        ok, buf = cv2.imencode(
+            ".jpg", resized, [int(cv2.IMWRITE_JPEG_QUALITY), int(self._params.jpeg_quality)]
+        )
+        if not ok:
+            raise RuntimeError("cv2.imencode failed to encode the preview JPEG")
+        return buf.tobytes()
+
+    def _build_doc(self, scores, dets, decision, cuts) -> PreviewDoc:
+        """Build the full D-07 'why' ``PreviewDoc`` from injected scores/dets/decision/cuts.
+
+        PURE — no frames, no cv2 (so it is unit-testable headless). Bumps :attr:`_gen` once per
+        call (the in-sidecar cache-bust token). Field-by-field source map (RESEARCH L235-252):
+
+          * ``score`` / ``ema`` — ``CameraScore.score`` (the EMA; the raw is not exposed, so
+            ``ema == score`` — no scorer change, RESEARCH L242).
+          * ``state``          — ``CameraScore.status.value`` (the ``ScorerStatus`` str enum).
+          * ``locked`` / ``in_zone`` — ``dets[cam_id] is not None`` (A1 approximation: a present
+            locked detection IS the in-zone signal in Phase 7).
+          * ``track_id``       — ``det.track_id`` or ``None``.
+          * ``box``            — ``[cx, cy, w, h]`` (normalized) or ``None`` when no detection.
+          * ``energy``         — per-camera locked-motion energy if surfaced; ``0.0`` default
+            (the FIELD MUST exist for the D-07 contract — plan 04 wires the real value).
+          * top-level ``auto_candidate`` — ``decision.target`` (or the ``"SAFE"`` sentinel).
+          * top-level ``cuts`` — the orchestrator's recent-cuts ring (newest-last).
+        """
+        score_by_cam = {s.cam_id: s for s in scores}
+        cams: dict = {}
+        for cam_id in self._cam_ids:
+            cs = score_by_cam.get(cam_id)
+            score = float(cs.score) if cs is not None else 0.0
+            state = cs.status.value if cs is not None else "lost"
+            det = dets.get(cam_id)
+            locked = det is not None
+            track_id = det.track_id if det is not None else None
+            in_zone = det is not None  # RESEARCH A1 approximation
+            box = (
+                [float(det.cx), float(det.cy), float(det.w), float(det.h)]
+                if det is not None
+                else None
+            )
+            cams[cam_id] = {
+                "score": score,
+                "ema": score,  # RESEARCH L242: ema == score (raw EMA not exposed)
+                "state": state,
+                "locked": locked,
+                "track_id": track_id,
+                "energy": 0.0,  # D-07 field MUST exist; real value wired in plan 04 if surfaced
+                "in_zone": in_zone,
+                "box": box,
+            }
+        self._gen += 1
+        tick = scores[0].tick if scores else 0
+        auto_candidate = str(getattr(decision, "target", "SAFE"))
+        return PreviewDoc(
+            tick=tick,
+            gen=self._gen,
+            auto_candidate=auto_candidate,
+            cams=cams,
+            cuts=tuple(cuts),
+        )
+
+    def _publish(self, frames, scores, dets, decision, cuts) -> None:
+        """Off-tick publish: per-cam JPEG (atomic, fsync=False) + the D-07 ``preview.json``.
+
+        Runs on the daemon thread only. For each camera with a frame: encode (via the injected
+        ``encode_fn`` seam or the lazy :meth:`_cv2_encode`) and write the JPEG through
+        ``atomic_write_bytes(..., fsync=False)`` — the JPEGs are EPHEMERAL (regenerated every
+        publish), so durability does not matter and the fsync is dropped to save disk time on the
+        publisher (D-04). Then build the full D-07 ``PreviewDoc`` and write it via
+        ``write_preview`` (which rides ``atomic_write_json`` — always fsynced, D-04 "keep fsync
+        for preview.json"). Any fault here is COASTED by :meth:`_run` (RBT-04 extended).
+        """
+        enc = self._encode_fn or self._cv2_encode
+        for cam_id in self._cam_ids:
+            frame = frames.get(cam_id)
+            if frame is None:
+                continue  # no frame this camera this publish — skip its JPEG (no stale write)
+            data = enc(frame)
+            atomic_write_bytes(
+                os.path.join(self._preview_dir, f"cam_{cam_id}.jpg"), data, fsync=False
+            )
+        doc = self._build_doc(scores, dets, decision, cuts)
+        write_preview(os.path.join(self._preview_dir, "preview.json"), doc)

@@ -1,7 +1,7 @@
 ---
 phase: 9
 slug: explainability-informed-override-tablet-ux
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-13
@@ -286,11 +286,13 @@ Each tile is a `role="button"` element (whole tile = tap-to-force, D-02). State 
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: N/A (no registry — hand-rolled console)
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: N/A (no registry — hand-rolled console)
 
-**Approval:** pending
+**Approval:** approved 2026-06-13 (gsd-ui-checker, re-validated after typography + destructive-contrast revision)
+
+> **Planner note (non-blocking, from checker):** the `lost`-state row in the leaderboard must render its LABEL in `#E6E9EF` — never `#6B7280` (3.75:1) as text. Carry this into the WHY-02 leaderboard task.

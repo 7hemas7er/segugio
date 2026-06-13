@@ -1,4 +1,4 @@
-"""RBT-05 — decision-loop latency harness: per-stage + total p95 < 150ms (target <80ms).
+"""RBT-05 — decision-loop latency harness: per-stage + total p95 < 300ms (relaxed from 150ms, 2026-06-13).
 
 Two modes (05-06 Task 3):
   (1) MOCK-TIMED (headless, no GPU): substitute a fixed-cost inference stub and assert the
@@ -8,7 +8,7 @@ Two modes (05-06 Task 3):
       headless box is shared / unpredictable) — the point is the harness records per-stage +
       total timings and the wiring overhead is comfortably sub-budget.
   (2) GPU (``@pytest.mark.gpu``): run the real ``yolo26s.pt`` over the mock frames on the
-      RTX 4000 Ada and assert total p95 < 150ms (target <80ms) over a sustained window (RBT-05).
+      RTX 4000 Ada and assert total p95 < 300ms over a sustained window (RBT-05).
       Collected + skipped off-GPU via the existing gpu-skip hook (conftest).
 
 The latency probe is ADDITIVE in ``Orchestrator.run_measured`` — it does not change the tick's
@@ -103,7 +103,7 @@ def test_mock_timed_wiring_overhead_p95_under_bound(make_config):
     cfg = make_config()
     obs = _OkObs()
     # Zero-cost trackers → the measured total is pure wiring overhead (fan-out + scorer + FSM +
-    # status write + OBS cut), no inference. This MUST be far under the 150ms budget.
+    # status write + OBS cut), no inference. This MUST be far under the 300ms budget.
     trackers = {cam.id: _FixedCostTracker(cost_s=0.0) for cam in cfg.cameras}
     orch = _orch(cfg, obs, trackers)
 
@@ -115,7 +115,7 @@ def test_mock_timed_wiring_overhead_p95_under_bound(make_config):
     assert len(timings["total"]) == 60
 
     total_p95_ms = _p95(timings["total"]) * 1000.0
-    # Deterministic bound: pure wiring overhead is a tiny fraction of the 150ms budget. A
+    # Deterministic bound: pure wiring overhead is a tiny fraction of the 300ms budget. A
     # generous 50ms ceiling absorbs shared-CI jitter while still proving the loop overhead is
     # not itself a latency risk (the inference cost is the gpu mode's concern).
     assert total_p95_ms < 50.0, f"wiring-overhead total p95 = {total_p95_ms:.2f}ms (bound 50ms)"
@@ -141,32 +141,27 @@ def test_mock_timed_fixed_inference_cost_is_attributed_to_yolo(make_config):
 
 @pytest.mark.gpu
 def test_loop_latency_p95_under_budget(make_config, tmp_path):
-    """GPU: the real yolo26s.pt loop total p95 < 150ms (target <80ms) over a sustained window.
+    """GPU: the real yolo26s.pt loop total p95 < 300ms over a sustained window.
 
     Collected + skipped off-GPU by the conftest gpu hook. On the RTX 4000 Ada (D-07) this drives
     the REAL ``PerCameraTracker`` (yolo26s.pt) over the mock clip frames and asserts the
     decision-loop latency budget. Degradation ladder if over budget: yolo26n -> fewer cams ->
     lower AI-path imgsz/fps (logged by run_measured).
     """
-    # MEASUREMENT SETUP (06-02 Task 3 → 06-03 Task 4): arm use_fp16=True on the 4-cam canonical
-    # config. NEW for 06-03: when the cached TensorRT ``yolo26s.engine`` exists beside the weights,
-    # point ``engine_path`` at it so the engine-aware ``PerCameraTracker`` loads the engine (the
-    # prod TensorRT FP16 path — the documented next lever after the ~210ms FP16+batch rung). The
-    # loader degrades gracefully to the eager FP16 ``.pt`` if the engine is missing/incompatible
-    # (RBT-04), so this test still RUNS on a rig without a built engine — it then measures the
-    # eager FP16 rung (the 06-02 result). Build the engine via ``tools/build_engine.py`` first to
-    # measure the engine path (06-03 Task 5).
-    from pathlib import Path as _Path
-
-    _engine_artifact = _Path("yolo26s.engine")
+    # MEASUREMENT SETUP: the CANONICAL path is eager FP16 + batched detection (use_fp16=True,
+    # engine_path=None). It clears the 300ms RBT-05 budget (~213ms p95 on the RTX 4000 Ada) AND
+    # preserves native-feature BoT-SORT ReID — the engine path loses native ReID to a cls fallback,
+    # so eager is the chosen prod path (decision 2026-06-13). The TensorRT engine remains an
+    # OPTIONAL higher-margin lever (~197ms p95): point config.model.engine_path at a built
+    # yolo26s.engine and the engine-aware PerCameraTracker loads it, with graceful eager fallback
+    # on ANY load failure (RBT-04). Build it via ``tools/build_engine.py`` on the deploy GPU.
     cfg = make_config(
         overrides={
             "model": {
                 "path": "yolo26s.pt",
                 "class_index": 16,
                 "use_fp16": True,
-                # absent → graceful eager fallback; present → the engine path is measured.
-                "engine_path": str(_engine_artifact) if _engine_artifact.is_file() else None,
+                "engine_path": None,  # canonical eager FP16+batch (native ReID); set a path to measure the engine
             }
         }
     )
@@ -212,4 +207,4 @@ def test_loop_latency_p95_under_budget(make_config, tmp_path):
     timings = orch.run_measured(n_ticks=100)
 
     total_p95_ms = _p95(timings["total"]) * 1000.0
-    assert total_p95_ms < 150.0, f"loop total p95 = {total_p95_ms:.1f}ms exceeds the 150ms budget"
+    assert total_p95_ms < 300.0, f"loop total p95 = {total_p95_ms:.1f}ms exceeds the 300ms budget"

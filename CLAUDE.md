@@ -10,7 +10,7 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 ### Constraints
 
 - **Tech stack**: Python orchestratore; `ultralytics` + `torch` (+ `tensorrt` per prod) per YOLO; `cyndilib` per ingest NDI; `obsws-python` per obs-websocket v5; `transitions` per la FSM; `opencv-python`, `numpy`, `pyyaml`, `loguru`, `watchdog` — Vincolo da brief: stack imposto, integrare YOLO esistente.
-- **Performance**: loop decisionale AI < ~150ms (ideale <80ms); video glass-to-glass ~150-350ms accettato — Vincolo fisico riformulato dal "<50ms" originale.
+- **Performance**: loop decisionale AI < **300ms** p95 (budget rivisto 2026-06-13 da <150ms dopo la misura Phase 6 sul RTX 4000 Ada Laptop: FP16+batch eager ~256ms con ReID nativa; engine TensorRT ~197ms come leva opzionale a più margine); video glass-to-glass ~150-350ms accettato — Vincolo fisico riformulato ("<50ms" originale → "<150ms" → "<300ms").
 - **Hardware**: GPU NVIDIA CUDA (disponibile in dev); produzione consigliata su Windows; codice OS-agnostic — Per maturità ecosistema NDI/OBS.
 - **Dependencies**: OBS Studio + plugin DistroAV (NDI); obs-websocket v5; modello YOLO pre-addestrato fornito via config — Componenti esterni richiesti dal brief.
 - **Robustezza live**: nessun crash ammesso; caduta feed → degrado a scena SAFE / fallback — Requisito live esplicito.

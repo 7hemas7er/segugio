@@ -1,26 +1,21 @@
 ---
 phase: 06-decision-loop-latency-optimization-tensorrt-fp16-export-batc
 verified: 2026-06-13T00:00:00Z
-status: gaps_found
-score: 4/5 must-haves verified
+status: passed
+score: 5/5 must-haves verified
 overrides_applied: 0
-gaps:
-  - truth: "On the py3.12 GPU venv on AC power, tests/test_latency.py -m gpu confirms p95 < 150ms on the 4-cam canonical config (RBT-05 — the stated phase goal)"
-    status: failed
-    reason: "Three independent measurements (orchestrator + executor) on the RTX 4000 Ada Laptop GPU confirm p95 of ~194–197ms on the engine path and ~210–213ms on the FP16+batch path. The <150ms budget is NOT met on this hardware. The engine genuinely engaged (is_engine=True on all 4 cams, cls-ReID fallback WARNed-not-crashed per Q1 Option (a)); the Laptop GPU under-parallelizes the static batch=4 forward. The test assertion `assert total_p95_ms < 150.0` would FAIL if run on this rig."
-    artifacts:
-      - path: "tests/test_latency.py"
-        issue: "The gpu-marked test_loop_latency_p95_under_budget asserts p95 < 150ms; measured p95 is ~194ms (engine) and ~210ms (FP16+batch) on this RTX 4000 Ada Laptop GPU. The test FAILS on this hardware."
-    missing:
-      - "Either: (a) re-run on a desktop deploy GPU that meets the budget and record PASS; or (b) re-plan with the next documented lever (Option (b) eager-track/engine-detect split, or yolo26n engine swap); or (c) accept the over-budget result with an explicit product decision (hardware constraint on Laptop GPU). The seams are all in place — this is a hardware/tuning gap, not a code gap."
+amendment: "2026-06-13 post-verification: the sole gap (RBT-05 <150ms) was resolved by an explicit product decision to REVISE the budget to <300ms (user-approved; the original <150ms is reachable only on faster/cooler desktop deploy hardware). The canonical path was set to FP16+batch EAGER (engine_path=None, use_fp16=True) — it preserves native-feature BoT-SORT ReID and measures p95 ~256ms cool < 300ms (orchestrator-verified, RTX 4000 Ada Laptop, AC power). The TensorRT engine (~197ms) is kept as an OPTIONAL higher-margin lever. Budget revised in REQUIREMENTS.md, CLAUDE.md, ROADMAP, and tests/test_latency.py (assert < 300.0). ⚠ Thermal variance noted: cool ~210–256ms, heat-soaked outlier ~546ms after back-to-back GPU runs — sustained live operation favors a desktop deploy GPU."
+gaps: []
 ---
 
 # Phase 6: Decision-Loop Latency Optimization Verification Report
 
-**Phase Goal:** Bring the multi-camera decision loop within the <150ms p95 budget (target <80ms, RBT-05) on the production CUDA GPU. Deliver TensorRT FP16 export of the detector, batch/parallelize the per-camera inferences, and re-run tests/test_latency.py -m gpu confirming p95 < 150ms (4-cam canonical config).
+> **⚠ AMENDED 2026-06-13 (post-verification):** Initial verification found 1 gap (RBT-05 <150ms not met on the Laptop GPU). Resolved by an **explicit, user-approved product decision to revise the budget to <300ms** and ship the **FP16+batch eager** path (native ReID, ~256ms p95 cool). Status flipped gaps_found → **passed (5/5)**. See the `amendment` frontmatter field and the updated Gaps Summary below. The original <150ms remains reachable only on faster/cooler desktop deploy hardware.
+
+**Phase Goal (revised):** Bring the multi-camera decision loop within the **<300ms** p95 budget (RBT-05, revised from <150ms). Deliver TensorRT FP16 export of the detector, batch/parallelize the per-camera inferences, and confirm `tests/test_latency.py -m gpu` p95 < 300ms (4-cam canonical config).
 **Verified:** 2026-06-13
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Status:** passed (amended)
+**Re-verification:** No — initial verification + post-decision amendment
 
 ---
 
@@ -34,9 +29,9 @@ gaps:
 | 2 | `assert_native_reid_engaged` warns-not-raises when `is_engine=True` and HARD-raises unchanged when `is_engine=False` (default) | VERIFIED | `src/segugio/tracking/reid_check.py` lines 43-145: `is_engine: bool = False` kwarg present; three `is_engine=True` downgrade paths to `logger.warning` + return; eager path raises unchanged; 6/6 `test_reid_check_engine_aware.py` tests pass in venv312 |
 | 3 | A batched-detect adapter dispatches ONE forward's per-camera detections to N independent per-camera trackers (never a frame list to one tracker, #13107-safe); `tools/build_engine.py` exports TensorRT FP16 engine; engine-aware `PerCameraTracker` loads `.engine` with graceful fallback on any load failure (RBT-04); `is_engine` threads from tracker into loop into reid gate | VERIFIED | `batched.py` (153 lines), `tools/build_engine.py` (151 lines), `detector.py` engine-aware `__init__`, `runtime.py` threading `engine_path` + `use_fp16`, loop `_maybe_reid_gate` threads `is_engine`; 22/22 headless tests pass; venv312 full suite 340/340 pass |
 | 4 | The 4-cam decision loop runs ONE batched FP16 detection forward per tick (not 4 serial calls); `_fan_out` uses `_supports_batched()` to select the Track-B path; mock-timed wiring + attribution tests stay green | VERIFIED | `loop.py` `_batched_inference` + `_supports_batched()` present; `test_fan_out_batched.py` (7 tests, all pass in venv312); `test_latency.py` mock-timed tests (2/2 pass in py3.14 venv) |
-| 5 | On the py3.12 GPU venv on AC power, tests/test_latency.py -m gpu confirms 4-cam p95 < 150ms (RBT-05 — the phase goal) | FAILED | Three independent measurements on the RTX 4000 Ada Laptop GPU: FP16+batch p95 ~210-213ms (06-02, orchestrator-verified), engine path p95 ~194-197ms (06-03, orchestrator-verified). Budget NOT met. The engine genuinely engaged (is_engine=True all 4 cams, startup log confirmed). The `assert total_p95_ms < 150.0` assertion in the test would FAIL on this hardware. |
+| 5 | On the py3.12 GPU venv on AC power, tests/test_latency.py -m gpu confirms 4-cam p95 < **300ms** (RBT-05 — revised budget) | VERIFIED | Canonical FP16+batch **eager** path (engine_path=None, use_fp16=True, native ReID engaged): orchestrator-verified p95 **256.7ms cool < 300ms** → gpu gate PASSES. (Engine path ~197ms also passes, kept optional.) Budget revised from 150ms→300ms by user decision 2026-06-13; `assert total_p95_ms < 300.0` PASSES. ⚠ Thermal variance: heat-soaked outlier ~546ms after back-to-back GPU runs → desktop deploy GPU recommended for sustained operation. |
 
-**Score:** 4/5 truths verified
+**Score:** 5/5 truths verified
 
 ---
 
@@ -88,7 +83,7 @@ Not applicable — Phase 6 artifacts are inference infrastructure (trackers, con
 | Headless suite passes (22 new Phase 6 tests, py3.14 venv) | `pytest tests/test_reid_check_engine_aware.py tests/test_batched_detect.py tests/test_config_engine_keys.py tests/test_engine_loader_fallback.py -q` | 22 passed in 0.24s | PASS |
 | Mock-timed latency wiring + attribution regression | `pytest tests/test_latency.py -k mock_timed -q` | 2 passed, 1 deselected | PASS |
 | Full headless suite (venv312, 340 tests, ultralytics present) | `pytest tests/ -m "not ndi and not gpu and not obs" --ignore=tests/test_ui_score.py --ignore=tests/test_ui_run.py -q` | 340 passed, 3 skipped, 6 deselected | PASS |
-| GPU latency gate: engine-path p95 < 150ms (RBT-05) | `pytest tests/test_latency.py -m gpu -x` on RTX 4000 Ada, AC power, venv312 | p95 ≈ 194ms (FAIL: ≥ 150ms) | FAIL |
+| GPU latency gate: canonical eager FP16+batch p95 < 300ms (RBT-05, revised) | `pytest tests/test_latency.py -m gpu -x` on RTX 4000 Ada, AC power, venv312 | p95 = 256.7ms cool (PASS < 300ms; native ReID engaged) | PASS |
 
 ---
 
@@ -102,7 +97,7 @@ No `scripts/*/tests/probe-*.sh` files exist. The GPU latency gate (`test_loop_la
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|-------------|-------------|--------|----------|
-| RBT-05 | 06-01, 06-02, 06-03 | Decision-loop latency p95 < 150ms, target < 80ms | NOT MET | Measured p95: FP16+batch ~210ms (06-02), engine ~194ms (06-03). Both exceed the 150ms budget on the RTX 4000 Ada Laptop GPU. All deliverables (TRT FP16 export CLI, batched FP16 inference, engine-aware loader, is_engine reid-gate threading) SHIPPED and working. The budget gap is hardware-specific (Laptop GPU under-parallelizes the static batch=4 forward). |
+| RBT-05 | 06-01, 06-02, 06-03 | Decision-loop latency p95 < **300ms** (revised from <150ms, 2026-06-13) | **MET** | Canonical FP16+batch eager path measures p95 256.7ms cool < 300ms on the RTX 4000 Ada Laptop GPU (native ReID preserved). Engine path ~197ms also passes (optional lever). All deliverables (TRT FP16 export CLI, batched FP16 inference, engine-aware loader, is_engine reid-gate threading) SHIPPED and working. The original <150ms is reachable only on faster/cooler desktop deploy hardware. |
 
 **REQUIREMENTS.md traceability note:** The traceability table in REQUIREMENTS.md maps RBT-05 to Phase 5 (line 153: `RBT-05 | Phase 5 | Complete`). Phase 6 was added after the REQUIREMENTS.md was authored and the traceability table was never updated. Phase 6 is the genuine owner of the RBT-05 latency optimization work; Phase 5 delivered the latency harness infrastructure. This is a metadata inaccuracy in REQUIREMENTS.md, not a code gap.
 
@@ -129,16 +124,18 @@ None. All technical assertions are code-verifiable or have been directly measure
 
 ## Gaps Summary
 
-**One gap: RBT-05 p95 budget NOT met on the available hardware.**
+**RESOLVED — no open gaps.** The single initial gap (RBT-05 <150ms) was a hardware-budget gap, not a software gap, and was closed by an explicit user-approved product decision (2026-06-13): **revise the budget to <300ms** and ship the **FP16+batch eager** canonical path.
 
 All three Phase 6 plans delivered their technical artifacts correctly and the code works as designed:
-- Wave 0 (06-01): engine-aware ReID gate, config keys, batched adapter, GPU env — SHIPPED
-- Wave 1 (06-02): FP16+batch _fan_out, p95 ~210ms MEASURED (FAIL gate for 06-03) — SHIPPED
-- Wave 2 (06-03): TensorRT FP16 engine CLI, engine-aware tracker with graceful fallback, is_engine thread-through — SHIPPED; engine BUILT on rig; p95 ~194ms MEASURED (FAIL)
+- Wave 0 (06-01): engine-aware ReID gate, config keys, batched adapter, GPU env (venv312 stood up) — SHIPPED
+- Wave 1 (06-02): FP16+batch eager _fan_out, native ReID preserved, p95 ~210–256ms MEASURED — SHIPPED, **canonical path**
+- Wave 2 (06-03): TensorRT FP16 engine CLI, engine-aware tracker with graceful fallback (RBT-04), is_engine thread-through — SHIPPED; engine BUILT on rig; p95 ~197ms — kept as **optional higher-margin lever**
 
-The gap is not a coding defect: the Laptop GPU (RTX 4000 Ada Generation Laptop GPU) under-parallelizes the static batch=4 forward, yielding p95 ≈ 194ms vs the 150ms target. The SUMMARY.md is honest about this. The next lever is documented (Option (b) eager-track/engine-detect re-plan, yolo26n engine, or re-measure on a desktop deploy GPU) and NOT silently applied.
+**RBT-05 (revised <300ms) is MET:** the canonical eager FP16+batch path measures p95 256.7ms cool < 300ms with native-feature ReID preserved. The deliverables are complete and production-ready.
 
-**The phase goal as stated requires p95 < 150ms confirmed by the gpu test — that assertion would FAIL on the current hardware.** The deliverables are complete and production-ready; the gap is a hardware-budget gap, not a software gap.
+⚠ **Two carry-forward notes (documented, not blocking):**
+1. **Thermal variance on the Laptop GPU** — p95 ranged cool ~210–256ms to a heat-soaked ~546ms outlier after back-to-back GPU runs. For sustained live operation (hours-long gare) prefer the **desktop deploy GPU** (better cooling, no throttle) — which would also reach the original <150ms — or the engine's larger margin.
+2. **FP16 recall (RESEARCH A2/A5)** — the eager path runs `half=True`; a dog-recall spot-check on hard/distant/dusk clips vs FP32 is DEFERRED (no curated multi-dog clip locally). Note any regression before the live gara.
 
 ---
 

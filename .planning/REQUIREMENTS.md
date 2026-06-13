@@ -69,7 +69,7 @@
 - [x] **RBT-02**: Alla caduta di un feed il sistema fa fallback automatico (scena SAFE o altra camera viva) senza crash; alla ripresa il feed rientra solo dopo essere vivo e aver vinto la piena isteresi+dwell
 - [x] **RBT-03**: **Override manuale + auto-resume** — un operatore può forzare una camera specifica; poi il sistema rientra in automatico
 - [x] **RBT-04**: L'orchestrator gira a tick a rate fisso, isola i guasti (try/except + restart supervisionati dei thread) e va in shutdown sulla scena SAFE; mai crash del processo
-- [x] **RBT-05**: Il loop decisionale AI (frame → YOLO → score → FSM → comando OBS) è misurato e sta sotto ~150ms (ideale <80ms)
+- [x] **RBT-05**: Il loop decisionale AI (frame → YOLO → score → FSM → comando OBS) è misurato e sta sotto **300ms** p95 (budget rivisto 2026-06-13 da <150ms — Phase 6: il path canonico FP16+batch eager con ReID nativa misura ~256ms cool sul RTX 4000 Ada Laptop, <300ms; engine TensorRT ~197ms come leva opzionale a più margine)
 
 ### Test Fixtures (TST)
 

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: gaps_found
-stopped_at: 06 verified — 3/3 plans shipped (TensorRT FP16 engine built + batched FP16 loop) but RBT-05 GAP — engine-path p95 ~194–197ms ≥ 150ms on the RTX 4000 Ada Laptop GPU; see 06-VERIFICATION.md
-last_updated: "2026-06-13T07:45:00.000Z"
-last_activity: 2026-06-13 -- 06-03 TensorRT FP16 engine built + GPU gate RUN on the rig (p95 ~194–197ms, FAIL ≥150ms); verifier → gaps_found (4/5 must-haves; RBT-05 open)
+status: complete
+stopped_at: Phase 06 COMPLETE — RBT-05 met (<300ms revised budget); canonical FP16+batch eager p95 ~256ms cool on RTX 4000 Ada Laptop. Milestone v1 software-complete.
+last_updated: "2026-06-13T07:50:00.000Z"
+last_activity: 2026-06-13 -- Phase 06 verified complete (RBT-05 budget revised 150→300ms; eager FP16+batch ~256ms PASS); milestone v1 software-complete
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 28
   completed_plans: 28
-  percent: 83
+  percent: 100
 ---
 
 # Project State
@@ -25,18 +25,18 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 06 (decision-loop-latency-optimization-tensorrt-fp16-export-batc) — GAPS FOUND
-Plan: 3 of 3 shipped
-Status: Verification gaps_found — all deliverables shipped, but RBT-05 (<150ms p95) NOT met: engine-path p95 ~194–197ms on the RTX 4000 Ada Laptop GPU. See 06-VERIFICATION.md → next levers (re-measure on desktop deploy GPU / Option (b) / yolo26n).
-Last activity: 2026-06-13 -- 06-03 TensorRT FP16 engine built + GPU gate RUN on the rig (p95 ~194–197ms, FAIL ≥150ms); verifier → gaps_found
+Phase: 06 — COMPLETE (last phase; milestone v1 software-complete)
+Plan: 3 of 3 complete
+Status: Phase 06 verified complete — RBT-05 MET under the revised <300ms budget. Canonical path = FP16+batch eager (native ReID), p95 ~256ms cool < 300ms on the RTX 4000 Ada Laptop GPU; TensorRT engine ~197ms kept as optional higher-margin lever. ⚠ Carry-forward: thermal variance on the Laptop GPU (heat-soaked ~546ms) → prefer a desktop deploy GPU for sustained gare (would also reach <150ms); FP16 dog-recall spot-check on hard clips deferred. See 06-VERIFICATION.md.
+Last activity: 2026-06-13 -- Phase 06 verified complete; milestone v1 software-complete
 
-Progress: [████████░░] 83% (5/6 phases verified-complete; Phase 06 plans 3/3 shipped but RBT-05 gap open)
+Progress: [██████████] 100% (6/6 phases verified-complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 19
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -48,6 +48,7 @@ Progress: [████████░░] 83% (5/6 phases verified-complete; Ph
 | 02 | 4 | - | - |
 | 03 | 4 | - | - |
 | 04 | 4 | - | - |
+| 06 | 3 | - | - |
 
 **Recent Trend:**
 

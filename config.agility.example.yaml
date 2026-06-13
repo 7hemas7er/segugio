@@ -98,3 +98,5 @@ scoring:
 model:
   path: yolo26s.pt
   class_index: 16
+  use_fp16: true          # canonical RBT-05 path: eager FP16 + batched detect (~256ms p95, ReID nativa). Spot-check dog recall on hard/distant clips (RESEARCH A5).
+  # engine_path: yolo26s.engine   # OPTIONAL higher-margin lever (~197ms p95): build per-rig via `python tools/build_engine.py` (GPU-specific, loses native ReID → cls fallback). Graceful eager fallback if absent/incompatible (RBT-04).

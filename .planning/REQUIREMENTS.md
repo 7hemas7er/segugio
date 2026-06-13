@@ -76,6 +76,41 @@
 - [x] **TST-01**: Esiste un **curated clip set** multi-condizione (multi-cane, handler prominente, occlusioni tunnel/contatti, blur, cane distante, controluce/dusk, camere equidistanti) per disc dog e agility
 - [x] **TST-02**: Generatori sintetici (score-stream, feed-death) permettono test hardware-free di scorer, FSM e watchdog
 
+## v1.1 Requirements — Console Regia (visibilità live)
+
+> **Milestone v1.1**: la console operatore passa da pannello "alla cieca" a regia con visibilità live (vedi le camere, capisci *perché* una è in onda, override informato). **Vincolo HARD invariato**: la console resta crash-isolata (importa SOLO Flask + `segugio.opcomm`, mai l'orchestrator — D-03/RBT-04); ogni dato live arriva via un nuovo canale pubblicato dall'orchestrator. È un problema di *publish-and-render*, non di compute (i dati esistono già). Vedi `.planning/research/v1.1/SUMMARY.md`.
+
+### Canale di pubblicazione frame (PRV)
+
+- [ ] **PRV-01**: L'orchestrator pubblica thumbnail JPEG downscalate per-camera **fuori dal tick critico** (thread daemon `PreviewPublisher` con mailbox latest-only, frame-drop ammesso) in una media dir **separata e limitata** — il p95 del gate RBT-05 resta invariato con la preview attiva (gate di latenza)
+- [ ] **PRV-02**: Un sidecar `preview.json` (`PreviewDoc`, frozen + reader con default sicuro che non solleva mai) porta per-camera lo score di framing + lo stato tracking (tracking/coast/lost) + il bbox normalizzato del cane + il candidato-auto della FSM + un ring degli ultimi cut — **separato** da `status.json` (che resta invariato/safety-critical)
+- [ ] **PRV-03**: Primitiva di scrittura atomica binaria (`atomic_write_bytes`, speculare alla testuale, senza fsync per i frame effimeri); la console continua a importare **solo Flask + `segugio.opcomm`** (test di crash-isolation: import OK con lo stack pesante assente)
+
+### Multiview & override informato (MVW)
+
+- [ ] **MVW-01**: La console mostra una **griglia multiview** live delle thumbnail di tutte le camere (CSS Grid responsive, refresh flicker-free via preload `Image()` + swap)
+- [ ] **MVW-02**: Indicatore **LIVE/tally** chiaro sulla tile della camera in onda (bordo rosso/badge + banner "ON AIR: CAM X"), da `status.live_cam`
+- [ ] **MVW-03**: Ogni feed **morto/stale** è marcato a colpo d'occhio sulla sua tile (grey-out/"MORTO"), legato a `status.alive` + freshness della preview
+- [ ] **MVW-04**: **Override informato** — ogni tile è cliccabile = forza quella camera (sostituisce i bottoni testuali alla cieca); "Rilascia (auto)" resta un controllo distinto
+- [ ] **MVW-05**: **Striscia cronologia switch** — timeline degli ultimi cut + motivi, per giudicare se il director è "nervoso" e intervenire (dal ring in `preview.json`)
+
+### Spiegabilità ("e perché") (WHY)
+
+- [ ] **WHY-01**: La console mostra il **motivo** della scelta corrente in italiano chiaro (rende `status.reason`: "Auto: miglior inquadratura" / "Override operatore" / "Soggetto perso → SAFE" …)
+- [ ] **WHY-02**: **Barre di score di framing per-camera** (leaderboard live) con stato tracking/coast/lost — l'operatore *vede* perché una camera vince in questo istante
+- [ ] **WHY-03**: **Overlay bbox dog-lock** sulla tile live (box normalizzato disegnato in CSS/SVG dal `preview.json`, nessun image-processing in Flask) — mostra che il sistema è agganciato al cane in gara
+- [ ] **WHY-04**: Hint **"auto vuole vs in onda"** — durante un override mostra quale camera sceglierebbe l'auto-director adesso, così l'operatore sa quando è sicuro rilasciare (mantiene il sistema più spesso in auto)
+
+### Preview punteggio (SCV)
+
+- [ ] **SCV-01**: **Preview live del punteggio** come apparirà sull'overlay OBS mentre l'operatore digita (riusa `render_overlay_text`, nessun round-trip all'orchestrator)
+
+### UX tablet & robustezza (UXT)
+
+- [ ] **UXT-01**: **Restyling responsive tablet-friendly** (griglia che riflow, target touch grandi per l'override, form punteggi usabile una mano)
+- [ ] **UXT-02**: **Fix server multi-thread** (`threaded=True`/Waitress) così che servire/streammare le thumbnail non blocchi mai il POST di `/command` (l'override è un controllo di **sicurezza**) — bug latente in `ui/app.py`
+- [ ] **UXT-03**: **Igiene robustezza** — niente memory leak su multiview prolungata, resume su sleep/wake del tablet, indicatore di **freshness** (mai mostrare un frame congelato come "live"); preview che degrada per prima, il director mai
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.

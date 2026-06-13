@@ -32,6 +32,7 @@ from __future__ import annotations
 import os
 
 from ..opcomm.channel import (
+    read_preview,
     read_status,
     write_command,
     write_runstate,
@@ -53,18 +54,32 @@ _RUNSTATE_FILE = "runstate.json"
 _COMMAND_FILE = "command.json"
 _STATUS_FILE = "status.json"
 
+# The Phase-7 publishing channel the console SERVES (runtime.py: preview_dir = <channel_dir>/preview).
+# The per-camera JPEG filename is f"cam_{cam_id}.jpg" (preview.py) — for id "cam_wide" the on-disk
+# file is literally cam_cam_wide.jpg. The route ALWAYS builds the path from this FIXED prefix and a
+# WHITELISTED id; the raw URL segment is never used as a filesystem path (T-05-05-01).
+_PREVIEW_SUBDIR = "preview"
+_PREVIEW_FILE = "preview/preview.json"
+
 # Fields posted by the operator that are NOT score values (don't leak into ScoreDoc.fields).
 _NON_SCORE_KEYS = frozenset({"discipline"})
 
 
-def create_app(channel_dir: str):
+def create_app(channel_dir: str, cam_ids=()):
     """Build the Flask operator console wired to ``channel_dir`` (the opcomm file directory).
 
     A factory (not a module-level ``app``) so tests inject a tmp_path dir via the Flask test
     client and the production entrypoint injects the real channel dir. The directory is created
     if absent. Flask is imported HERE (lazily) so ``import segugio.ui`` stays Flask-free.
+
+    ``cam_ids`` is the WHITELIST of configured camera ids the preview-JPEG route serves — passed
+    in as a plain arg (NEVER obtained by ``import segugio.config``, which would break the
+    crash-isolation contract). The default ``()`` keeps existing single-arg callers green; with no
+    ids passed, ``GET /preview/<cam>.jpg`` 404s every cam (the entrypoint passes the real ids).
     """
-    from flask import Flask, jsonify, render_template, request
+    from flask import Flask, abort, jsonify, render_template, request, send_file
+
+    cam_ids = frozenset(cam_ids)
 
     os.makedirs(channel_dir, exist_ok=True)
 
@@ -134,10 +149,67 @@ def create_app(channel_dir: str):
             {"live_cam": status.live_cam, "reason": status.reason, "alive": status.alive}
         )
 
+    @app.get("/preview/<cam>.jpg")
+    def get_preview_jpg(cam: str):
+        # T-05-05-01 path-traversal mitigation: <cam> is whitelisted against the configured ids
+        # and NEVER used as a raw filesystem path. An unknown id (incl. a traversal segment that
+        # is not a configured id) → 404. The on-disk filename is built from a FIXED cam_{id}.jpg
+        # prefix (the Pitfall-3 mapping: id "cam_wide" → file cam_cam_wide.jpg).
+        if cam not in cam_ids:
+            abort(404)
+        path = _path(os.path.join(_PREVIEW_SUBDIR, f"cam_{cam}.jpg"))
+        if not os.path.exists(path):
+            # Publisher hasn't written this frame yet → 404 (the browser shows its placeholder).
+            abort(404)
+        resp = send_file(path, mimetype="image/jpeg")
+        # Belt-and-suspenders with the client-side ?t=<gen> cache-bust — never cache a live frame.
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
+    @app.get("/preview")
+    def get_preview():
+        # The off-tick "why" sidecar (PRV-02). read_preview is a safe-default never-raise reader
+        # (RBT-04): an absent/torn/malformed file → a default PreviewDoc, never an exception.
+        doc = read_preview(_path(_PREVIEW_FILE))
+        return jsonify(
+            {
+                "gen": doc.gen,
+                "tick": doc.tick,
+                "auto_candidate": doc.auto_candidate,
+                "cams": doc.cams,
+            }
+        )
+
     return app
 
 
 if __name__ == "__main__":  # pragma: no cover - the production entrypoint
     # The channel dir defaults to ./opcomm next to the cwd; override via SEGUGIO_OPCOMM_DIR.
     _dir = os.environ.get("SEGUGIO_OPCOMM_DIR", os.path.join(os.getcwd(), "opcomm"))
-    create_app(_dir).run(host="0.0.0.0", port=8080)
+    # Resolve the cam-id whitelist HERE (inside the entrypoint) so no config import leaks to the
+    # module top and the crash-isolation guard stays green. Prefer an explicit comma-separated env
+    # (SEGUGIO_CAM_IDS); fall back to loading the config only if a path is given. If neither is
+    # set, the four default rig ids keep the preview routes serving out of the box.
+    _cam_env = os.environ.get("SEGUGIO_CAM_IDS", "").strip()
+    if _cam_env:
+        _cam_ids = [c.strip() for c in _cam_env.split(",") if c.strip()]
+    else:
+        _cfg_path = os.environ.get("SEGUGIO_CONFIG", "").strip()
+        if _cfg_path:
+            from ..config.loader import load_config  # lazy: config import stays out of module top
+
+            _cam_ids = [cam.id for cam in load_config(_cfg_path).cameras]
+        else:
+            _cam_ids = ["cam_wide", "cam_long", "cam_low", "cam_handler"]
+
+    app = create_app(_dir, cam_ids=_cam_ids)
+    try:
+        # OPTIONAL deploy extra (`pip install segugio[console]`). The import stays INSIDE the
+        # entrypoint so the crash-isolation guard passes whether or not waitress is installed.
+        from waitress import serve
+
+        serve(app, host="0.0.0.0", port=8080)
+    except ImportError:
+        # threaded=True is the HARD UXT-02/D-08 safety control on the dev-server fallback: a
+        # preview GET can never starve the lone WSGI worker so the /command override stalls.
+        app.run(host="0.0.0.0", port=8080, threaded=True)

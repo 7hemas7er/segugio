@@ -24,6 +24,13 @@ dev = [
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
 ]
+# Console deploy extra (UXT-02 / D-08): a production WSGI server for the operator console.
+# OPTIONAL — `from waitress import serve` is imported INSIDE the app.py entrypoint, with an
+# app.run(..., threaded=True) fallback, so the crash-isolation import guard passes with waitress
+# absent. waitress is a long-established Pylons package (~12 yrs, no postinstall) — threat T-08-SC.
+console = [
+    "waitress==3.0.2",
+]
 # Heavy / lazy stack — DECLARED but imported lazily inside later-phase modules only.
 # Installed on the CUDA/NDI box; never imported at a Phase-1 module top level.
 heavy = [

@@ -342,7 +342,7 @@ See Patterns 1–4 above — every example is grounded in the actual seams (`app
 | A3 | The threat re-eval doc lives at a NEW `docs/security.md` (no standalone SECURITY.md / threat-model file exists today; T-05-05-* live as docstrings in `ui/app.py` + `loop.py`) | Open Questions / Validation | None material — criterion 5 only requires the doc "exists in the project docs." Confirmed no `SECURITY.md`/`THREAT_MODEL.md` exists (Glob returned none). |
 | A4 | The on-disk JPEG name is `cam_{cam_id}.jpg` (→ `cam_cam_wide.jpg`) and the cam ids are `cam_wide/cam_long/cam_low/cam_handler` | Pattern 1, Pitfall 3 | VERIFIED in code (`preview.py:283`, `console.html:85-88`, conftest `_PHASE5_CONFIG`) — not actually an assumption, listed for visibility. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact preview-route signatures, whitelist source, 404 behavior**
    - What we know: `GET /preview/<cam>.jpg` whitelisted `send_file`; `GET /preview` → `read_preview`. File is `cam_{id}.jpg`.

@@ -2,120 +2,248 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- UXT-01 tablet viewport (UI-SPEC §Viewport & touch, VERIFIED HIGH):
+       viewport-fit=cover pairs with env(safe-area-inset-*) on the bottom cluster. The disable-zoom
+       attributes are intentionally absent (iOS ignores them AND they fail WCAG 1.4.4/1.4.10). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Segugio — Console Regia</title>
   <style>
+    /* === Phase-9 tablet-first restyle ===
+       4px-multiple spacing scale (UI-SPEC §Spacing): xs 4 / sm 8 / md 16 / lg 24 / xl 32 / 2xl 48.
+       Typography: exactly 4 sizes, weights 400 + 700 ONLY (no 500, no 600).
+       Status palette recomputed vs #14161a (UI-SPEC §Color): LIVE #34D399 / FORZATA #F0B429 /
+       MORTO #FF6B6B (dim+desaturate) / auto-wants #56B4E9; the legacy LIVE-red is retired. */
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem;
-           background: #14161a; color: #e8e8e8; }
-    h1 { font-size: 1.3rem; margin: 0 0 1rem; }
-    fieldset { border: 1px solid #333; border-radius: 8px; margin: 0 0 1rem; padding: 0.8rem; }
-    legend { font-weight: 600; padding: 0 0.4rem; }
-    label { display: block; margin: 0.4rem 0 0.15rem; font-size: 0.9rem; color: #b9b9b9; }
-    input, select { width: 100%; padding: 0.5rem; font-size: 1rem; border-radius: 6px;
-                    border: 1px solid #444; background: #1d2026; color: #fff; }
-    button { padding: 0.7rem 1rem; font-size: 1rem; border-radius: 6px; border: 0;
-             background: #2d6cdf; color: #fff; cursor: pointer; margin: 0.25rem 0.25rem 0 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px;
+           background: #14161a; color: #e8e8e8;
+           /* UXT-01 touch contract: kill double-tap-zoom + the 300ms click delay (Safari 13+). */
+           touch-action: manipulation; }
+    h1 { font-size: 1.25rem; font-weight: 700; line-height: 1.2; margin: 0 0 16px; }
+    fieldset { border: 1px solid #333; border-radius: 8px; margin: 0 0 16px; padding: 16px; }
+    /* legend is an emphatic section label → 700 (was 600; no 500/600 may appear anywhere). */
+    legend { font-weight: 700; padding: 0 4px; }
+    label { display: block; margin: 8px 0 4px; font-size: 0.875rem; font-weight: 700; color: #b9b9b9; }
+    /* Score inputs stay 1rem (≥16px) to block iOS focus-zoom — NEVER 0.9rem. user-select NOT
+       removed on inputs (operator must select/edit text). */
+    input, select { width: 100%; padding: 16px; font-size: 1rem; font-weight: 400; border-radius: 6px;
+                    border: 1px solid #444; background: #1d2026; color: #fff;
+                    min-height: 48px; touch-action: manipulation; }
+    /* Buttons + tap targets: ≥44px floor (HIG), touch-action manipulation, no native highlight →
+       an explicit :active is provided below. */
+    button { padding: 12px 16px; font-size: 1rem; font-weight: 400; border-radius: 6px; border: 0;
+             background: #2d6cdf; color: #fff; cursor: pointer; margin: 4px 4px 0 0;
+             min-height: 44px; touch-action: manipulation;
+             -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+             -webkit-tap-highlight-color: transparent; }
+    button:active { filter: brightness(0.82); }
     button.secondary { background: #3a3f47; }
-    button.danger { background: #b23b3b; }
-    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    button.danger { background: #9b2c2c; }       /* destructive — "Ferma run" only (migrated red) */
+    .row { display: flex; flex-wrap: wrap; gap: 8px; }
     .row > div { flex: 1 1 120px; }
     .hidden { display: none; }
     #stato { font-size: 1.05rem; line-height: 1.6; }
-    .feed-ok { color: #46c46a; } .feed-dead { color: #e35d5d; }
-    .pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px;
-            background: #222; margin-right: 0.3rem; }
-    /* --- Multiview (MVW-01/02/03): responsive grid ON TOP of the controls (D-06) --- */
-    .onair { font-weight: 700; margin: 0 0 0.5rem; font-size: 1.1rem; }
-    .multiview { display: grid; gap: 0.5rem; margin: 0 0 1rem;
+    .feed-ok { color: #46c46a; } .feed-dead { color: #FF6B6B; }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px;
+            background: #222; margin-right: 4px; }
+    .hint { font-size: 0.75rem; font-weight: 400; color: #b9b9b9; margin: 4px 0 0; }
+
+    /* --- Layout (UXT-01, D-01): landscape two-region — multiview LEFT, sidebar RIGHT --- */
+    .onair { font-weight: 700; margin: 0 0 8px; font-size: 1.25rem; line-height: 1.2; }
+    .layout { display: grid; grid-template-columns: 1fr 340px; gap: 32px; align-items: start; }
+    .sidebar { display: flex; flex-direction: column; gap: 24px; min-width: 320px; }
+    .sidebar-block { background: #1a1d22; border: 1px solid #333; border-radius: 8px; padding: 16px; }
+    .sidebar-block h2 { font-size: 0.875rem; font-weight: 700; margin: 0 0 8px; color: #b9b9b9; }
+    .tabular { font-variant-numeric: tabular-nums; }
+    /* Reflow: below a landscape-tablet width the sidebar drops BELOW the grid (single column,
+       grid first) — live cam + reason stay visible (D-01 criterion). */
+    @media (max-width: 1024px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { min-width: 0; }
+    }
+
+    /* --- Multiview (MVW-01/02/03): responsive grid on the LEFT (D-01) --- */
+    .multiview { display: grid; gap: 8px; margin: 0;
                  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-    .tile { position: relative; border: 3px solid #333; border-radius: 8px; overflow: hidden; }
-    .tile img { width: 100%; display: block; background: #000; aspect-ratio: 16 / 9; }
-    .tile.live { border-color: #b23b3b; }                 /* MVW-02 on-air red border */
-    .tile.dead { opacity: 0.5; }                          /* MVW-03 dead/stale */
-    .badge { position: absolute; top: 4px; left: 4px; padding: 0.1rem 0.4rem;
-             border-radius: 4px; font-size: 0.8rem; background: #222; color: #b9b9b9; }
-    .badge.live { background: #b23b3b; color: #fff; }     /* LIVE badge */
-    .badge.dead { background: #444; color: #e35d5d; }     /* MORTO badge */
+    /* Whole tile = the force control (D-02): role=button, ≥44px, no native highlight → :active. */
+    .tile { position: relative; border: 3px solid #333; border-radius: 8px; overflow: hidden;
+            cursor: pointer; min-height: 44px; touch-action: manipulation;
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent; }
+    .tile:active { filter: brightness(0.85); }
+    /* object-fit:contain is LOAD-BEARING (WHY-03): the SVG overlay's xMidYMid meet letterboxes
+       IDENTICALLY to object-fit:contain → zero JS letterbox math. */
+    .tile img { width: 100%; display: block; background: #000; aspect-ratio: 16 / 9;
+                object-fit: contain; }
+
+    /* 5 grayscale-safe tile states (D-04) — hue + border-style + label (3 redundant channels). */
+    .tile.live { border-color: #34D399; }                          /* LIVE (auto): solid green */
+    .tile.forzata { border-color: #F0B429; border-style: solid; }  /* FORZATA (override): solid amber */
+    .tile.auto-wants { border-color: #56B4E9; border-style: dashed; }  /* auto-wants: dashed blue */
+    .tile.dead { opacity: 0.55; filter: grayscale(1); }            /* MORTO: dim + desaturate */
+    .tile.stale { opacity: 0.55; filter: grayscale(0.6); }         /* STALE: frozen/reconnecting */
+
+    .badge { position: absolute; top: 4px; left: 4px; padding: 4px 8px;
+             border-radius: 4px; font-size: 0.875rem; font-weight: 700; background: #222;
+             color: #b9b9b9; }
+    .badge.live { background: #34D399; color: #14161a; }           /* LIVE badge (green) */
+    .badge.forzata { background: #F0B429; color: #14161a; }        /* FORZATA badge (amber) */
+    .badge.dead { background: #444; color: #FF6B6B; }              /* MORTO badge */
+
+    /* FORZATA amber corner ribbon (a 3rd redundant channel beyond hue+border). Hidden until forced. */
+    .ribbon { position: absolute; top: 4px; right: 4px; padding: 4px 8px; border-radius: 4px;
+              font-size: 0.75rem; font-weight: 700; background: #F0B429; color: #14161a;
+              display: none; }
+    .tile.forzata .ribbon { display: block; }
+
+    /* auto-wants chevron tag (shown on the candidate tile during an override). */
+    .auto-tag { position: absolute; bottom: 4px; left: 4px; padding: 4px 8px; border-radius: 4px;
+                font-size: 0.75rem; font-weight: 700; background: #56B4E9; color: #14161a;
+                display: none; }
+    .tile.auto-wants .auto-tag { display: block; }
+
+    /* Dog-lock bbox overlay (WHY-03): one inline SVG per tile, positioned exactly over the <img>
+       with zero padding/border, hidden on STALE/MORTO. */
+    .bbox-overlay { position: absolute; inset: 0; width: 100%; height: 100%;
+                    pointer-events: none; }
+    .bbox-rect { fill: none; stroke: #34D399; stroke-width: 2px; visibility: hidden; }
+    .tile.dead .bbox-overlay, .tile.stale .bbox-overlay { display: none; }
+
+    /* --- Bottom-trailing thumb-arc cluster (UXT-01 reachability): undo + score form, safe-area
+       padded so it clears the home indicator. --- */
+    .cluster-bottom { margin-top: 24px;
+                      padding-bottom: env(safe-area-inset-bottom, 0px);
+                      padding-right: env(safe-area-inset-right, 0px); }
+    /* Rilascia (auto) = the large always-visible undo for an accidental tap-to-force (≥48px). */
+    #rilascia { min-height: 48px; min-width: 48px; font-size: 1rem; margin-top: 16px; }
   </style>
 </head>
 <body>
   <h1>Segugio — Console Regia</h1>
 
-  <!-- (0) MULTIVIEW — live grid ON TOP (D-06): one display-only tile per camera, on-air marked
-       LIVE (red border + badge + banner), dead/stale tiles marked MORTO. Tiles are STRICTLY
-       display-only (D-07) — the text override buttons below stay the override control. -->
+  <!-- D-03 minimal ON AIR banner (top, always visible). -->
   <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
-  <div class="multiview" id="multiview">
-    {% for cam in cam_ids %}
-    <div class="tile" id="tile-{{ cam }}"><img id="img-{{ cam }}" alt="{{ cam }}"><span class="badge" id="badge-{{ cam }}">{{ cam }}</span></div>
-    {% endfor %}
+
+  <!-- (D-01) two-region landscape layout: dominant multiview grid LEFT, fixed sidebar RIGHT.
+       Below tablet width the sidebar reflows BELOW the grid (single column). -->
+  <div class="layout">
+
+    <!-- MULTIVIEW (left, dominant). Each tile is role="button" = the whole-tile force control
+         (D-02): one click POSTs /command {force_cam} immediately, no dialog. Tiles carry the 5
+         D-04 states + a per-tile dog-lock bbox SVG (WHY-03, zero JS letterbox math). -->
+    <div class="multiview" id="multiview">
+      {% for cam in cam_ids %}
+      <div class="tile" id="tile-{{ cam }}" role="button" aria-pressed="false" data-cam="{{ cam }}" tabindex="0">
+        <img id="img-{{ cam }}" alt="{{ cam }}">
+        <svg class="bbox-overlay" id="bbox-{{ cam }}" viewBox="0 0 1 1" preserveAspectRatio="xMidYMid meet">
+          <rect class="bbox-rect" id="rect-{{ cam }}" vector-effect="non-scaling-stroke" x="0" y="0" width="0" height="0"></rect>
+        </svg>
+        <span class="badge" id="badge-{{ cam }}">{{ cam }}</span>
+        <span class="ribbon" id="ribbon-{{ cam }}">🔒 FORZATA</span>
+        <span class="auto-tag" id="autotag-{{ cam }}">▸ auto →</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- SIDEBAR (right). Five content blocks in the D-01 order: Reason → Leaderboard →
+         Auto-wants → Switch-history → Score form. The first four are SCAFFOLD containers here
+         (empty), filled by 09-03/09-04; the score form + run + status + undo move in now. -->
+    <aside class="sidebar" id="sidebar">
+
+      <!-- (1) Reason (WHY-01) — scaffold, filled 09-03 -->
+      <section class="sidebar-block">
+        <h2>Motivo</h2>
+        <div id="reason">In attesa…</div>
+      </section>
+
+      <!-- (2) Score leaderboard (WHY-02) — scaffold, filled 09-03 -->
+      <section class="sidebar-block">
+        <h2>Punteggi framing</h2>
+        <div id="leaderboard" class="tabular">Nessun dato di framing</div>
+      </section>
+
+      <!-- (3) Auto-wants hint (WHY-04) — scaffold, filled 09-03 -->
+      <section class="sidebar-block">
+        <h2>Auto vuole</h2>
+        <div id="auto-wants">—</div>
+      </section>
+
+      <!-- (4) Switch-history strip (MVW-05) — scaffold, filled 09-04 -->
+      <section class="sidebar-block">
+        <h2>Cambi recenti</h2>
+        <div id="switch-history">Nessun cambio recente</div>
+      </section>
+
+      <!-- (5) Score form + run + override undo + live status (bottom-trailing thumb arc). -->
+      <div class="cluster-bottom">
+
+        <!-- SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02) -->
+        <form id="form-score" method="post" action="/score">
+          <fieldset>
+            <legend>Punteggio</legend>
+            <label for="disciplina">Disciplina</label>
+            <select id="disciplina" name="discipline">
+              <option value="disc_tf">Disc — Toss &amp; Fetch</option>
+              <option value="disc_freestyle">Disc — Freestyle</option>
+              <option value="agility">Agility</option>
+            </select>
+
+            <!-- disc Toss & Fetch: prese / zona / totale -->
+            <div class="campi" data-disc="disc_tf">
+              <div class="row">
+                <div><label for="prese">Prese</label><input id="prese" name="prese" type="text" inputmode="numeric" enterkeyhint="next"></div>
+                <div><label for="zona">Zona</label><input id="zona" name="zona" type="text" enterkeyhint="next"></div>
+                <div><label for="totale">Totale</label><input id="totale" name="totale" type="text" inputmode="numeric" enterkeyhint="send"></div>
+              </div>
+            </div>
+
+            <!-- disc Freestyle: nome + timer -->
+            <div class="campi hidden" data-disc="disc_freestyle">
+              <div class="row">
+                <div><label for="nome">Nome</label><input id="nome" name="nome" type="text" enterkeyhint="next"></div>
+                <div><label for="timer">Timer</label><input id="timer" name="timer" type="text" inputmode="decimal" placeholder="mm:ss" enterkeyhint="send"></div>
+              </div>
+              <div class="hint">usa il punto (.) per i decimali</div>
+            </div>
+
+            <!-- agility: tempo vs SCT + faults -->
+            <div class="campi hidden" data-disc="agility">
+              <div class="row">
+                <div><label for="tempo">Tempo</label><input id="tempo" name="tempo" type="text" inputmode="decimal" enterkeyhint="next"></div>
+                <div><label for="sct">SCT</label><input id="sct" name="sct" type="text" inputmode="decimal" enterkeyhint="next"></div>
+                <div><label for="faults">Faults</label><input id="faults" name="faults" type="text" inputmode="numeric" enterkeyhint="send"></div>
+              </div>
+              <div class="hint">usa il punto (.) per i decimali</div>
+            </div>
+
+            <button type="submit">Aggiorna punteggio</button>
+          </fieldset>
+        </form>
+
+        <!-- RUN START/STOP (D-09) -->
+        <fieldset>
+          <legend>Run</legend>
+          <button type="button" data-action="start" class="run-btn">Avvia run</button>
+          <button type="button" data-action="stop" class="run-btn danger">Ferma run</button>
+        </fieldset>
+
+        <!-- OVERRIDE undo (D-03) — the blind per-cam text force buttons are REMOVED; the whole tile
+             is the force control. "Rilascia (auto)" stays the distinct large always-visible undo. -->
+        <fieldset>
+          <legend>Regia</legend>
+          <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
+        </fieldset>
+
+        <!-- LIVE DIRECTOR STATUS read-back (D-11) -->
+        <fieldset>
+          <legend>Stato live</legend>
+          <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
+          <div id="feeds"></div>
+        </fieldset>
+
+      </div>
+    </aside>
   </div>
-
-  <!-- (1) SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02) -->
-  <form id="form-score" method="post" action="/score">
-    <fieldset>
-      <legend>Punteggio</legend>
-      <label for="disciplina">Disciplina</label>
-      <select id="disciplina" name="discipline">
-        <option value="disc_tf">Disc — Toss &amp; Fetch</option>
-        <option value="disc_freestyle">Disc — Freestyle</option>
-        <option value="agility">Agility</option>
-      </select>
-
-      <!-- disc Toss & Fetch: prese / zona / totale -->
-      <div class="campi" data-disc="disc_tf">
-        <div class="row">
-          <div><label for="prese">Prese</label><input id="prese" name="prese" inputmode="numeric"></div>
-          <div><label for="zona">Zona</label><input id="zona" name="zona"></div>
-          <div><label for="totale">Totale</label><input id="totale" name="totale" inputmode="numeric"></div>
-        </div>
-      </div>
-
-      <!-- disc Freestyle: nome + timer -->
-      <div class="campi hidden" data-disc="disc_freestyle">
-        <div class="row">
-          <div><label for="nome">Nome</label><input id="nome" name="nome"></div>
-          <div><label for="timer">Timer</label><input id="timer" name="timer" placeholder="mm:ss"></div>
-        </div>
-      </div>
-
-      <!-- agility: tempo vs SCT + faults -->
-      <div class="campi hidden" data-disc="agility">
-        <div class="row">
-          <div><label for="tempo">Tempo</label><input id="tempo" name="tempo" inputmode="decimal"></div>
-          <div><label for="sct">SCT</label><input id="sct" name="sct" inputmode="decimal"></div>
-          <div><label for="faults">Faults</label><input id="faults" name="faults" inputmode="numeric"></div>
-        </div>
-      </div>
-
-      <button type="submit">Aggiorna punteggio</button>
-    </fieldset>
-  </form>
-
-  <!-- (2) RUN START/STOP (D-09) -->
-  <fieldset>
-    <legend>Run</legend>
-    <button type="button" data-action="start" class="run-btn">Avvia run</button>
-    <button type="button" data-action="stop" class="run-btn danger">Ferma run</button>
-  </fieldset>
-
-  <!-- (3) OVERRIDE — Forza / Rilascia (D-10). Each button = EITHER a force OR a release. -->
-  <fieldset>
-    <legend>Regia</legend>
-    {% for cam in cam_ids %}
-    <button type="button" class="force-btn" data-cam="{{ cam }}">Forza {{ cam }}</button>
-    {% endfor %}
-    <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
-  </fieldset>
-
-  <!-- (4) LIVE DIRECTOR STATUS read-back (D-11) -->
-  <fieldset>
-    <legend>Stato live</legend>
-    <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
-    <div id="feeds"></div>
-  </fieldset>
 
   <script>
     // --- discipline selector toggles the matching field set (SCR-02) ---
@@ -135,9 +263,6 @@
     }
 
     // --- score form: post only the visible discipline's fields (WR-05) ---
-    // FormData includes display:none inputs, so the hidden disciplines' empty fields would also be
-    // posted. Build the body explicitly: the discipline + ONLY the inputs inside the .campi block
-    // matching the selected discipline (the one that is not .hidden).
     document.getElementById("form-score").addEventListener("submit", e => {
       e.preventDefault();
       const data = { discipline: sel.value };
@@ -154,27 +279,81 @@
     document.querySelectorAll(".run-btn").forEach(b =>
       b.addEventListener("click", () => post("/run", { action: b.dataset.action })));
 
-    // --- override: a force sends ONLY force_cam; Rilascia sends ONLY release (never both, D-10) ---
-    document.querySelectorAll(".force-btn").forEach(b =>
-      b.addEventListener("click", () => post("/command", { force_cam: b.dataset.cam })));
+    // --- multiview cam id set (from the SERVER's configured whitelist, WR-01) ---
+    const CAMS = {{ cam_ids | tojson }};
+    const CAM_LABEL = Object.fromEntries(CAMS.map(c => [c, c]));
+
+    // --- Override gesture (MVW-04, D-02/D-03): the WHOLE TILE is the force control. A standard
+    //     `click` on a tile POSTs /command {force_cam} IMMEDIATELY (no dialog). We bind ONLY the
+    //     standard `click` event — the synthetic touch-event click handlers are intentionally NOT
+    //     used (they double-fire live actions on current iOS — T-09-02-03 / UI-RESEARCH §3).
+    //     "Rilascia (auto)" is the large always-visible undo. ---
+    function forceCam(cam) { post("/command", { force_cam: cam }); }
+    CAMS.forEach(cam => {
+      const tile = document.getElementById("tile-" + cam);
+      if (tile) tile.addEventListener("click", () => forceCam(cam));   // `click` ONLY
+    });
     document.getElementById("rilascia").addEventListener("click", () =>
       post("/command", { release: "1" }));
 
-    // --- multiview: cam id set (rendered from the SERVER's configured whitelist, WR-01) +
-    //     freshness state. CAMS now tracks the same cam_ids the preview route honours, so a
-    //     non-default rig (3 cams, ids like cam_a/cam_b) renders the right tiles + force buttons. ---
-    const CAMS = {{ cam_ids | tojson }};
-    const CAM_LABEL = Object.fromEntries(CAMS.map(c => [c, c]));
-    // WR-02: seed lastGenAt to load time (NOT epoch 0) so the first markTiles() call — which runs
-    // from the immediate pollStatus() BEFORE the first pollPreview() lands a gen — does not compute
-    // an enormous Date.now()-0 staleness and falsely paint every tile MORTO on first paint.
-    let lastGen = -1, lastGenAt = Date.now();
-    const PUBLISH_MS = 200;               // ~5 fps publish cadence
-    const STALE_MS = PUBLISH_MS * 3;      // gen not advancing within ~2-3x → whole-channel stale (D-05)
+    // --- Tile state dispatcher (D-04): toggle exactly the 5 grayscale-safe states + badge text. ---
+    // states: "live" (auto, green ●) | "forzata" (override, amber 🔒 + ribbon) | "auto-wants"
+    // (dashed blue ▸) | "dead" (MORTO dim/desaturate ✕) | "stale" (frozen) | "idle" (cam id).
+    function setTileState(cam, state) {
+      const tile = document.getElementById("tile-" + cam);
+      const badge = document.getElementById("badge-" + cam);
+      if (!tile || !badge) return;
+      const live = state === "live";
+      const forzata = state === "forzata";
+      const wants = state === "auto-wants";
+      const dead = state === "dead";
+      const stale = state === "stale";
+      tile.classList.toggle("live", live);
+      tile.classList.toggle("forzata", forzata);
+      tile.classList.toggle("auto-wants", wants);
+      tile.classList.toggle("dead", dead);
+      tile.classList.toggle("stale", stale);
+      // aria-pressed reflects the forced state (the tile is a toggle-like force control).
+      tile.setAttribute("aria-pressed", forzata ? "true" : "false");
+      badge.classList.toggle("live", live);
+      badge.classList.toggle("forzata", forzata);
+      badge.classList.toggle("dead", dead);
+      badge.textContent = dead ? "MORTO"
+        : forzata ? "🔒 FORZATA"
+        : live ? "● LIVE"
+        : stale ? "STALE"
+        : CAM_LABEL[cam];
+    }
 
-    // Flicker-free refresh: preload off-DOM via new Image(), swap on onload (MVW-01 — browser-native
-    // double-buffer, no blob-URL leak). ?t=<gen> changes ONLY on a genuine new frame (Open Q #2),
-    // saving bytes on contended WiFi.
+    // --- Dog-lock bbox overlay (WHY-03): zero JS letterbox math. The SVG unit viewBox +
+    //     meet preserveAspectRatio letterboxes identically to the <img> object-fit:contain,
+    //     so the normalized box=[cx,cy,w,h] is a plain rect. box=null/None → draw nothing. The tile
+    //     CSS hides the whole overlay on .stale/.dead. ---
+    function updateBbox(cam, box) {
+      const rect = document.getElementById("rect-" + cam);
+      if (!rect) return;
+      if (!Array.isArray(box) || box.length !== 4) {
+        rect.style.visibility = "hidden";   // subject not locked this tick → draw nothing
+        return;
+      }
+      const cx = box[0], cy = box[1], w = box[2], h = box[3];
+      rect.setAttribute("x", cx - w / 2);
+      rect.setAttribute("y", cy - h / 2);
+      rect.setAttribute("width", w);
+      rect.setAttribute("height", h);
+      rect.style.visibility = "visible";
+    }
+
+    // WR-02: seed lastGenAt to load time (NOT epoch 0) so the first markTiles() call does not
+    // compute an enormous Date.now()-0 staleness and falsely paint every tile MORTO on first paint.
+    let lastGen = -1, lastGenAt = Date.now();
+    let lastAutoCandidate = "SAFE";   // /preview auto_candidate — the cam auto WANTS this tick
+    const PUBLISH_MS = 200;            // ~5 fps publish cadence
+    const STALE_MS = PUBLISH_MS * 3;   // gen not advancing within ~2-3x → whole-channel stale (D-05)
+
+    // Flicker-free refresh: preload off-DOM via new Image(), swap on onload. ?t=<gen> changes ONLY
+    // on a genuine new frame (Open Q #2), saving bytes on contended WiFi. (UXT-03 persistent-img +
+    // decode()-before-swap hygiene is finalized in 09-03; this plan keeps the persistent <img>.)
     function refreshTile(cam, gen) {
       const img = new Image();
       img.onload = () => { document.getElementById("img-" + cam).src = img.src; };
@@ -185,37 +364,43 @@
       try {
         const r = await fetch("/preview");
         const p = await r.json();
+        lastAutoCandidate = p.auto_candidate || "SAFE";
         if (p.gen !== lastGen) {          // refresh tiles ONLY on a new frame
           lastGen = p.gen;
           lastGenAt = Date.now();
           CAMS.forEach(c => refreshTile(c, p.gen));
+          // WHY-03: update each tile's bbox geometry ONLY on a gen advance (1–4 Hz). cams[id].box
+          // is [cx,cy,w,h] normalized or null; the data wiring is finalized in 09-03's preview loop.
+          const cams = p.cams || {};
+          CAMS.forEach(c => updateBbox(c, (cams[c] || {}).box));
         }
       } catch (e) { /* coast — a poll error never breaks the page */ }
     }
     setInterval(pollPreview, PUBLISH_MS);
 
-    // LIVE/MORTO marking driven by /status (live_cam + alive) and gen-freshness (D-04
-    // belt-and-suspenders: alive==false OR whole-channel stale → MORTO).
+    // Drive the 5 tile states from /status (live_cam + reason + alive) and gen-freshness (D-04
+    // belt-and-suspenders: alive==false OR whole-channel stale → MORTO). FORZATA when the live cam
+    // is an operator override; LIVE (green) only for an auto-selected live cam.
     function markTiles(status) {
       // WR-02: "no gen seen yet" (lastGen < 0) is NOT stale — staleness only means a gen WAS
       // advancing and then stopped, not that the first frame simply hasn't arrived.
       const stale = lastGen >= 0 && (Date.now() - lastGenAt) > STALE_MS;
+      const overriding = status.reason === "override";
       CAMS.forEach(cam => {
-        const tile = document.getElementById("tile-" + cam);
-        // WR-03: a liveness signal must FAIL SAFE — a missing/non-true alive entry is treated as
-        // dead, never silently shown healthy. A cam the orchestrator does not report on (subset
-        // publish, or an id mismatch) is MORTO, not "unknown === false → alive".
+        // WR-03: a liveness signal must FAIL SAFE — a missing/non-true alive entry is dead.
         const aliveKnown = status.alive && Object.prototype.hasOwnProperty.call(status.alive, cam);
-        const dead = (aliveKnown ? status.alive[cam] !== true : true) || stale;
-        const live = cam === status.live_cam && !dead;
-        tile.classList.toggle("live", live);   // MVW-02 red border
-        tile.classList.toggle("dead", dead);   // MVW-03
-        const badge = document.getElementById("badge-" + cam);
-        badge.classList.toggle("live", live);
-        badge.classList.toggle("dead", dead);
-        badge.textContent = dead ? "MORTO" : (live ? "LIVE" : CAM_LABEL[cam]);
+        const dead = (aliveKnown ? status.alive[cam] !== true : true);
+        const isLiveCam = cam === status.live_cam && !dead && !stale;
+        let state;
+        if (dead) state = "dead";
+        else if (stale) state = "stale";
+        else if (isLiveCam && overriding) state = "forzata";     // FORZATA vs LIVE distinct (D-04)
+        else if (isLiveCam) state = "live";
+        else if (overriding && cam === lastAutoCandidate) state = "auto-wants";  // WHY-04
+        else state = "idle";
+        setTileState(cam, state);
       });
-      // D-03 minimal banner (NOT the plain-Italian reason — that is Phase 9 WHY-01).
+      // D-03 minimal banner (NOT the plain-Italian reason — that is 09-03 WHY-01).
       document.getElementById("onair-cam").textContent = status.live_cam || "—";
     }
 
@@ -234,7 +419,7 @@
           span.textContent = cam + ": " + (ok ? "vivo" : "morto");
           feeds.appendChild(span);
         });
-        markTiles(s);   // drive the multiview LIVE/MORTO marking from the same status poll
+        markTiles(s);   // drive the multiview 5-state marking from the same status poll
       } catch (e) { /* coast — a poll error never breaks the page */ }
     }
     pollStatus();

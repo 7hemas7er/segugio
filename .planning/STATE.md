@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: — Console Regia
 status: planning
 stopped_at: Phase 7 context gathered
-last_updated: "2026-06-13T09:23:12.130Z"
+last_updated: "2026-06-13T11:11:47.508Z"
 last_activity: 2026-06-13 — v1.1 roadmap created (Phases 7–9 appended; 16/16 v1.1 reqs mapped)
 progress:
   total_phases: 9

@@ -288,7 +288,7 @@ Plans:
 
 **Wave 1** *(parallel — zero file overlap: 09-01 touches app.py + tests, 09-02 touches console.html + tests)*
 
-- [ ] 09-01-PLAN.md — Backend enablers: GET /preview exposes the cuts ring (MVW-05) + a pure POST /score/preview drift-guard render route + Wave-0 byte-parity reference; crash-isolation re-asserted [Wave 1]
+- [x] 09-01-PLAN.md — Backend enablers: GET /preview exposes the cuts ring (MVW-05) + a pure POST /score/preview drift-guard render route + Wave-0 byte-parity reference; crash-isolation re-asserted [Wave 1]
 - [ ] 09-02-PLAN.md — Console shell: tablet-first landscape multiview+sidebar layout, touch/viewport contract, palette/typography migration, 5 grayscale-safe tile states, tap-to-force gesture (blind buttons removed), dog-lock bbox SVG scaffold (UXT-01, MVW-04, WHY-03) [Wave 1]
 
 **Wave 2** *(blocked on 09-02 — same file console.html)*
@@ -314,4 +314,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
 | 7. Off-tick Frame-Publishing Channel | 4/4 | Complete   | 2026-06-13 |
 | 8. Console Serving, Live Multiview & Safety Hardening | 3/3 | Complete    | 2026-06-13 |
-| 9. Explainability, Informed Override & Tablet UX | 0/? | Not started | - |
+| 9. Explainability, Informed Override & Tablet UX | 1/4 | In progress | - |

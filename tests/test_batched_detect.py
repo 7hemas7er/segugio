@@ -130,3 +130,85 @@ def test_dead_slot_padded_for_static_batch() -> None:
     # the dead camera maps to no-detection (coast), never raising
     assert out["cam_b"] is None
     assert trackers["cam_b"].update_calls == []
+
+
+# --------------------------------------------------------------------------- #
+# Task 1 (06-02) — FP16: half=True threads into the SINGLE batched predict forward
+# --------------------------------------------------------------------------- #
+
+
+def test_use_fp16_true_threads_half_into_predict() -> None:
+    """``use_fp16=True`` passes ``half=True`` into the single batched ``model.predict`` call."""
+    cam_ids = ["cam_a", "cam_b", "cam_c", "cam_d"]
+    model, trackers = _setup(cam_ids)
+    frames_by_cam = {cid: _blank() for cid in cam_ids}
+
+    batched_detect_dispatch(
+        model, frames_by_cam, trackers, dog_idx=16, tick=0, use_fp16=True
+    )
+
+    assert len(model.predict_calls) == 1
+    kwargs = model.predict_calls[0]["kwargs"]
+    assert kwargs.get("half") is True
+
+
+def test_use_fp16_default_omits_half_or_false() -> None:
+    """The default (``use_fp16`` unset / False) keeps the FP32 forward — ``half`` is False.
+
+    The default behavior is unchanged: the single predict forward runs ``half=False`` (FP32).
+    """
+    cam_ids = ["cam_a", "cam_b"]
+    model, trackers = _setup(cam_ids)
+    frames_by_cam = {cid: _blank() for cid in cam_ids}
+
+    # No use_fp16 arg → default FP32.
+    batched_detect_dispatch(model, frames_by_cam, trackers, dog_idx=16, tick=0)
+
+    assert len(model.predict_calls) == 1
+    assert model.predict_calls[0]["kwargs"].get("half") is False
+
+    # Explicit use_fp16=False → also FP32.
+    model2, trackers2 = _setup(cam_ids)
+    batched_detect_dispatch(
+        model2, frames_by_cam, trackers2, dog_idx=16, tick=0, use_fp16=False
+    )
+    assert model2.predict_calls[0]["kwargs"].get("half") is False
+
+
+def test_end2end_false_preserved_on_batched_path() -> None:
+    """The batched forward keeps ``end2end=False`` + ``classes=[dog_idx]`` (native ReID engageable).
+
+    ``end2end=False`` keeps the eager model exposing the in-graph Detect head so native-feature
+    BoT-SORT ReID stays engageable even under FP16 — the whole point of the cheap rung.
+    """
+    cam_ids = ["cam_a", "cam_b", "cam_c", "cam_d"]
+    model, trackers = _setup(cam_ids)
+    frames_by_cam = {cid: _blank() for cid in cam_ids}
+
+    batched_detect_dispatch(
+        model, frames_by_cam, trackers, dog_idx=7, tick=0, use_fp16=True
+    )
+
+    kwargs = model.predict_calls[0]["kwargs"]
+    assert kwargs.get("end2end") is False  # native-ReID-engageable head preserved under FP16
+    assert kwargs.get("classes") == [7]  # dog-only, resolved-by-name index threaded through
+
+
+def test_fp16_isolation_still_holds() -> None:
+    """#13107 isolation + coast hold WITH half=True (each tracker updated once, dead slot coasts)."""
+    cam_ids = ["cam_a", "cam_b", "cam_c", "cam_d"]
+    model, trackers = _setup(cam_ids)
+    frames_by_cam = {"cam_a": _blank(), "cam_b": None, "cam_c": _blank(), "cam_d": _blank()}
+
+    out = batched_detect_dispatch(
+        model, frames_by_cam, trackers, dog_idx=16, tick=3, use_fp16=True
+    )
+
+    assert len(model.predict_calls) == 1
+    assert model.predict_calls[0]["n_frames"] == 4  # static batch padded under FP16 too
+    # cam_b coasts; the live cameras each updated exactly once with only their own detections
+    assert out["cam_b"] is None
+    assert trackers["cam_b"].update_calls == []
+    for cid in ("cam_a", "cam_c", "cam_d"):
+        assert len(trackers[cid].update_calls) == 1
+        assert trackers[cid].update_calls[0].cam_id == cid

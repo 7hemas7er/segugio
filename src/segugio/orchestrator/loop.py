@@ -424,9 +424,10 @@ class Orchestrator:
     def _read_run_and_override(self):
         """Read the run-state + override command at the channel boundary (never raises).
 
-        Returns ``(run, override, just_started)``. The channel's ``read_*`` absorb malformed /
-        absent files (return last-good/default), so this is exception-free by construction
-        (RBT-04 / threat T-05-06-02).
+        Returns ``(run, override)`` — a 2-tuple. (``just_started`` is NOT returned separately;
+        the caller reads ``run.just_started`` off the returned ``run`` record.) The channel's
+        ``read_*`` absorb malformed / absent files (return last-good/default), so this is
+        exception-free by construction (RBT-04 / threat T-05-06-02).
         """
         run = read_runstate(self._runstate_path)
         cmd = read_command(self._cmd_path)

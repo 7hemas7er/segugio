@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### Milestone v1.1 — Console Regia (live visibility)
 
-- [ ] **Phase 7: Off-tick Frame-Publishing Channel** - The GATING foundation for every v1.1 visual feature: an orchestrator-side `PreviewPublisher` daemon thread + `atomic_write_bytes` + `preview.json` sidecar publish downscaled per-camera JPEG thumbnails and the per-camera "why" data off the director's critical tick — proven not to regress RBT-05 and to keep the console crash-isolated (PRV-01/02/03)
+- [x] **Phase 7: Off-tick Frame-Publishing Channel** - The GATING foundation for every v1.1 visual feature: an orchestrator-side `PreviewPublisher` daemon thread + `atomic_write_bytes` + `preview.json` sidecar publish downscaled per-camera JPEG thumbnails and the per-camera "why" data off the director's critical tick — proven not to regress RBT-05 and to keep the console crash-isolated (PRV-01/02/03) (completed 2026-06-13)
 - [ ] **Phase 8: Console Serving, Live Multiview & Safety Hardening** - The console consumes the channel: a responsive multiview grid of all cameras with LIVE/tally and dead-feed marking, plus the `threaded=True`/Waitress server fix (override POSTs never blocked — a safety control), a preview-bandwidth cap so the preview degrades before NDI feeds, and a written threat re-evaluation now that competitor video sits behind the endpoint (MVW-01/02/03, UXT-02)
 - [ ] **Phase 9: Explainability, Informed Override & Tablet UX** - The "e perché" layer + informed override + tablet polish: per-camera score bars, plain-Italian reason, dog-lock bbox overlay, "auto wants vs aired" hint, switch-history strip, live score-overlay preview, clickable-tile overrides, tablet-first responsive restyle, and long-run leak/sleep/freshness hygiene (MVW-04/05, WHY-01/02/03/04, SCV-01, UXT-01/03)
 
@@ -242,7 +242,7 @@ Plans:
 
 **Wave 3** *(blocked on 07-03)*
 
-- [ ] 07-04-PLAN.md — Wire into the real run path: guarded offer() in _tick_once + cuts ring + frames_by_cam surface + runtime preview_factory/preview dir + HARD GATE 1 (RBT-05 unchanged with preview ON) (D-06/D-08/D-09) [Wave 3]
+- [x] 07-04-PLAN.md — Wire into the real run path: guarded offer() in _tick_once + cuts ring + frames_by_cam surface + runtime preview_factory/preview dir + HARD GATE 1 (RBT-05 unchanged with preview ON) (D-06/D-08/D-09) [Wave 3]
 
 ### Phase 8: Console Serving, Live Multiview & Safety Hardening
 
@@ -289,6 +289,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
 | 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
-| 7. Off-tick Frame-Publishing Channel | 3/4 | In Progress|  |
+| 7. Off-tick Frame-Publishing Channel | 4/4 | Complete   | 2026-06-13 |
 | 8. Console Serving, Live Multiview & Safety Hardening | 0/? | Not started | - |
 | 9. Explainability, Informed Override & Tablet UX | 0/? | Not started | - |

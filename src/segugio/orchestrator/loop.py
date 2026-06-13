@@ -51,6 +51,7 @@ implementations (the real ``FrameSource`` / ``ObsController`` / ``PerCameraTrack
 
 from __future__ import annotations
 
+import collections
 import time
 from typing import TYPE_CHECKING
 
@@ -138,6 +139,7 @@ class Orchestrator:
         action_hold,
         channel_paths,
         trackers,
+        preview=None,
     ) -> None:
         self.config = config
         self.cameras = list(config.cameras)
@@ -148,6 +150,11 @@ class Orchestrator:
         self.watchdog = watchdog
         self.action_hold = action_hold
         self.trackers = dict(trackers)
+        # The off-tick preview publisher (Phase 7, D-02/D-06). None when preview is disabled —
+        # in which case EVERY new tick-path call below is skipped and the loop is byte-identical
+        # to v1.0 (no offer(), no cuts ring feed, no start/stop). The tick NEVER waits on it: the
+        # guarded offer() is a single locked mailbox assignment that rides inside the RBT-04 try.
+        self._preview = preview
 
         # Operator↔system file paths (str so the channel's open() is happy on any Path type).
         self._cmd_path = str(channel_paths["command"])
@@ -172,6 +179,11 @@ class Orchestrator:
         self._dog_idx_resolved: set = set()
         self._last_status: DirectorStatus | None = None  # write-on-change (D-11)
 
+        # The D-08 recent-cuts ring (Pitfall 5): the orchestrator OWNS the cut history (not the
+        # publisher) so a DROPPED preview frame never loses a cut. Bounded at 16 — appended at the
+        # _apply target-change edge, snapshotted into each offer(). maxlen makes it self-evicting.
+        self._cuts_ring: collections.deque = collections.deque(maxlen=16)
+
         # Latency probe accumulator (RBT-05) — additive; never changes pipeline logic.
         self._latency: dict[str, list[float]] = {s: [] for s in _LATENCY_STAGES}
         self._latency_total: list[float] = []
@@ -188,6 +200,7 @@ class Orchestrator:
         trackers,
         fps: float = 30.0,
         grace: float | None = None,
+        preview=None,
     ) -> "Orchestrator":
         """Build the scorer/engine/watchdog/deriver from ``config`` and return an Orchestrator.
 
@@ -235,6 +248,7 @@ class Orchestrator:
             action_hold=deriver,
             channel_paths=channel_paths,
             trackers=trackers,
+            preview=preview,
         )
 
     # ----- the per-camera fan-out (eval.py:321-348) ------------------------- #
@@ -255,8 +269,10 @@ class Orchestrator:
             hasattr(t, "model") and hasattr(t, "update") for t in self.trackers.values()
         )
 
-    def _fan_out(self, tick: int) -> "tuple[dict, float]":
-        """Run the per-camera inference→signals→lock→gate chain → (dets_by_cam, locked_energy).
+    def _fan_out(self, tick: int) -> "tuple[dict, float, dict]":
+        """Run the per-camera inference→signals→lock→gate chain.
+
+        Returns ``(dets_by_cam, locked_energy, frames_by_cam)``.
 
         Two inference shapes, the SAME downstream chain:
           * BATCHED (Track-B, the FP16 latency path): when every tracker exposes ``.model`` +
@@ -273,12 +289,16 @@ class Orchestrator:
         the dog-index-by-name resolve (CR-02), the CR-01 gate-reset-only-on-genuine-reacquire
         rule, the per-camera degrade-to-None coast (RBT-04), and the locked-energy max are
         preserved verbatim. Returns the per-camera ``DetectionSignal | None`` map (the
-        ``MultiCamScorer.update`` consumer shape) AND the LOCKED subject's motion energy.
+        ``MultiCamScorer.update`` consumer shape), the LOCKED subject's motion energy, AND the
+        per-camera raw frames (``frames_by_cam``) surfaced from whichever inference path ran —
+        so the guarded preview ``offer()`` reuses the frames the tick already pulled and does NOT
+        call ``source.latest()`` a second time (a second pull could return a DIFFERENT frame and
+        costs another lock; RESEARCH L376-380). ``frames_by_cam`` is ``{cam_id: frame|None}``.
         """
         if self._supports_batched():
-            results_by_cam = self._batched_inference(tick)
+            results_by_cam, frames_by_cam = self._batched_inference(tick)
         else:
-            results_by_cam = self._serial_inference(tick)
+            results_by_cam, frames_by_cam = self._serial_inference(tick)
 
         dets_by_cam: dict = {}
         locked_energy = 0.0
@@ -304,7 +324,7 @@ class Orchestrator:
             energy = self.locks[cam_id].locked_motion_energy()
             if energy > locked_energy:
                 locked_energy = energy
-        return dets_by_cam, locked_energy
+        return dets_by_cam, locked_energy, frames_by_cam
 
     def _resolve_dog_idx_once(self, tracker, cam_id: str) -> None:
         """Resolve the dog index BY NAME once per camera before its first inference (CR-02).
@@ -343,27 +363,36 @@ class Orchestrator:
         assert_native_reid_engaged(tracker.model, is_engine=is_engine)
         self._reid_checked = True
 
-    def _serial_inference(self, tick: int) -> dict:
-        """N per-camera ``tracker.track(frame)`` forwards (the legacy / mock-timed path)."""
+    def _serial_inference(self, tick: int) -> "tuple[dict, dict]":
+        """N per-camera ``tracker.track(frame)`` forwards (the legacy / mock-timed path).
+
+        Returns ``(results_by_cam, frames_by_cam)`` — ``frames_by_cam`` captures the SAME frame
+        each tracker.track(frame) saw (the single source.latest pull), so the preview offer reuses
+        it with NO second source.latest() call (RESEARCH L376-380).
+        """
         results_by_cam: dict = {}
+        frames_by_cam: dict = {}
         for cam in self.cameras:
             cam_id = cam.id
             tracker = self.trackers[cam_id]
             frame = self.source.latest(cam_id)  # newest BGR frame, or None → coast
+            frames_by_cam[cam_id] = frame
             self._resolve_dog_idx_once(tracker, cam_id)
             results = tracker.track(frame)  # None on a blank/decode-failure frame → coast
             self._maybe_reid_gate(tracker, ran_inference=results is not None)
             results_by_cam[cam_id] = results
-        return results_by_cam
+        return results_by_cam, frames_by_cam
 
-    def _batched_inference(self, tick: int) -> dict:
+    def _batched_inference(self, tick: int) -> "tuple[dict, dict]":
         """ONE batched FP16 detection forward → N per-camera ``tracker.update()`` dispatches.
 
         Gathers ``source.latest(cam_id)`` for every camera, sources the ONE shared detection
         model from any per-camera tracker's ``.model`` (they share the weights), resolves the
         dog index by name once, runs :func:`batched_detect_dispatch` ONCE
         (``half=config.model.use_fp16``, ``end2end=False``), then runs the HARD ReID gate once.
-        Never passes a frame list to ``model.track()`` (#13107). Returns ``{cam_id: Results|None}``.
+        Never passes a frame list to ``model.track()`` (#13107). Returns
+        ``(results_by_cam, frames_by_cam)`` — ``frames_by_cam`` is the SAME single-pull dict the
+        batched forward consumed, surfaced for the preview offer (no second source.latest()).
         """
         from ..tracking.batched import batched_detect_dispatch
 
@@ -388,7 +417,7 @@ class Orchestrator:
         # The HARD ReID gate ONCE, after a tick that ACTUALLY ran inference (any live result).
         ran_inference = any(r is not None for r in results_by_cam.values())
         self._maybe_reid_gate(any_tracker, ran_inference=ran_inference)
-        return results_by_cam
+        return results_by_cam, frames_by_cam
 
     # ----- per-tick orchestration ------------------------------------------- #
 
@@ -455,17 +484,33 @@ class Orchestrator:
         # renders it as "SAFE"), which the existing status tests assert.
         return DirectorStatus(live_cam=target, reason=reason, alive=dict(alive))
 
-    def _apply(self, decision, alive) -> None:
+    def _apply(self, decision, alive, tick: int = 0) -> None:
         """Cut OBS to the decision's scene + write the D-11 status on change (never raises here).
 
         ``scene_for`` maps the target (SAFE sentinel → the is_safe camera's obs_scene) to the OBS
         scene; the cut is attempted inside the caller's try/except so a websocket drop coasts.
         The status write is atomic and only happens when the status actually CHANGED (D-11).
+
+        D-08 cuts ring (Pitfall 5): when the status changed AND the LIVE target moved to a
+        different camera, append ``{tick, from, to, reason}`` to ``self._cuts_ring`` (the
+        orchestrator-owned cut history, snapshotted into each preview offer). The ring is fed here
+        — at the same change edge that writes the status — so a dropped preview frame never loses
+        a cut. The previous live cam is read from ``self._last_status`` BEFORE it is reassigned.
         """
         scene = scene_for(decision, self.cameras)
         self.obs.cut(scene)
         status = self._status_for(decision, alive)
         if status != self._last_status:
+            prev_live = self._last_status.live_cam if self._last_status is not None else None
+            if status.live_cam != prev_live:
+                self._cuts_ring.append(
+                    {
+                        "tick": tick,
+                        "from": prev_live,
+                        "to": status.live_cam,
+                        "reason": status.reason,
+                    }
+                )
             write_status(self._status_path, status)
             self._last_status = status
 
@@ -504,7 +549,7 @@ class Orchestrator:
             # time the combined fan-out and attribute it to 'yolo' (the dominant inference cost),
             # recording a nominal 'ingest' separately around the source readiness.
             t0 = time.perf_counter()
-            dets_by_cam, locked_energy = self._fan_out(tick)
+            dets_by_cam, locked_energy, frames_by_cam = self._fan_out(tick)
             t_fan = time.perf_counter()
 
             holds = self.action_hold.derive(locked_energy)
@@ -518,7 +563,17 @@ class Orchestrator:
             decision = self._decide(tick, scores, alive, holds, override, run)
             t_fsm = time.perf_counter()
 
-            self._apply(decision, alive)
+            self._apply(decision, alive, tick)
+            # ── D-02/PRV-01: the ONLY hot-path preview touch. A single locked mailbox assignment
+            # (offer never blocks — the publisher's own daemon does all resize/encode/IO off-tick).
+            # It rides INSIDE this RBT-04 try so a publisher fault coasts via the catch below
+            # (the tick still completes and status.json is still written). Guarded by `is not None`
+            # so a disabled publisher (D-06) is byte-identical to v1.0. Reuses frames_by_cam from
+            # the fan-out — NO second source.latest(). cuts is a snapshot of the orchestrator ring.
+            if self._preview is not None:
+                self._preview.offer(
+                    frames_by_cam, scores, dets_by_cam, decision, list(self._cuts_ring)
+                )
             t_obs = time.perf_counter()
 
             if probe is not None:
@@ -574,6 +629,8 @@ class Orchestrator:
         self._stopping = False
         self._safe_startup("source.start", self.source.start)
         self._safe_startup("obs.connect", self.obs.connect)
+        if self._preview is not None:
+            self._safe_startup("preview.start", self._preview.start)
         tick = 0
         try:
             while not self._stopping:
@@ -602,6 +659,8 @@ class Orchestrator:
         self._stopping = False
         self._safe_startup("source.start", self.source.start)
         self._safe_startup("obs.connect", self.obs.connect)
+        if self._preview is not None:
+            self._safe_startup("preview.start", self._preview.start)
         for tick in range(n_ticks):
             # Pump the mock source one emitted frame per tick (no-op for sources without pump).
             pump = getattr(self.source, "pump", None)
@@ -628,6 +687,11 @@ class Orchestrator:
     def shutdown(self) -> None:
         """Cut to SAFE, stop the source, close OBS — the RBT-04 SAFE shutdown (never raises)."""
         self._to_safe(reason="shutdown")
+        if self._preview is not None:
+            try:
+                self._preview.stop()
+            except Exception as exc:  # noqa: BLE001 — teardown must not crash on the publisher
+                logger.warning("preview.stop() coasted: {}", exc)
         try:
             self.source.stop()
         except Exception as exc:  # noqa: BLE001 — teardown must not crash

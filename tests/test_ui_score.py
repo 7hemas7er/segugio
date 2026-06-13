@@ -102,8 +102,8 @@ def test_index_serves_italian_console(client):
     assert "Tempo" in html and "SCT" in html and "Faults" in html
 
 
-def test_app_imports_nothing_heavy(monkeypatch):
-    """segugio.ui.app imports only Flask + segugio.opcomm — no heavy stack.
+def test_app_imports_nothing_heavy(monkeypatch, tmp_path):
+    """HARD GATE 2 (D-09 gate 2): segugio.ui.app imports AND STARTS with no heavy stack.
 
     Robust to a heavy-installed env (the `.[heavy]` venv / the rig): the old check asserted
     `heavy not in sys.modules`, but sys.modules is process-global and the conftest availability
@@ -111,15 +111,34 @@ def test_app_imports_nothing_heavy(monkeypatch):
     stack at collection, so that check fails even though the UI app imports none of it. Instead
     FORCE every heavy dep to raise on import and assert `import segugio.ui.app` STILL succeeds —
     if it reached for any of them it would raise ImportError. (Same pattern as test_imports.py.)
+
+    numpy is in the heavy-block tuple (RESEARCH / Pitfall 2) — without it the gate could pass
+    merely because numpy happens to be installed in the env (a false green); forcing it absent
+    proves the console truly never reaches for it.
+
+    This asserts the console STARTS, not merely imports (D-09 gate 2 = "console starts"): under
+    the heavy-absent block we call create_app(tmp) → a real Flask app → a GET /status that
+    returns 200. A request completing here proves the app started end-to-end with the entire
+    orchestrator stack (ultralytics/torch/numpy/cv2/cyndilib/obsws_python) absent. This LOCKS the
+    clean Flask + segugio.opcomm-only import surface as a regression gate BEFORE Phase 8 widens it
+    with the GET /preview routes (T-07-02-01 / RBT-04 never-crash, high-severity if it regresses).
     """
     import importlib
     import sys
 
-    for heavy in ("ultralytics", "torch", "cyndilib", "obsws_python", "cv2"):
+    for heavy in ("ultralytics", "torch", "cyndilib", "obsws_python", "cv2", "numpy"):
         monkeypatch.setitem(sys.modules, heavy, None)  # importing it now raises ImportError
     # drop any cached UI modules so the import actually re-runs under the block
     for cached in list(sys.modules):
         if cached == "segugio.ui" or cached.startswith("segugio.ui."):
             monkeypatch.delitem(sys.modules, cached, raising=False)
 
-    importlib.import_module("segugio.ui.app")  # must NOT raise — proves no heavy import attempted
+    app_mod = importlib.import_module("segugio.ui.app")  # must NOT raise — no heavy import attempted
+
+    # START-check (not just import): create_app must build a Flask app and serve a request with
+    # the whole heavy stack still absent. /status is the D-11 reverse-channel poll route; it
+    # read_status-safe-defaults to SAFE on the absent file, so it returns 200 without any feed.
+    app = app_mod.create_app(str(tmp_path))
+    client = app.test_client()
+    resp = client.get("/status")
+    assert resp.status_code == 200  # the console STARTED and served under the heavy-absent block

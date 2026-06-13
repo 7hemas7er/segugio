@@ -83,6 +83,10 @@ Progress: [████████░░] 80% (4/5 phases verified-complete)
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 6 added (2026-06-13): Decision-loop latency optimization (TensorRT FP16 export + batched/parallel per-camera inference) to meet RBT-05 <150ms — created from the Phase 05 UAT Test 5 finding (4× yolo26s eager-FP32 measured 231–247ms p95; yolo26n ineffective on GPU). The milestone's latency success criterion is not met until this lands.
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.

@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Decision Engine FSM** - The single source of truth on "which camera is live": hysteresis, dwell, debounce, cooldown, feed-alive guard, action-hold, occlusion-hold, tiebreaker, override + auto-resume (completed 2026-06-09)
 - [x] **Phase 4: YOLO + Per-Camera Tracking on Recorded Clips** - Pre-trained YOLO on CUDA with one BoT-SORT tracker per camera (native ReID), competitor-lock and plausibility gate, validated on the curated clips (completed 2026-06-09)
 - [x] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement (verification 2026-06-11: 4/5 — gaps found, CR-01 startup fault-sink) (completed 2026-06-11)
+- [ ] **Phase 6: Decision-loop latency optimization** - TensorRT FP16 export + batched/parallel per-camera inference to bring the 4-camera decision loop under the <150ms p95 budget (RBT-05). Phase 05 UAT Test 5 measured 231–247ms p95 with eager-FP32 yolo26s (YOLO inference ≈100% of the loop; yolo26n ineffective on GPU) (not started)
 
 ## Phase Details
 
@@ -188,3 +189,14 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
+
+### Phase 6: Decision-loop latency optimization — TensorRT FP16 export + batched/parallel per-camera inference to meet the <150ms budget (RBT-05)
+
+**Goal:** Bring the multi-camera decision loop within the **<150ms p95** budget (target <80ms, RBT-05) on the production CUDA GPU. Phase 05 UAT Test 5 measured the v1 baseline — **4× yolo26s, eager torch FP32, serialized per tick — at 231–247ms p95** (YOLO inference ≈100% of the loop; ingest/score/fsm/obs sum ~0.5ms; ~58–62ms per single serialized inference; **yolo26n does NOT help on GPU**, so the degradation ladder's rung 1 is a dead end). Deliver, with re-measurement after each: (1) **TensorRT FP16 export** of the detector on the exact deploy CUDA/TensorRT combo (the documented prod path — eager FP32 is the slow path); (2) **batch or parallelize the per-camera inferences** (today the loop calls one `model.track()` per camera sequentially); (3) re-run `tests/test_latency.py -m gpu` and confirm p95 < 150ms (4-cam canonical config) on the CUDA env. Treat the existing `_DEGRADATION_LADDER` (fewer cams / lower imgsz·fps) as a last resort only — reducing cameras defeats the multi-cam product. Wiring overhead is already negligible; this phase is purely the inference path.
+**Requirements**: RBT-05 (decision-loop latency p95 < 150ms, target < 80ms — the dominant project risk).
+**Depends on:** Phase 5 (the integrated orchestrator loop + `run_measured` latency harness + the gpu-marked `test_latency.py`)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 6 to break down)

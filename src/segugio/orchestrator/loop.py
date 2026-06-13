@@ -239,38 +239,52 @@ class Orchestrator:
 
     # ----- the per-camera fan-out (eval.py:321-348) ------------------------- #
 
-    def _fan_out(self, tick: int) -> "tuple[dict, float]":
-        """Run the per-camera tracker→signals→lock→gate chain → (dets_by_cam, locked_energy).
+    def _supports_batched(self) -> bool:
+        """True when the per-camera trackers expose the batched-detect dispatch seam.
 
-        Mirrors ``run_clip_eval``'s fan-out EXACTLY, swapping ``frame_crops.get(cam_id)`` for
-        ``self.source.latest(cam_id)``. Preserves the CR-01 gate-reset-only-on-genuine-reacquire
-        rule and the once-before-loop HARD ReID gate (TRK-02). Returns the per-camera
-        ``DetectionSignal | None`` map (the ``MultiCamScorer.update`` consumer shape) AND the
-        LOCKED subject's motion energy (the max over cameras → the D-08 action-hold signal).
+        The Track-B batched path (ONE forward → N ``tracker.update()`` dispatches) needs each
+        tracker to expose a shared ``.model`` (for the single forward) AND an
+        ``.update(detections, frame)`` association entry point. The real ``PerCameraTracker``
+        (06-02) and the headless batched fakes do; the legacy mock-timed ``_FixedCostTracker``
+        (``.track()``-only) does NOT — those fall back to the serial path, keeping the
+        mock-timed wiring/attribution latency tests byte-for-byte green.
         """
+        if not self.trackers:
+            return False
+        return all(
+            hasattr(t, "model") and hasattr(t, "update") for t in self.trackers.values()
+        )
+
+    def _fan_out(self, tick: int) -> "tuple[dict, float]":
+        """Run the per-camera inference→signals→lock→gate chain → (dets_by_cam, locked_energy).
+
+        Two inference shapes, the SAME downstream chain:
+          * BATCHED (Track-B, the FP16 latency path): when every tracker exposes ``.model`` +
+            ``.update`` (``_supports_batched``), run ONE batched detection forward over all
+            camera frames via :func:`batched_detect_dispatch` (``half=config.model.use_fp16``,
+            ``end2end=False`` → native ReID engageable) and dispatch each camera's OWN
+            detections to its OWN persistent tracker (#13107). This collapses the 4 serial
+            ``model.track()`` forwards into 1 — the Wave-1 latency win.
+          * SERIAL (legacy fallback): N per-camera ``tracker.track(frame)`` calls — preserved
+            for the mock-timed latency harness (``_FixedCostTracker``) and any ``.track``-only
+            tracker.
+
+        Either way the once-before-loop HARD ReID gate (TRK-02, now threading ``is_engine``),
+        the dog-index-by-name resolve (CR-02), the CR-01 gate-reset-only-on-genuine-reacquire
+        rule, the per-camera degrade-to-None coast (RBT-04), and the locked-energy max are
+        preserved verbatim. Returns the per-camera ``DetectionSignal | None`` map (the
+        ``MultiCamScorer.update`` consumer shape) AND the LOCKED subject's motion energy.
+        """
+        if self._supports_batched():
+            results_by_cam = self._batched_inference(tick)
+        else:
+            results_by_cam = self._serial_inference(tick)
+
         dets_by_cam: dict = {}
         locked_energy = 0.0
         for cam in self.cameras:
             cam_id = cam.id
-            tracker = self.trackers[cam_id]
-            frame = self.source.latest(cam_id)  # newest BGR frame, or None → coast
-
-            # Resolve the dog index BY NAME once per camera before its first inference (CR-02).
-            # Only for the real tracker (it carries .model + .dog_idx); the headless fakes skip.
-            if cam_id not in self._dog_idx_resolved and hasattr(tracker, "model"):
-                from ..tracking.detector import resolve_dog_index
-
-                tracker.dog_idx = resolve_dog_index(tracker.model, self.config.model.class_index)
-                self._dog_idx_resolved.add(cam_id)
-
-            results = tracker.track(frame)  # None on a blank/decode-failure frame → coast
-
-            # The HARD TRK-02 gate ONCE, only after a warmup that ACTUALLY ran inference.
-            if not self._reid_checked and results is not None and hasattr(tracker, "model"):
-                from ..tracking.reid_check import assert_native_reid_engaged
-
-                assert_native_reid_engaged(tracker.model)  # RAISES on cls fallback (TRK-02)
-                self._reid_checked = True
+            results = results_by_cam.get(cam_id)
 
             # Edge → signals → lock → gate → the per-camera DetectionSignal | None.
             xywhn, ids, confs = _arrays_from_results(results)
@@ -291,6 +305,90 @@ class Orchestrator:
             if energy > locked_energy:
                 locked_energy = energy
         return dets_by_cam, locked_energy
+
+    def _resolve_dog_idx_once(self, tracker, cam_id: str) -> None:
+        """Resolve the dog index BY NAME once per camera before its first inference (CR-02).
+
+        Only for a real tracker (it carries ``.model`` + ``.dog_idx``); headless fakes without a
+        ``.names``-bearing model are tolerated (the resolve is best-effort and skipped on a fake
+        model that has no ``names``).
+        """
+        if cam_id in self._dog_idx_resolved or not hasattr(tracker, "model"):
+            return
+        from ..tracking.detector import resolve_dog_index
+
+        try:
+            tracker.dog_idx = resolve_dog_index(
+                tracker.model, self.config.model.class_index
+            )
+        except (AttributeError, TypeError):
+            # A fake model with no usable ``.names`` — keep the configured index (headless test).
+            pass
+        self._dog_idx_resolved.add(cam_id)
+
+    def _maybe_reid_gate(self, tracker, ran_inference: bool) -> None:
+        """Run the HARD TRK-02 ReID gate ONCE, after a warmup that ACTUALLY ran inference.
+
+        Threads ``is_engine`` (``getattr(tracker, "is_engine", False)``) so the eager ``.pt`` /
+        FP16 path keeps the HARD raise while an engine-backed model (06-03) downgrades to a
+        warning (the gate's own engine-aware logic). Only fires for a real tracker (carrying
+        ``.model``); the headless ``.update``-fake carries a ``.model`` too, so tests stub the
+        gate.
+        """
+        if self._reid_checked or not ran_inference or not hasattr(tracker, "model"):
+            return
+        from ..tracking.reid_check import assert_native_reid_engaged
+
+        is_engine = bool(getattr(tracker, "is_engine", False))
+        assert_native_reid_engaged(tracker.model, is_engine=is_engine)
+        self._reid_checked = True
+
+    def _serial_inference(self, tick: int) -> dict:
+        """N per-camera ``tracker.track(frame)`` forwards (the legacy / mock-timed path)."""
+        results_by_cam: dict = {}
+        for cam in self.cameras:
+            cam_id = cam.id
+            tracker = self.trackers[cam_id]
+            frame = self.source.latest(cam_id)  # newest BGR frame, or None → coast
+            self._resolve_dog_idx_once(tracker, cam_id)
+            results = tracker.track(frame)  # None on a blank/decode-failure frame → coast
+            self._maybe_reid_gate(tracker, ran_inference=results is not None)
+            results_by_cam[cam_id] = results
+        return results_by_cam
+
+    def _batched_inference(self, tick: int) -> dict:
+        """ONE batched FP16 detection forward → N per-camera ``tracker.update()`` dispatches.
+
+        Gathers ``source.latest(cam_id)`` for every camera, sources the ONE shared detection
+        model from any per-camera tracker's ``.model`` (they share the weights), resolves the
+        dog index by name once, runs :func:`batched_detect_dispatch` ONCE
+        (``half=config.model.use_fp16``, ``end2end=False``), then runs the HARD ReID gate once.
+        Never passes a frame list to ``model.track()`` (#13107). Returns ``{cam_id: Results|None}``.
+        """
+        from ..tracking.batched import batched_detect_dispatch
+
+        frames_by_cam = {cam.id: self.source.latest(cam.id) for cam in self.cameras}
+
+        # The ONE shared model + the dog index (resolved by name once, on any tracker's model).
+        any_tracker = next(iter(self.trackers.values()))
+        first_cam = self.cameras[0].id
+        self._resolve_dog_idx_once(any_tracker, first_cam)
+        model = any_tracker.model
+        dog_idx = getattr(any_tracker, "dog_idx", self.config.model.class_index)
+
+        results_by_cam = batched_detect_dispatch(
+            model,
+            frames_by_cam,
+            self.trackers,
+            dog_idx,
+            tick,
+            use_fp16=self.config.model.use_fp16,
+        )
+
+        # The HARD ReID gate ONCE, after a tick that ACTUALLY ran inference (any live result).
+        ran_inference = any(r is not None for r in results_by_cam.values())
+        self._maybe_reid_gate(any_tracker, ran_inference=ran_inference)
+        return results_by_cam
 
     # ----- per-tick orchestration ------------------------------------------- #
 

@@ -151,6 +151,11 @@ class PerCameraTracker:
         self.model = YOLO(str(model_path))  # own predictor.trackers state per camera
         self.dog_idx = int(dog_idx)
         self.use_fp16 = bool(use_fp16)
+        # Eager ``.pt`` is NOT engine-backed — the HARD TRK-02 ReID gate stays a raise (06-02).
+        # The 06-03 engine-backed tracker sets this True so the gate downgrades to a warning.
+        self.is_engine = False
+        # Lazily-built persistent BoT-SORT tracker for the Track-B batched ``update()`` path.
+        self._bot = None
 
     def track(self, frame: "np.ndarray"):
         """Run one persistent track step on a single BGR crop for THIS camera.
@@ -186,3 +191,68 @@ class PerCameraTracker:
             logger.warning("track() degraded a frame to no-detection (coast): {}", exc)
             return None
         return results[0]  # one Results for the single frame
+
+    def _ensure_persistent_tracker(self, frame: "np.ndarray") -> None:
+        """Build THIS camera's persistent BoT-SORT tracker + register the native-ReID hook.
+
+        The Track-B batched path bypasses ``model.track()`` (it runs ONE shared
+        ``model.predict()`` over all cameras), so the per-camera ``predictor.trackers`` +
+        the native-ReID forward hook are never built. We run ONE warmup ``self.track(frame)``
+        here — that registers Ultralytics' Detect forward-pre-hook on the shared model graph
+        (so the subsequent batched ``predict()`` populates ``result.feats`` for native ReID)
+        AND constructs this camera's persistent ``BOTSORT`` in ``predictor.trackers[0]``. We
+        then cache that tracker as ``self._bot`` and drive it directly on later ticks.
+        """
+        if self._bot is not None:
+            return
+        self.track(frame)  # warmup: registers the native-ReID hook + builds predictor.trackers
+        predictor = getattr(self.model, "predictor", None)
+        trackers = getattr(predictor, "trackers", None) if predictor is not None else None
+        if trackers:
+            self._bot = trackers[0]  # this camera's persistent BoT-SORT (one per cam_id)
+
+    def update(self, detections, frame: "np.ndarray"):
+        """Dispatch ONE camera's pre-computed batched detections into its OWN persistent tracker.
+
+        The Track-B association entry point (``loop._batched_inference`` → ``batched.py``): the
+        single shared ``model.predict()`` already ran detection over all cameras; ``detections``
+        is THIS camera's ``Results`` slice. We drive this camera's persistent ``BOTSORT.update``
+        with the detection boxes + the native-ReID ``feats`` carried on the result, then fold the
+        track ids back onto the ``Results`` so the consumer (``_arrays_from_results``) sees
+        confirmed track ids — the SAME shape ``track()`` returns. One tracker per ``cam_id``
+        (#13107); never a frame list to one tracker.
+
+        Fail-safe (RBT-04): any failure (a blank slice, a tracker raise) degrades to ``None``
+        (coast), never a crash.
+
+        Args:
+            detections: this camera's ``Results`` slice from the batched ``model.predict()``.
+            frame: this camera's BGR frame (the tracker's ``img`` for GMC / ReID).
+
+        Returns:
+            The per-camera ``Results`` with track ids folded in, or ``None`` (coast).
+        """
+        if detections is None or frame is None or getattr(frame, "size", 0) == 0:
+            return None
+        try:
+            import torch  # lazy — heavy import inside the method
+
+            self._ensure_persistent_tracker(frame)
+            if self._bot is None:
+                return None
+            boxes = getattr(detections, "boxes", None)
+            if boxes is None:
+                return None
+            det = boxes.cpu().numpy()
+            tracks = self._bot.update(
+                det, frame, getattr(detections, "feats", None)
+            )
+            if len(tracks) == 0:
+                return detections  # no confirmed track this frame → boxes.id stays None → coast
+            idx = tracks[:, -1].astype(int)
+            out = detections[idx]
+            out.update(boxes=torch.as_tensor(tracks[:, :-1]))
+            return out
+        except Exception as exc:  # noqa: BLE001 — live-robustness: one bad camera coasts
+            logger.warning("update() degraded a camera to no-detection (coast): {}", exc)
+            return None

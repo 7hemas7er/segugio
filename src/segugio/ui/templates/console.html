@@ -48,10 +48,9 @@
        display-only (D-07) — the text override buttons below stay the override control. -->
   <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
   <div class="multiview" id="multiview">
-    <div class="tile" id="tile-cam_wide"><img id="img-cam_wide" alt="CAM Wide"><span class="badge" id="badge-cam_wide">CAM Wide</span></div>
-    <div class="tile" id="tile-cam_long"><img id="img-cam_long" alt="CAM Long"><span class="badge" id="badge-cam_long">CAM Long</span></div>
-    <div class="tile" id="tile-cam_low"><img id="img-cam_low" alt="CAM Low"><span class="badge" id="badge-cam_low">CAM Low</span></div>
-    <div class="tile" id="tile-cam_handler"><img id="img-cam_handler" alt="CAM Handler"><span class="badge" id="badge-cam_handler">CAM Handler</span></div>
+    {% for cam in cam_ids %}
+    <div class="tile" id="tile-{{ cam }}"><img id="img-{{ cam }}" alt="{{ cam }}"><span class="badge" id="badge-{{ cam }}">{{ cam }}</span></div>
+    {% endfor %}
   </div>
 
   <!-- (1) SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02) -->
@@ -105,10 +104,9 @@
   <!-- (3) OVERRIDE — Forza / Rilascia (D-10). Each button = EITHER a force OR a release. -->
   <fieldset>
     <legend>Regia</legend>
-    <button type="button" class="force-btn" data-cam="cam_wide">Forza CAM Wide</button>
-    <button type="button" class="force-btn" data-cam="cam_long">Forza CAM Long</button>
-    <button type="button" class="force-btn" data-cam="cam_low">Forza CAM Low</button>
-    <button type="button" class="force-btn" data-cam="cam_handler">Forza CAM Handler</button>
+    {% for cam in cam_ids %}
+    <button type="button" class="force-btn" data-cam="{{ cam }}">Forza {{ cam }}</button>
+    {% endfor %}
     <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
   </fieldset>
 
@@ -162,11 +160,15 @@
     document.getElementById("rilascia").addEventListener("click", () =>
       post("/command", { release: "1" }));
 
-    // --- multiview: cam id set (same as the override buttons) + freshness state ---
-    const CAMS = ["cam_wide", "cam_long", "cam_low", "cam_handler"];
-    const CAM_LABEL = { cam_wide: "CAM Wide", cam_long: "CAM Long",
-                        cam_low: "CAM Low", cam_handler: "CAM Handler" };
-    let lastGen = -1, lastGenAt = 0;
+    // --- multiview: cam id set (rendered from the SERVER's configured whitelist, WR-01) +
+    //     freshness state. CAMS now tracks the same cam_ids the preview route honours, so a
+    //     non-default rig (3 cams, ids like cam_a/cam_b) renders the right tiles + force buttons. ---
+    const CAMS = {{ cam_ids | tojson }};
+    const CAM_LABEL = Object.fromEntries(CAMS.map(c => [c, c]));
+    // WR-02: seed lastGenAt to load time (NOT epoch 0) so the first markTiles() call — which runs
+    // from the immediate pollStatus() BEFORE the first pollPreview() lands a gen — does not compute
+    // an enormous Date.now()-0 staleness and falsely paint every tile MORTO on first paint.
+    let lastGen = -1, lastGenAt = Date.now();
     const PUBLISH_MS = 200;               // ~5 fps publish cadence
     const STALE_MS = PUBLISH_MS * 3;      // gen not advancing within ~2-3x → whole-channel stale (D-05)
 
@@ -195,10 +197,16 @@
     // LIVE/MORTO marking driven by /status (live_cam + alive) and gen-freshness (D-04
     // belt-and-suspenders: alive==false OR whole-channel stale → MORTO).
     function markTiles(status) {
-      const stale = (Date.now() - lastGenAt) > STALE_MS;
+      // WR-02: "no gen seen yet" (lastGen < 0) is NOT stale — staleness only means a gen WAS
+      // advancing and then stopped, not that the first frame simply hasn't arrived.
+      const stale = lastGen >= 0 && (Date.now() - lastGenAt) > STALE_MS;
       CAMS.forEach(cam => {
         const tile = document.getElementById("tile-" + cam);
-        const dead = (status.alive && status.alive[cam] === false) || stale;
+        // WR-03: a liveness signal must FAIL SAFE — a missing/non-true alive entry is treated as
+        // dead, never silently shown healthy. A cam the orchestrator does not report on (subset
+        // publish, or an id mismatch) is MORTO, not "unknown === false → alive".
+        const aliveKnown = status.alive && Object.prototype.hasOwnProperty.call(status.alive, cam);
+        const dead = (aliveKnown ? status.alive[cam] !== true : true) || stale;
         const live = cam === status.live_cam && !dead;
         tile.classList.toggle("live", live);   // MVW-02 red border
         tile.classList.toggle("dead", dead);   // MVW-03

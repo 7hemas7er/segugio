@@ -91,7 +91,10 @@ def create_app(channel_dir: str, cam_ids=()):
     @app.get("/")
     def index():
         # One Italian operator console page (selector + 3 field sets + run + override + status).
-        return render_template("console.html")
+        # Render the multiview tiles, force buttons, and the JS CAMS list from the SAME configured
+        # whitelist the preview-JPEG route honours (WR-01) so a non-default rig is fully wired — the
+        # cam_ids arg is no longer half-honoured (route only); the page derives its ids from it too.
+        return render_template("console.html", cam_ids=sorted(cam_ids))
 
     @app.post("/score")
     def post_score():

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
-status: planning
+status: executing
 stopped_at: Phase 7 context gathered
-last_updated: "2026-06-13T11:11:47.508Z"
-last_activity: 2026-06-13 — v1.1 roadmap created (Phases 7–9 appended; 16/16 v1.1 reqs mapped)
+last_updated: "2026-06-13T11:24:53.038Z"
+last_activity: 2026-06-13 -- Phase 07 execution started
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 28
-  completed_plans: 28
+  total_plans: 32
+  completed_plans: 29
   percent: 67
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 7 — Off-tick Frame-Publishing Channel (the gating foundation of milestone v1.1 Console Regia)
+**Current focus:** Phase 07 — off-tick-frame-publishing-channel
 
 ## Current Position
 
-Phase: 7 — Off-tick Frame-Publishing Channel (not started — roadmap created, ready for planning)
-Plan: —
-Status: Ready to plan Phase 7
-Last activity: 2026-06-13 — v1.1 roadmap created (Phases 7–9 appended; 16/16 v1.1 reqs mapped)
+Phase: 07 (off-tick-frame-publishing-channel) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-06-13 -- Phase 07 execution started
 Next: `/gsd-plan-phase 7`
 
 ## Performance Metrics
@@ -83,6 +83,7 @@ Next: `/gsd-plan-phase 7`
 | Phase 06 P01 | 18min | 4 tasks | 8 files |
 | Phase 06 P02 | 40min | 3 tasks | 5 files |
 | Phase 06 P03 | 55min | 5 tasks tasks | 9 files files |
+| Phase 07 P01 | 9min | 3 tasks tasks | 5 files files |
 
 ## Accumulated Context
 
@@ -147,6 +148,7 @@ Recent decisions affecting current work:
 - [Phase 06 / 06-02]: Batched FP16 decision-loop (the cheap rung) — Orchestrator._fan_out now runs ONE batched detection forward per tick (half=config.model.use_fp16, end2end=False) then per-camera tracker.update() dispatch (#13107-safe), selected via _supports_batched() with a serial .track() fallback so the mock-timed wiring/attribution tests stay green. PerCameraTracker gained update()/_ensure_persistent_tracker (lazy track() warmup registers the native-ReID hook + builds the persistent BoT-SORT, then drives trackers[0].update() on the batched result.feats), plus use_fp16/is_engine attributes (is_engine threaded into the once-before-loop HARD ReID gate). batched_detect_dispatch gained use_fp16. MEASURED on the RTX 4000 Ada (venv312, AC power): 4-cam loop total p95 ~210ms (211.4/209.5 two runs) on the batched FP16 path with native ReID confirmed engaged — improved from the 231-247ms FP32-serial baseline but DID NOT clear 150ms. VERDICT: FAIL → 06-03 (TensorRT engine build) AUTHORIZED. RBT-05 still NOT complete.
 - [Phase 06 / 06-01]: Wave-0 latency seams landed headless (Tasks 2-4; Task 1 = blocking-human GPU-env checkpoint, see Blockers). assert_native_reid_engaged is engine-aware — an is_engine: bool = False kwarg downgrades the cls-fallback / missing-hook would-be RuntimeError to a logger.warning ONLY on engine-backed models (Open Q1 Option a; a TensorRT .engine loads via AutoBackend and structurally cannot expose the in-graph Detect head — Pitfall 1), while is_engine=False keeps the eager .pt HARD gate byte-for-byte (TRK-02). ModelConfig gained additive engine_path (Path|None=None) + use_fp16 (bool=False) defaulting to today's eager-FP32 .pt (extra=forbid preserved). New batched.py: batched_detect_dispatch runs ONE model.predict([frames]) detection forward then per-camera tracker.update() — never model.track([frames]) (#13107) — with Pitfall-4 static-batch padding of dead None slots and per-slot degrade-to-None (RBT-04), proven headless with fakes. docs/run.md "GPU latency env" section + .gitignore *.engine/*.onnx. Full headless suite green, lazy-import boundary held. RBT-05 NOT complete — every GPU measurement is blocked on Task 1.
 - [Phase ?]: [Phase 06 / 06-03]: Q1 RESOLVED -> Option (a) cls-ReID fallback on the engine (gate WARNS-not-raises when is_engine=True; single-dog A2). tools/build_engine.py ships the one-time cached TensorRT FP16 build (format=engine half=True batch=4 end2end=False, static batch=4, --dynamic escape hatch). Engine-aware PerCameraTracker: loads .engine when on-disk (is_engine True), graceful eager .pt fallback on ANY failure/missing-file (RBT-04 never crash). Rule-1 fix found on the rig: a static batch=N engine REJECTS the single-frame track() warmup, so the per-camera BOTSORT is built DIRECTLY; reid gate downgrades predictor-None AND empty-predictor.trackers to warnings on the engine. MEASURED engine-path 4-cam p95 ~193-195ms on the RTX 4000 Ada Laptop GPU (AC) — STILL >= 150ms. VERDICT FAIL, RBT-05 NOT met; next lever surfaced (Option b re-plan / yolo26n engine / flagged camera-reduction ladder), re-measure on desktop deploy GPU.
+- [Phase ?]: [Phase 07 / 07-01]: preview channel = existing atomic-file opcomm channel + bytes (atomic_write_bytes, fsync=False for ephemeral JPEGs, default fsync=True for durable sidecars, D-04) + one typed sidecar PreviewDoc — no new IPC/dep (D-01). preview.json rides atomic_write_json (always fsyncs); PreviewDoc mirrors DirectorStatus (frozen+normalizing, order-independent ==, hashable); read_preview reuses _read_json, safe-defaults to PreviewDoc() never raising (RBT-04). status.json/DirectorStatus byte-stable (D-03). PreviewParams additive (Config.preview ON by default D-06); Phase 8 owns the HARD bandwidth cap. 23 opcomm tests green, leaf import holds.
 
 ### Pending Todos
 
@@ -178,6 +180,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T09:23:12.109Z
+Last session: 2026-06-13T11:23:50.424Z
 Stopped at: Phase 7 context gathered
 Resume file: .planning/phases/07-off-tick-frame-publishing-channel/07-CONTEXT.md

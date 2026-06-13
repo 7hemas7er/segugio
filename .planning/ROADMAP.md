@@ -233,7 +233,7 @@ Plans:
 
 **Wave 1** *(parallel; zero file overlap)*
 
-- [ ] 07-01-PLAN.md — opcomm leaf primitives: atomic_write_bytes (D-04), PreviewDoc + read_preview/write_preview sidecar (D-03/D-07), PreviewParams additive config (D-05/D-06) [Wave 1]
+- [x] 07-01-PLAN.md — opcomm leaf primitives: atomic_write_bytes (D-04), PreviewDoc + read_preview/write_preview sidecar (D-03/D-07), PreviewParams additive config (D-05/D-06) [Wave 1]
 - [ ] 07-02-PLAN.md — HARD GATE 2: crash-isolation import test extended (add numpy block + create_app start-check) [Wave 1]
 
 **Wave 2** *(blocked on 07-01)*
@@ -243,7 +243,6 @@ Plans:
 **Wave 3** *(blocked on 07-03)*
 
 - [ ] 07-04-PLAN.md — Wire into the real run path: guarded offer() in _tick_once + cuts ring + frames_by_cam surface + runtime preview_factory/preview dir + HARD GATE 1 (RBT-05 unchanged with preview ON) (D-06/D-08/D-09) [Wave 3]
-
 
 ### Phase 8: Console Serving, Live Multiview & Safety Hardening
 
@@ -290,6 +289,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
 | 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
-| 7. Off-tick Frame-Publishing Channel | 0/? | Not started | - |
+| 7. Off-tick Frame-Publishing Channel | 1/4 | In Progress|  |
 | 8. Console Serving, Live Multiview & Safety Hardening | 0/? | Not started | - |
 | 9. Explainability, Informed Override & Tablet UX | 0/? | Not started | - |

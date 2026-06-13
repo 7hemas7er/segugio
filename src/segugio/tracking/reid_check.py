@@ -69,6 +69,18 @@ def assert_native_reid_engaged(model, is_engine: bool = False) -> None:
     """
     predictor = getattr(model, "predictor", None)  # exists only after a real .track() call
     if predictor is None:
+        if is_engine:
+            # Engine path (Q1 Option (a)): the batched Track-B path drives detection via
+            # ``model.predict([N frames])`` and association via per-camera BOTSORTs built
+            # DIRECTLY (a static batch=N engine rejects the single-frame ``track()`` warmup),
+            # so ``model.predictor`` is legitimately never set. There is no in-graph Detect head
+            # to inspect anyway — native ReID is structurally impossible on an engine. WARN and
+            # accept the cls-ReID fallback rather than crash the live loop (RBT-04).
+            logger.warning(
+                "engine-backed model has no .predictor (batched-predict path, no .track() "
+                "warmup) — native ReID structurally unavailable, accepting cls-ReID fallback."
+            )
+            return
         # The caller must run the gate only after a warmup that ACTUALLY performed inference
         # (eval.py guards on `results is not None`). A None predictor means model.track() never
         # ran (e.g. an empty/None warmup crop returned None WITHOUT inference) — fail with the
@@ -79,6 +91,19 @@ def assert_native_reid_engaged(model, is_engine: bool = False) -> None:
         )
     trackers = getattr(predictor, "trackers", None)
     if not trackers:
+        if is_engine:
+            # Engine path (Q1 Option (a)): the batched Track-B path runs ``model.predict()``
+            # (which sets ``model.predictor`` but builds NO ``predictor.trackers`` — those are
+            # detection-only forwards) and drives association via per-camera BOTSORTs built
+            # DIRECTLY on each ``PerCameraTracker._bot`` (a static batch=N engine rejects the
+            # single-frame ``track()`` warmup that would populate ``predictor.trackers``). So an
+            # empty ``predictor.trackers`` is EXPECTED on the engine; the cls-ReID encoder lives
+            # on the per-camera ``_bot``. WARN and accept the fallback rather than crash (RBT-04).
+            logger.warning(
+                "engine-backed model has empty predictor.trackers (detection-only batched "
+                "predict; association on per-camera BOTSORTs) — accepting cls-ReID fallback."
+            )
+            return
         raise RuntimeError(
             "no trackers on predictor — did .track() run with a botsort yaml?"
         )

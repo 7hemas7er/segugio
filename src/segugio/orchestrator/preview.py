@@ -126,7 +126,18 @@ class PreviewPublisher:
             time.sleep(self._period)
 
     def start(self) -> None:
-        """Launch the daemon publisher thread (idempotent-ish: a fresh thread each call)."""
+        """Launch the daemon publisher thread — IDEMPOTENT (CR-01).
+
+        ``Orchestrator.run`` and ``Orchestrator.run_measured`` both call ``start()``, and
+        ``run_measured`` is driven multiple times back-to-back on a SINGLE publisher instance
+        (see ``tests/test_latency.py``). Without a guard, a second ``start()`` would overwrite
+        ``self._thread`` and ORPHAN the first daemon — ``stop()`` could then never join it, and
+        the two daemons would race on the same fixed atomic temp path, defeating the
+        never-partial atomic-write guarantee. Early-return while a thread is already alive so at
+        most one daemon ever runs per publisher.
+        """
+        if self._thread is not None and self._thread.is_alive():
+            return  # already running — do not leak a second daemon (CR-01)
         self._stop.clear()
         self._thread = threading.Thread(
             target=self._run, name="preview-publisher", daemon=True

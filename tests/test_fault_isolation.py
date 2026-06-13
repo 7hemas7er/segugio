@@ -83,11 +83,12 @@ class _FakeTracker:
         return None
 
 
-def _build(cfg, source, obs, file_channel, trackers=None):
+def _build(cfg, source, obs, file_channel, trackers=None, preview=None):
     """Construct an Orchestrator with the light collaborators wired from the fixtures.
 
     Uses the ``from_config`` convenience factory (it builds the scorer/engine/watchdog/deriver
     from the validated Config internally) and injects the fake trackers so YOLO never loads.
+    An optional ``preview`` collaborator is threaded through for the publisher-fault-coast test.
     """
     if trackers is None:
         trackers = {cam.id: _FakeTracker() for cam in cfg.cameras}
@@ -98,6 +99,7 @@ def _build(cfg, source, obs, file_channel, trackers=None):
         channel_paths=file_channel,
         trackers=trackers,
         fps=30.0,
+        preview=preview,
     )
 
 
@@ -197,6 +199,67 @@ def test_loop_never_calls_track_with_a_frame_list(make_config, file_channel):
         # Each tracker saw single frames (never a list of frames in one call).
         assert captured[cam.id], f"tracker {cam.id} was driven"
         assert all(not isinstance(f, list) for f in captured[cam.id])
+
+
+class _RaisingPreview:
+    """A PreviewPublisher stand-in whose ``offer()`` ALWAYS raises (start/stop are no-ops).
+
+    Proves the hot-path catch specifically: the offer is the ONLY new tick-path call (it rides
+    inside the existing RBT-04 try in ``_tick_once``), so a raising offer must coast there — not
+    crash the tick. start/stop never raise (the lifecycle is also guarded).
+    """
+
+    def __init__(self) -> None:
+        self.offer_calls = 0
+        self.started = False
+        self.stopped = False
+
+    def offer(self, frames, scores, dets, decision, cuts) -> None:
+        self.offer_calls += 1
+        raise RuntimeError("boom: preview offer fault")
+
+    def start(self) -> None:
+        self.started = True
+
+    def stop(self) -> None:
+        self.stopped = True
+
+
+def test_preview_offer_fault_coasts(make_config, file_channel):
+    """PRV-01 criterion 5 / SC5: a raising preview ``offer()`` does NOT crash the tick.
+
+    The guarded offer rides inside the existing ``_tick_once`` RBT-04 try (loop L534), so a
+    publisher fault coasts via the same catch — the tick still completes AND ``status.json`` is
+    still written. Drives 5 ticks with a frame-emitting source (so offer() is actually reached)
+    and a publisher whose offer always raises, then asserts the ticks completed (offer WAS called,
+    proving we reached it) and ``read_status`` returns a valid ``DirectorStatus``.
+    """
+    from segugio.ndi.clip_source import ClipReplayFrameSource
+    from segugio.opcomm.channel import read_status
+    from segugio.opcomm.records import DirectorStatus
+
+    cfg = make_config()
+
+    class _Frame:
+        size = 1
+
+    def _iter():
+        for tick in range(10):
+            yield (tick, {cam.id: _Frame() for cam in cfg.cameras})
+
+    source = ClipReplayFrameSource(frames_iter=_iter())
+    obs = _OkObs()
+    preview = _RaisingPreview()
+    orch = _build(cfg, source, obs, file_channel, preview=preview)
+
+    # Must NOT raise even though every offer() throws — the offer rides inside the RBT-04 try.
+    orch.run_measured(n_ticks=5)
+
+    assert preview.started is True, "the publisher lifecycle start() was driven"
+    assert preview.offer_calls >= 1, "offer() WAS reached (so the coast is the hot-path catch)"
+    # status.json was still written — the tick completed past the coasted offer.
+    status = read_status(str(file_channel["status"]))
+    assert isinstance(status, DirectorStatus)
 
 
 def test_partial_connect_does_not_crash():

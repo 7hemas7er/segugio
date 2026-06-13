@@ -208,3 +208,84 @@ def test_loop_latency_p95_under_budget(make_config, tmp_path):
 
     total_p95_ms = _p95(timings["total"]) * 1000.0
     assert total_p95_ms < 300.0, f"loop total p95 = {total_p95_ms:.1f}ms exceeds the 300ms budget"
+
+
+def _gpu_latency_orch(cfg, channel_dir, *, preview_enabled):
+    """Build a REAL gpu orchestrator (yolo26s.pt) with preview ON or OFF, over numpy frames.
+
+    Mirrors ``test_loop_latency_p95_under_budget``'s real ``PerCameraTracker`` +
+    ``ClipReplayFrameSource`` setup but routes through ``build_orchestrator`` so the DEFAULT
+    preview factory constructs a real ``PreviewPublisher`` when ``config.preview.enabled`` — the
+    SAME wiring the live ``python -m segugio`` path uses (HARD GATE 1 measures the prod path).
+    """
+    import numpy as np
+
+    from segugio.orchestrator.runtime import build_orchestrator
+
+    enabled_cfg = cfg.model_copy(
+        update={"preview": cfg.preview.model_copy(update={"enabled": bool(preview_enabled)})}
+    )
+
+    def source_factory(cameras):
+        from segugio.ndi.clip_source import ClipReplayFrameSource
+
+        def _iter():
+            for tick in range(300):
+                frame = (np.random.rand(360, 640, 3) * 255).astype("uint8")
+                yield (tick, {cam.id: frame for cam in cameras})
+
+        return ClipReplayFrameSource(frames_iter=_iter())
+
+    return build_orchestrator(
+        enabled_cfg,
+        str(channel_dir),
+        fps=30.0,
+        source_factory=source_factory,
+        obs_factory=lambda host, port, password: _OkObs(),
+    )
+
+
+@pytest.mark.gpu
+def test_loop_latency_p95_preview_on_no_regression(make_config, tmp_path):
+    """HARD GATE 1 (PRV-01/SC1/D-09): the real preview publisher ON does NOT regress the 4-cam p95.
+
+    Collected + skipped off-GPU by the conftest gpu hook (this machine's CPU-only venv has no GPU;
+    the GPU stack lives in venv312 — run on the rig: ``python -m pytest -m gpu tests/test_latency.py``).
+
+    The load-bearing risk D-09 gates on is the guarded ``offer()`` taxing the tick. We measure it
+    DIRECTLY: derive the run-to-run noise band from two back-to-back preview-OFF runs (NO magic
+    number — RESEARCH Q1/A3), then run the REAL ``PreviewPublisher`` ON under the SAME harness and
+    assert ``p95_on <= p95_off + noise_band``. The publisher is constructed by ``build_orchestrator``'s
+    DEFAULT factory (the prod wiring), so this proves the live path, not a stub.
+    """
+    cfg = make_config(
+        overrides={
+            "model": {
+                "path": "yolo26s.pt",
+                "class_index": 16,
+                "use_fp16": True,
+                "engine_path": None,  # canonical eager FP16+batch (native ReID)
+            }
+        }
+    )
+
+    # ── Derive the noise band: two back-to-back preview-OFF runs (run-to-run jitter). ──
+    off = _gpu_latency_orch(cfg, tmp_path / "off", preview_enabled=False)
+    off.run_measured(n_ticks=20)  # warm up (first inference includes model spin-up)
+    p95_off_a = _p95(off.run_measured(n_ticks=100)["total"]) * 1000.0
+    p95_off_b = _p95(off.run_measured(n_ticks=100)["total"]) * 1000.0
+    off.shutdown()
+    noise_band = abs(p95_off_a - p95_off_b)
+    p95_off = max(p95_off_a, p95_off_b)  # the conservative OFF baseline
+
+    # ── Measure preview ON with the REAL publisher running under run_measured. ──
+    on = _gpu_latency_orch(cfg, tmp_path / "on", preview_enabled=True)
+    assert on._preview is not None, "preview ON must construct a real publisher"
+    on.run_measured(n_ticks=20)  # warm up
+    p95_on = _p95(on.run_measured(n_ticks=100)["total"]) * 1000.0
+    on.shutdown()
+
+    assert p95_on <= p95_off + noise_band, (
+        f"preview ON regressed the tick p95: on={p95_on:.1f}ms off={p95_off:.1f}ms "
+        f"band={noise_band:.1f}ms (on must be <= off + band)"
+    )

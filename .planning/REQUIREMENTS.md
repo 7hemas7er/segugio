@@ -88,9 +88,9 @@
 
 ### Multiview & override informato (MVW)
 
-- [ ] **MVW-01**: La console mostra una **griglia multiview** live delle thumbnail di tutte le camere (CSS Grid responsive, refresh flicker-free via preload `Image()` + swap)
-- [ ] **MVW-02**: Indicatore **LIVE/tally** chiaro sulla tile della camera in onda (bordo rosso/badge + banner "ON AIR: CAM X"), da `status.live_cam`
-- [ ] **MVW-03**: Ogni feed **morto/stale** è marcato a colpo d'occhio sulla sua tile (grey-out/"MORTO"), legato a `status.alive` + freshness della preview
+- [x] **MVW-01**: La console mostra una **griglia multiview** live delle thumbnail di tutte le camere (CSS Grid responsive, refresh flicker-free via preload `Image()` + swap)
+- [x] **MVW-02**: Indicatore **LIVE/tally** chiaro sulla tile della camera in onda (bordo rosso/badge + banner "ON AIR: CAM X"), da `status.live_cam`
+- [x] **MVW-03**: Ogni feed **morto/stale** è marcato a colpo d'occhio sulla sua tile (grey-out/"MORTO"), legato a `status.alive` + freshness della preview
 - [ ] **MVW-04**: **Override informato** — ogni tile è cliccabile = forza quella camera (sostituisce i bottoni testuali alla cieca); "Rilascia (auto)" resta un controllo distinto
 - [ ] **MVW-05**: **Striscia cronologia switch** — timeline degli ultimi cut + motivi, per giudicare se il director è "nervoso" e intervenire (dal ring in `preview.json`)
 
@@ -108,7 +108,7 @@
 ### UX tablet & robustezza (UXT)
 
 - [ ] **UXT-01**: **Restyling responsive tablet-friendly** (griglia che riflow, target touch grandi per l'override, form punteggi usabile una mano)
-- [ ] **UXT-02**: **Fix server multi-thread** (`threaded=True`/Waitress) così che servire/streammare le thumbnail non blocchi mai il POST di `/command` (l'override è un controllo di **sicurezza**) — bug latente in `ui/app.py`
+- [x] **UXT-02**: **Fix server multi-thread** (`threaded=True`/Waitress) così che servire/streammare le thumbnail non blocchi mai il POST di `/command` (l'override è un controllo di **sicurezza**) — bug latente in `ui/app.py`
 - [ ] **UXT-03**: **Igiene robustezza** — niente memory leak su multiview prolungata, resume su sleep/wake del tablet, indicatore di **freshness** (mai mostrare un frame congelato come "live"); preview che degrada per prima, il director mai
 
 ## v2 Requirements
@@ -198,10 +198,10 @@ Ogni requisito v1.1 → esattamente una fase (100% coverage, nessun orfano). La 
 | PRV-01 | Phase 7 | Complete |
 | PRV-02 | Phase 7 | Complete |
 | PRV-03 | Phase 7 | Complete |
-| MVW-01 | Phase 8 | Pending |
-| MVW-02 | Phase 8 | Pending |
-| MVW-03 | Phase 8 | Pending |
-| UXT-02 | Phase 8 | Pending |
+| MVW-01 | Phase 8 | Complete |
+| MVW-02 | Phase 8 | Complete |
+| MVW-03 | Phase 8 | Complete |
+| UXT-02 | Phase 8 | Complete |
 | MVW-04 | Phase 9 | Pending |
 | MVW-05 | Phase 9 | Pending |
 | WHY-01 | Phase 9 | Pending |

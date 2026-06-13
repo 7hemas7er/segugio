@@ -91,14 +91,14 @@
 - [x] **MVW-01**: La console mostra una **griglia multiview** live delle thumbnail di tutte le camere (CSS Grid responsive, refresh flicker-free via preload `Image()` + swap)
 - [x] **MVW-02**: Indicatore **LIVE/tally** chiaro sulla tile della camera in onda (bordo rosso/badge + banner "ON AIR: CAM X"), da `status.live_cam`
 - [x] **MVW-03**: Ogni feed **morto/stale** è marcato a colpo d'occhio sulla sua tile (grey-out/"MORTO"), legato a `status.alive` + freshness della preview
-- [ ] **MVW-04**: **Override informato** — ogni tile è cliccabile = forza quella camera (sostituisce i bottoni testuali alla cieca); "Rilascia (auto)" resta un controllo distinto
+- [x] **MVW-04**: **Override informato** — ogni tile è cliccabile = forza quella camera (sostituisce i bottoni testuali alla cieca); "Rilascia (auto)" resta un controllo distinto
 - [ ] **MVW-05**: **Striscia cronologia switch** — timeline degli ultimi cut + motivi, per giudicare se il director è "nervoso" e intervenire (dal ring in `preview.json`)
 
 ### Spiegabilità ("e perché") (WHY)
 
 - [ ] **WHY-01**: La console mostra il **motivo** della scelta corrente in italiano chiaro (rende `status.reason`: "Auto: miglior inquadratura" / "Override operatore" / "Soggetto perso → SAFE" …)
 - [ ] **WHY-02**: **Barre di score di framing per-camera** (leaderboard live) con stato tracking/coast/lost — l'operatore *vede* perché una camera vince in questo istante
-- [ ] **WHY-03**: **Overlay bbox dog-lock** sulla tile live (box normalizzato disegnato in CSS/SVG dal `preview.json`, nessun image-processing in Flask) — mostra che il sistema è agganciato al cane in gara
+- [x] **WHY-03**: **Overlay bbox dog-lock** sulla tile live (box normalizzato disegnato in CSS/SVG dal `preview.json`, nessun image-processing in Flask) — mostra che il sistema è agganciato al cane in gara
 - [ ] **WHY-04**: Hint **"auto vuole vs in onda"** — durante un override mostra quale camera sceglierebbe l'auto-director adesso, così l'operatore sa quando è sicuro rilasciare (mantiene il sistema più spesso in auto)
 
 ### Preview punteggio (SCV)
@@ -107,7 +107,7 @@
 
 ### UX tablet & robustezza (UXT)
 
-- [ ] **UXT-01**: **Restyling responsive tablet-friendly** (griglia che riflow, target touch grandi per l'override, form punteggi usabile una mano)
+- [x] **UXT-01**: **Restyling responsive tablet-friendly** (griglia che riflow, target touch grandi per l'override, form punteggi usabile una mano)
 - [x] **UXT-02**: **Fix server multi-thread** (`threaded=True`/Waitress) così che servire/streammare le thumbnail non blocchi mai il POST di `/command` (l'override è un controllo di **sicurezza**) — bug latente in `ui/app.py`
 - [ ] **UXT-03**: **Igiene robustezza** — niente memory leak su multiview prolungata, resume su sleep/wake del tablet, indicatore di **freshness** (mai mostrare un frame congelato come "live"); preview che degrada per prima, il director mai
 
@@ -202,14 +202,14 @@ Ogni requisito v1.1 → esattamente una fase (100% coverage, nessun orfano). La 
 | MVW-02 | Phase 8 | Complete |
 | MVW-03 | Phase 8 | Complete |
 | UXT-02 | Phase 8 | Complete |
-| MVW-04 | Phase 9 | Pending |
+| MVW-04 | Phase 9 | Complete |
 | MVW-05 | Phase 9 | Pending |
 | WHY-01 | Phase 9 | Pending |
 | WHY-02 | Phase 9 | Pending |
-| WHY-03 | Phase 9 | Pending |
+| WHY-03 | Phase 9 | Complete |
 | WHY-04 | Phase 9 | Pending |
 | SCV-01 | Phase 9 | Pending |
-| UXT-01 | Phase 9 | Pending |
+| UXT-01 | Phase 9 | Complete |
 | UXT-03 | Phase 9 | Pending |
 
 **Coverage:**

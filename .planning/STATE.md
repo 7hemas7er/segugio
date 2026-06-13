@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
 status: executing
-stopped_at: Phase 9 UI-SPEC approved
-last_updated: "2026-06-13T22:10:00.000Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-06-13T22:03:05.430Z"
 last_activity: 2026-06-13 -- Completed 09-01-PLAN.md (backend enablers)
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 39
-  completed_plans: 36
-  percent: 92
+  completed_plans: 37
+  percent: 89
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 ## Current Position
 
 Phase: 09 (explainability-informed-override-tablet-ux) — EXECUTING
-Plan: 2 of 4
-Status: Executing Phase 09 (09-01 complete; Wave-1 09-02 next/parallel)
+Plan: 3 of 4
+Status: Ready to execute
 Last activity: 2026-06-13 -- Completed 09-01-PLAN.md (backend enablers)
 Next: execute 09-02 (Wave 1 parallel)
 
@@ -92,6 +92,7 @@ Next: execute 09-02 (Wave 1 parallel)
 | Phase 08 P02 | 4min | 2 tasks | 2 files |
 | Phase 08 P03 | 3min | 1 tasks | 1 files |
 | Phase 09 P01 | 6min | 2 tasks | 3 files |
+| Phase 09 P02 | 12min | 2 tasks tasks | 3 files files |
 
 ## Accumulated Context
 
@@ -165,6 +166,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 08 / 08-02]: preview-bandwidth cap (MVW-03) is a CONFIG-TIME guarantee — PreviewParams.max_total_mbps (default 8.0 Mbps) + Config._preview_bitrate_within_cap @model_validator computes worst-case fps×bytes×N_cams bitrate and rejects over-cap configs fail-fast (SystemExit(2) via loader, CFG-01); NO runtime throttle (D-01 declined). bpp=0.30 q55 calibration tunable + gated by default-passes/cranked-fails test; enabled=false short-circuits (D-09). Real-WiFi false-death validation is a hardware-milestone carry-forward (D-02).
 - [Phase 09]: [Phase 09 / 09-01]: backend enablers, isolated in app.py + tests (zero file overlap with 09-02). GET /preview now jsonifies "cuts": [dict(c) for c in doc.cuts] (MVW-05 data source for the 09-04 switch-history strip; read_preview safe-defaults to [] when the sidecar is absent — RBT-04). NEW pure POST /score/preview returns render_overlay_text(ScoreDoc(...)) as text/plain and writes NOTHING (SCV-01 server-side drift-guard the 09-03 JS overlay mirror asserts server === client against, once-per-blur). Reuses ONLY already-imported symbols (render_overlay_text/Discipline/ScoreDoc/_NON_SCORE_KEYS) → NO new import, crash-isolation allowlist (Flask + opcomm + score_render) green. test_score_preview_byte_reference = the canonical Wave-0 byte-parity strings (incl. double spaces) for the JS mirror. 47 passed across preview_serving+score_preview+imports+ui_score, zero regression.
 - [Phase 08]: [Phase 08 / 08-03]: docs/security.md = the v1.1 written threat re-eval (D-09) — reaffirms LAN-as-trust-boundary single-operator no-auth posture (T-05-05-01..04, cross-referenced from ui/app.py docstrings), ADDS the live-competitor-video-behind-0.0.0.0 exposure (T-08-03, STRIDE Information Disclosure: GET /preview + GET /preview/<cam>.jpg, mitigated by the cam-id whitelist→fixed cam_{id}.jpg path + threaded=True/Waitress override-availability), and mandates AP client-isolation + no internet/guest bridge as a HARD OPERATIONAL requirement. preview.enabled is the source-side off-switch; NO new in-code auth/configurable-bind/shared-token in v1.1 (rejected). Mitigation is operational+documented, not code.
+- [Phase ?]: [Phase 09 / 09-02]: tablet-first console restyle — landscape Multiview-LEFT + sidebar-RIGHT (D-01) with @media single-column reflow; UXT-01 touch contract (viewport-fit=cover, touch-action manipulation, safe-area bottom cluster, >=44/48px targets); status palette migrated to #34D399/#F0B429/#FF6B6B/#56B4E9 on #14161a (#b23b3b retired); typography 4 sizes / 400+700 only. 5 grayscale-safe tile states (D-04) via setTileState; whole tile is the force control on standard click (MVW-04, blind Forza buttons removed) + large always-visible Rilascia undo (D-03); /command + OperatorCommand untouched. Per-tile bbox SVG (WHY-03): unit viewBox + xMidYMid meet + object-fit:contain = zero JS letterbox math. Four sidebar why-blocks scaffolded for 09-03/09-04. Crash-isolation allowlist preserved; 55 tests green.
 
 ### Pending Todos
 
@@ -197,6 +199,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T22:10:00.000Z
+Last session: 2026-06-13T22:02:55.304Z
 Stopped at: Completed 09-01-PLAN.md
 Resume file: None

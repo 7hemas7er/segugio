@@ -297,7 +297,7 @@ Plans:
 
 **Wave 3** *(blocked on 09-03 — same file console.html)*
 
-- [x] 09-04-PLAN.md — Switch-history strip (MVW-05) + UXT-03 hygiene: leak-free decode-swap refresh, gen-age freshness watchdog + stamp, sleep/wake resume, and a blocking on-device iPad acceptance checkpoint [Wave 3] — **IN PROGRESS: Tasks 1-2 done & committed (250a803, 122557c); PAUSED at Task 3 blocking-human on-device iPad acceptance**
+- [x] 09-04-PLAN.md — Switch-history strip (MVW-05) + UXT-03 hygiene: leak-free decode-swap refresh, gen-age freshness watchdog + stamp, sleep/wake resume, and a blocking on-device iPad acceptance checkpoint [Wave 3] — **COMPLETE: Tasks 1-2 committed (250a803, 122557c); Task 3 on-device iPad acceptance APPROVED (memoria flat, deferral 200ms)**
 
 ## Progress
 

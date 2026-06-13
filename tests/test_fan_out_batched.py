@@ -231,6 +231,107 @@ def test_fan_out_reid_gate_runs_once_threading_is_engine(make_config, monkeypatc
 
 
 # --------------------------------------------------------------------------- #
+# Task 4 — is_engine flows through the loop into the REAL reid gate: engine WARNS,
+# eager HARD-raises (Q1 Option (a)). Drives the genuine assert_native_reid_engaged.
+# --------------------------------------------------------------------------- #
+
+
+class _ClsReID:
+    """A ``ultralytics.trackers.bot_sort.ReID`` stand-in (the cls-fallback encoder shape)."""
+
+
+class _ClsFallbackBot:
+    """A BoT-SORT whose ``encoder`` is a ReID instance — the silent cls-fallback path."""
+
+    def __init__(self, reid) -> None:
+        self.encoder = reid
+
+
+class _ClsFallbackPredictor:
+    """A predictor on the cls-fallback path: encoder is a ReID instance, no native hook."""
+
+    def __init__(self, reid) -> None:
+        self.trackers = [_ClsFallbackBot(reid)]
+        self._hook = None  # cls fallback registers NO forward-pre-hook
+
+
+class _ClsFallbackModel:
+    """A shared model whose predictor is on the cls-ReID fallback path (engine reality)."""
+
+    def __init__(self, cam_ids: list[str], reid) -> None:
+        self._cam_ids = cam_ids
+        self.names = {0: "person", 16: "dog"}
+        self.predictor = _ClsFallbackPredictor(reid)
+        self.predict_calls: list[dict] = []
+
+    def predict(self, frames, **kwargs):
+        self.predict_calls.append({"n_frames": len(frames), "kwargs": kwargs})
+        return [_FakeResult(cid) for cid in self._cam_ids]
+
+    def track(self, *a, **k):  # pragma: no cover - batched path never calls this
+        return []
+
+
+class _EngineTracker(_FakeTracker):
+    """An engine-backed tracker stand-in: ``is_engine=True`` (the Q1 Option-(a) path)."""
+
+    def __init__(self, cam_id: str, model) -> None:
+        super().__init__(cam_id, model)
+        self.is_engine = True
+
+
+def _patch_reid_module(monkeypatch, reid_cls):
+    """Make the gate's lazy ``from ultralytics.trackers.bot_sort import ReID`` resolve to a fake."""
+    import sys
+    import types
+
+    pkg = types.ModuleType("ultralytics.trackers.bot_sort")
+    pkg.ReID = reid_cls
+    monkeypatch.setitem(sys.modules, "ultralytics", types.ModuleType("ultralytics"))
+    monkeypatch.setitem(
+        sys.modules, "ultralytics.trackers", types.ModuleType("ultralytics.trackers")
+    )
+    monkeypatch.setitem(sys.modules, "ultralytics.trackers.bot_sort", pkg)
+
+
+def test_fan_out_engine_path_gate_warns_not_raises(make_config, monkeypatch):
+    """Task 4 Test 1: is_engine=True + cls-fallback predictor → the REAL gate WARNS, loop proceeds."""
+    cfg = make_config()
+    cam_ids = [c.id for c in cfg.cameras]
+    reid = _ClsReID()
+    model = _ClsFallbackModel(cam_ids, reid)
+    trackers = {cid: _EngineTracker(cid, model) for cid in cam_ids}
+    source = _DictSource({cid: _Frame(cid) for cid in cam_ids})
+    orch = _orch(cfg, trackers, source)
+
+    _patch_reid_module(monkeypatch, _ClsReID)
+
+    # The cls-fallback would HARD-raise on the eager path; is_engine=True downgrades it to a
+    # warning (Q1 Option (a)) — the loop must tick without raising and mark the gate checked.
+    orch._fan_out(tick=0)
+    assert orch._reid_checked is True
+
+
+def test_fan_out_eager_path_gate_hard_raises_on_cls_fallback(make_config, monkeypatch):
+    """Task 4 Test 2: is_engine=False + a genuine cls fallback → the REAL gate HARD-raises (TRK-02)."""
+    import pytest
+
+    cfg = make_config()
+    cam_ids = [c.id for c in cfg.cameras]
+    reid = _ClsReID()
+    model = _ClsFallbackModel(cam_ids, reid)
+    # default _FakeTracker → is_engine False (eager path) on a cls-fallback model.
+    trackers = {cid: _FakeTracker(cid, model) for cid in cam_ids}
+    source = _DictSource({cid: _Frame(cid) for cid in cam_ids})
+    orch = _orch(cfg, trackers, source)
+
+    _patch_reid_module(monkeypatch, _ClsReID)
+
+    with pytest.raises(RuntimeError, match="cls model"):
+        orch._fan_out(tick=0)
+
+
+# --------------------------------------------------------------------------- #
 # Test 4 — coast: a None frame for one camera coasts that camera, never crashes.
 # --------------------------------------------------------------------------- #
 

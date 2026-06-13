@@ -148,12 +148,27 @@ def test_loop_latency_p95_under_budget(make_config, tmp_path):
     decision-loop latency budget. Degradation ladder if over budget: yolo26n -> fewer cams ->
     lower AI-path imgsz/fps (logged by run_measured).
     """
-    # MEASUREMENT SETUP (06-02 Task 3): arm use_fp16=True on the 4-cam canonical config so the
-    # gpu gate exercises the batched FP16 _fan_out path (the cheap rung — eager half=True + ONE
-    # batched forward per tick). This is the one-line config flip that ARMS the FP16 plumbing
-    # Tasks 1-2 built; it is measurement setup, not new feature work.
+    # MEASUREMENT SETUP (06-02 Task 3 → 06-03 Task 4): arm use_fp16=True on the 4-cam canonical
+    # config. NEW for 06-03: when the cached TensorRT ``yolo26s.engine`` exists beside the weights,
+    # point ``engine_path`` at it so the engine-aware ``PerCameraTracker`` loads the engine (the
+    # prod TensorRT FP16 path — the documented next lever after the ~210ms FP16+batch rung). The
+    # loader degrades gracefully to the eager FP16 ``.pt`` if the engine is missing/incompatible
+    # (RBT-04), so this test still RUNS on a rig without a built engine — it then measures the
+    # eager FP16 rung (the 06-02 result). Build the engine via ``tools/build_engine.py`` first to
+    # measure the engine path (06-03 Task 5).
+    from pathlib import Path as _Path
+
+    _engine_artifact = _Path("yolo26s.engine")
     cfg = make_config(
-        overrides={"model": {"path": "yolo26s.pt", "class_index": 16, "use_fp16": True}}
+        overrides={
+            "model": {
+                "path": "yolo26s.pt",
+                "class_index": 16,
+                "use_fp16": True,
+                # absent → graceful eager fallback; present → the engine path is measured.
+                "engine_path": str(_engine_artifact) if _engine_artifact.is_file() else None,
+            }
+        }
     )
     obs = _OkObs()
 
@@ -165,6 +180,7 @@ def test_loop_latency_p95_under_budget(make_config, tmp_path):
             cfg.model.class_index,
             "botsort_dog.yaml",
             use_fp16=cfg.model.use_fp16,
+            engine_path=cfg.model.engine_path,
         )
         for cam in cfg.cameras
     }

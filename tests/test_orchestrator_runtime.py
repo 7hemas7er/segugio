@@ -331,3 +331,143 @@ def test_main_non_heavy_module_error_is_not_masked(monkeypatch, tmp_path) -> Non
     monkeypatch.setattr(main_mod, "build_orchestrator", boom)
     with pytest.raises(ModuleNotFoundError):
         main_mod.main([str(DISC_EXAMPLE), "--opcomm-dir", str(tmp_path)])
+
+
+# --------------------------------------------------------------------------- #
+# 07-04 Task 2 — the preview channel wired into the REAL run path (D-09 / SC3).
+# --------------------------------------------------------------------------- #
+
+
+class _Frame:
+    """A non-empty frame stand-in (``.size > 0`` so the clip source's NDI-03 guard publishes it).
+
+    The injected ``encode_fn`` accepts this object directly — no real cv2/numpy is touched, so the
+    preview-files-written smoke runs fully headless.
+    """
+
+    size = 1
+
+    def __init__(self, cam_id: str) -> None:
+        self.cam_id = cam_id
+
+
+_FAKE_JPEG = b"\xff\xd8\xff\xe0FAKEJPEG\xff\xd9"  # deterministic fake JPEG bytes (header+trailer)
+
+
+def _drive_until_preview_written(orch, preview_json, n_ticks=4, timeout_s=5.0):
+    """Run a few ticks, then wait for the async publisher daemon to land preview.json.
+
+    The publisher does its resize/encode/IO on its OWN daemon thread (off the tick), so the files
+    appear slightly AFTER ``run_measured`` returns. Drive the ticks (offering frames into the
+    mailbox), then poll for the sidecar up to ``timeout_s`` before asserting. ``shutdown`` joins
+    the daemon so any final drain completes.
+    """
+    import time as _time
+
+    orch.run_measured(n_ticks=n_ticks)
+    deadline = _time.monotonic() + timeout_s
+    while _time.monotonic() < deadline:
+        if Path(preview_json).is_file():
+            break
+        _time.sleep(0.02)
+    orch.shutdown()  # joins the daemon — any in-flight publish completes
+
+
+def test_preview_files_written_on_real_run(tmp_path) -> None:
+    """SC3 / D-09: a headless run with an injected encoder writes cam_<id>.jpg + preview.json.
+
+    Builds a frame-emitting clip source + a REAL ``PreviewPublisher`` (constructed by an injected
+    ``preview_factory`` with a fake ``encode_fn`` returning deterministic JPEG bytes), drives a
+    couple of ticks via ``run_measured``, then asserts the per-camera JPEGs carry the fake bytes
+    AND ``read_preview`` round-trips a ``PreviewDoc`` with the expected cams. This is the D-09
+    'done' line: a REAL run path constructs/starts/stops the publisher and writes the channel.
+    """
+    from segugio.ndi.clip_source import ClipReplayFrameSource
+    from segugio.opcomm.channel import read_preview
+    from segugio.orchestrator.preview import PreviewPublisher
+    from segugio.orchestrator.runtime import build_orchestrator
+
+    config = load_config(DISC_EXAMPLE)
+    cam_ids = [c.id for c in config.cameras]
+
+    def source_factory(cameras):
+        def _iter():
+            for tick in range(50):
+                yield (tick, {c.id: _Frame(c.id) for c in cameras})
+
+        return ClipReplayFrameSource(frames_iter=_iter())
+
+    built: dict = {}
+
+    def preview_factory(preview_params, preview_dir, cameras):
+        pub = PreviewPublisher(
+            preview_params,
+            preview_dir,
+            [c.id for c in cameras],
+            encode_fn=lambda frame: _FAKE_JPEG,  # no cv2 — deterministic bytes
+        )
+        built["publisher"] = pub
+        built["preview_dir"] = preview_dir
+        return pub
+
+    orch = build_orchestrator(
+        config,
+        str(tmp_path),
+        source_factory=source_factory,
+        obs_factory=lambda host, port, password: _FakeObs(host, port, password),
+        tracker_factory=lambda *a, **k: _FakeTracker(*a, **k),
+        preview_factory=preview_factory,
+    )
+
+    # The publisher was constructed (preview enabled by default) and injected into the loop.
+    assert orch._preview is built["publisher"]
+
+    preview_dir = Path(built["preview_dir"])
+    preview_json = preview_dir / "preview.json"
+    _drive_until_preview_written(orch, preview_json)
+
+    # Per-camera JPEGs landed with the injected fake bytes (real atomic_write_bytes path).
+    for cam_id in cam_ids:
+        jpg = preview_dir / f"cam_{cam_id}.jpg"
+        assert jpg.is_file(), f"missing preview JPEG for {cam_id}"
+        assert jpg.read_bytes() == _FAKE_JPEG
+
+    # The sidecar round-trips through the safe-default boundary with the expected cams.
+    assert preview_json.is_file()
+    doc = read_preview(str(preview_json))
+    assert set(doc.cams.keys()) == set(cam_ids)
+    assert doc.gen >= 1  # the in-sidecar cache-bust token advanced at least once
+
+
+def test_preview_disabled_constructs_no_publisher(tmp_path) -> None:
+    """D-06: with config.preview.enabled=False the orchestrator's _preview is None (v1.0-identical).
+
+    No ``PreviewPublisher`` is constructed and the injected ``preview_factory`` is NEVER called —
+    the wiring is guarded by ``config.preview.enabled`` so a disabled preview is byte-identical to
+    v1.0 (no publisher, no offer(), no daemon).
+    """
+    from segugio.orchestrator.runtime import build_orchestrator
+
+    config = load_config(DISC_EXAMPLE)
+    # Disable preview on the validated config (model_copy keeps it pydantic-valid + frozen-safe).
+    disabled = config.model_copy(
+        update={"preview": config.preview.model_copy(update={"enabled": False})}
+    )
+
+    factory_called = {"n": 0}
+
+    def preview_factory(*args, **kwargs):  # pragma: no cover - must NOT be called
+        factory_called["n"] += 1
+        raise AssertionError("preview_factory must not be called when preview is disabled")
+
+    orch = build_orchestrator(
+        disabled,
+        str(tmp_path),
+        source_factory=lambda cameras: _FakeSource(cameras),
+        obs_factory=lambda host, port, password: _FakeObs(host, port, password),
+        tracker_factory=lambda *a, **k: _FakeTracker(*a, **k),
+        preview_factory=preview_factory,
+    )
+
+    assert orch._preview is None
+    assert factory_called["n"] == 0

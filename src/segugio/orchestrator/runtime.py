@@ -66,7 +66,13 @@ _TRACKER_YAML = "botsort_dog.yaml"
 
 
 def _channel_paths(channel_dir: str) -> dict[str, str]:
-    """Build the opcomm channel-path bundle under ``channel_dir`` with the UI's constant names."""
+    """Build the opcomm channel-path bundle under ``channel_dir`` with the UI's constant names.
+
+    Adds the Phase-7 ``preview_dir`` (the ``opcomm/preview/`` media dir holding the per-camera
+    ``cam_<id>.jpg`` thumbnails) and the ``preview`` sidecar path (``preview/preview.json``). The
+    dir itself is created in ``build_orchestrator`` via ``os.makedirs(exist_ok=True)`` mirroring
+    the ``channel_dir`` defensiveness; here we only compute the paths.
+    """
     base = Path(channel_dir)
     return {
         "command": str(base / _COMMAND_FILE),
@@ -74,6 +80,8 @@ def _channel_paths(channel_dir: str) -> dict[str, str]:
         "status": str(base / _STATUS_FILE),
         "score": str(base / _SCORE_FILE),
         "overlay": str(base / _OVERLAY_FILE),
+        "preview_dir": str(base / "preview"),
+        "preview": str(base / "preview" / "preview.json"),
     }
 
 
@@ -111,6 +119,20 @@ def _default_tracker_factory(
     )
 
 
+def _default_preview_factory(preview_params, preview_dir, cameras):
+    """Real ``PreviewPublisher`` builder — LAZY import (cv2/numpy stay inside ``_publish``).
+
+    ``from .preview import PreviewPublisher`` is deferred to keep ``import
+    segugio.orchestrator.runtime`` heavy-stack-free (the publisher module is stdlib + opcomm at
+    import time; cv2/numpy only import inside its ``_publish``/``_cv2_encode``). The publisher is
+    constructed over the ordered ``Camera.id``s (the thumbnail set) and the validated
+    ``PreviewParams`` (fps/max_width/jpeg_quality).
+    """
+    from .preview import PreviewPublisher
+
+    return PreviewPublisher(preview_params, preview_dir, [c.id for c in cameras])
+
+
 def build_orchestrator(
     config: "Config",
     channel_dir: str,
@@ -120,6 +142,7 @@ def build_orchestrator(
     source_factory: Callable | None = None,
     obs_factory: Callable | None = None,
     tracker_factory: Callable | None = None,
+    preview_factory: Callable | None = None,
 ) -> Orchestrator:
     """Compose a runnable :class:`Orchestrator` from a validated ``Config`` (the missing glue).
 
@@ -143,6 +166,11 @@ def build_orchestrator(
             -> tracker``; defaults to the real lazy ``PerCameraTracker`` (which loads the
             ``engine_path`` engine with a graceful eager fallback — RBT-04). Built ONCE per
             camera.
+        preview_factory: ``(preview_params, preview_dir, cameras) -> PreviewPublisher``; defaults
+            to the lazy ``_default_preview_factory``. ONLY called when ``config.preview.enabled``
+            is True — when preview is disabled the publisher is ``None`` and the orchestrator is
+            byte-identical to v1.0 (D-06). Headless tests inject a factory whose publisher carries
+            a fake ``encode_fn`` so no real cv2/GPU is needed.
 
     Returns:
         A runnable ``Orchestrator`` ready for ``.run(rate_hz)`` (or ``.run_measured(n)`` headless).
@@ -161,6 +189,14 @@ def build_orchestrator(
     os.makedirs(channel_dir, exist_ok=True)
 
     channel_paths = _channel_paths(channel_dir)
+
+    # The opcomm/preview/ media dir (per-camera cam_<id>.jpg + preview.json). Created with the
+    # same defensiveness as channel_dir above: on a clean rig launch it does not exist, and the
+    # publisher's atomic_write_bytes writes its temp file INSIDE this dir before os.replace, so a
+    # missing dir would make every publish raise — coasted by the daemon, but the preview channel
+    # would go silently dead. Always create it (cheap) even when preview is disabled.
+    preview_dir = channel_paths["preview_dir"]
+    os.makedirs(preview_dir, exist_ok=True)
 
     # ONE source over EVERY camera (NdiFrameSource keys threads by Camera.id for cameras carrying
     # an ndi_source — never a frame list to one tracker, #13107 is handled per-camera below).
@@ -182,6 +218,15 @@ def build_orchestrator(
         for cam in config.cameras
     }
 
+    # The off-tick preview publisher — GUARDED by config.preview.enabled (D-06). When disabled the
+    # publisher stays None and the orchestrator is byte-identical to v1.0 (no offer(), no daemon).
+    # When enabled, the (injectable) factory builds it over the validated PreviewParams + the
+    # ordered camera ids + the preview media dir.
+    preview = None
+    if config.preview.enabled:
+        preview_factory = preview_factory or _default_preview_factory
+        preview = preview_factory(config.preview, preview_dir, list(config.cameras))
+
     return Orchestrator.from_config(
         config=config,
         source=source,
@@ -190,4 +235,5 @@ def build_orchestrator(
         trackers=trackers,
         fps=fps,
         grace=grace,
+        preview=preview,
     )

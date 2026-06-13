@@ -140,6 +140,156 @@ actually running it against live hardware is UAT Tests 1-4, executed on the Wind
 
 ---
 
+## Phase 8 — Console multiview live
+
+Phase 8 turns the operator console into a **live multiview**: a grid of per-camera preview tiles
+with LIVE/tally and dead-feed marking. The tiles are JPEG thumbnails the **orchestrator** publishes
+off the decision tick (Phase 7); the **console** only serves the already-encoded bytes. Below is the
+verified launch + troubleshooting procedure so the grid actually populates — and so the
+"phone shows in OBS but not in the console" failure is diagnosable.
+
+### 1. Two-process architecture (light console / heavy orchestrator)
+
+The two processes are **crash-isolated** and couple **only** through the shared opcomm directory
+(see "Channel directory (opcomm)" above — do not re-create it here):
+
+- **Light console** — runs from the **CPU venv** (`venv`). `src/segugio/ui/app.py` imports ONLY
+  Flask + `segugio.opcomm` (the crash-isolation contract); it never imports
+  ultralytics / cyndilib / obsws-python / cv2. A UI exception can never reach the director.
+- **Heavy orchestrator** — runs from **`venv312`** (the GPU venv with the `[heavy]` stack:
+  ultralytics / cyndilib / obsws-python / opencv-python). It decodes the NDI feeds, computes the
+  per-camera scores, and writes the preview JPEGs + `preview/preview.json` into the opcomm dir.
+
+The console **only renders what the orchestrator publishes**: with no orchestrator running there are
+no JPEGs on disk and every tile stays dead (see Troubleshooting (d)).
+
+> **On-this-box gotcha — running the orchestrator from `venv312`.** `python -m segugio` needs the
+> `segugio` package importable in `venv312`. Either editable-install it once
+> (`venv312\Scripts\python.exe -m pip install -e ".[heavy]"`) **or** set `$env:PYTHONPATH = "src"`
+> per run before launching `python -m segugio`. If `python -m segugio` errors with
+> `ModuleNotFoundError: segugio`, that import path is missing.
+
+### 2. Launch the console (light, CPU venv)
+
+```powershell
+# Windows PowerShell — from the repo root, in the CPU venv
+python -m segugio.ui.app
+```
+
+This binds `0.0.0.0:8080` — open it from the operator tablet on the dedicated WiFi. (The `0.0.0.0`
+bind exposes the console to anyone on that LAN; see "Phase 8 — preview bandwidth cap" and
+`docs/security.md` for the trust-boundary posture.)
+
+To populate the multiview's **cam-id whitelist** (which ids `GET /preview/<cam>.jpg` will serve),
+set ONE of these before launching — the console resolves the ids inside its entrypoint, never by
+importing `segugio.config` (the crash-isolation contract):
+
+- `SEGUGIO_OPCOMM_DIR` — the opcomm directory the console reads. **Must equal the orchestrator's
+  `--opcomm-dir`** (defaults to `./opcomm` next to the cwd).
+- `SEGUGIO_CAM_IDS` — a **comma-separated** list of cam ids. **Takes precedence** when set.
+- `SEGUGIO_CONFIG` — a path to a config YAML; the cam ids are loaded from `config.cameras`
+  (`[cam.id for cam in load_config(...).cameras]`). Used only if `SEGUGIO_CAM_IDS` is empty.
+
+With **neither** `SEGUGIO_CAM_IDS` nor `SEGUGIO_CONFIG` set, the four default rig ids keep the
+preview routes serving out of the box: `cam_wide`, `cam_long`, `cam_low`, `cam_handler`.
+
+```powershell
+# Windows PowerShell — colocate the channel + set the whitelist, then launch
+$env:SEGUGIO_OPCOMM_DIR = "D:\segugio\opcomm"
+$env:SEGUGIO_CAM_IDS = "cam_wide,cam_long,cam_low,cam_handler"
+python -m segugio.ui.app
+```
+
+The entrypoint serves via **`waitress`** when installed (`serve(app, host="0.0.0.0", port=8080)`),
+and otherwise falls back to Flask's dev server with **`threaded=True`**
+(`app.run(host="0.0.0.0", port=8080, threaded=True)`). **`threaded=True` is the UXT-02 SAFETY
+control, not cosmetic**: a slow preview `GET` can never pin the lone WSGI worker and block the
+safety-critical override `POST /command`. For a production WSGI server, install the optional extra:
+
+```powershell
+pip install -e ".[console]"   # installs waitress==3.0.2
+```
+
+### 3. Routes served by the console
+
+| Route | Serves | Notes |
+|-------|--------|-------|
+| `GET /preview` | the `preview.json` "why" sidecar (`gen` / `tick` / `auto_candidate` / `cams`) | via the safe-default never-raise `read_preview` (RBT-04): an absent/torn file → a default `PreviewDoc`, never an exception |
+| `GET /preview/<cam>.jpg` | one whitelisted per-camera JPEG via `send_file` | `<cam>` is whitelisted against the configured `cam_ids` and **never used as a raw filesystem path** (anti path-traversal, T-08-03 / T-05-05-01); unknown id → **404**; `Cache-Control: no-store` |
+
+The on-disk JPEG path is built from a **FIXED** `preview/cam_{id}.jpg` prefix, so id `cam_wide` maps
+to the file `cam_cam_wide.jpg` (the Pitfall-3 double-prefix mapping). A frame the publisher hasn't
+written yet → **404** (the browser shows its placeholder).
+
+Tiles populate **only** when the orchestrator runs with preview **ENABLED** (default ON since
+Phase 7) and writes JPEGs into the **same** opcomm dir. The console's `SEGUGIO_OPCOMM_DIR` MUST
+equal the orchestrator's `--opcomm-dir`.
+
+### 4. Preview bandwidth cap (config-time guarantee, not a runtime throttle)
+
+WiFi contention is the #1 domain risk (3-4 phones already push tens-to-hundreds of Mbps of NDI HX3),
+so the preview must **degrade before** it can starve the NDI feeds. This is enforced **at config
+load**, fail-fast, not by a runtime throttle:
+
+- `PreviewParams.max_total_mbps` (default **`8.0`** Mbps) is the cap.
+- `Config._preview_bitrate_within_cap` (a `@model_validator(mode="after")`) computes the worst-case
+  bitrate `est_bytes_per_frame × 8 × fps × N_cams` and **rejects** any over-cap config with a
+  `ValueError` that aggregates into the loader's `SystemExit(2)`. An over-budget preview is a
+  **startup error**, not a live surprise.
+- `preview.enabled: false` **short-circuits** the check (no JPEGs published → nothing to budget — the
+  source-side off-switch).
+
+For the `0.0.0.0` / LAN-trust posture (T-08-03 live-video exposure; **AP client-isolation + no
+internet/guest bridge** as the HARD operational mitigation), see `docs/security.md` — do not
+duplicate it here.
+
+### 5. Troubleshooting "il telefono si vede in OBS ma non nella console"
+
+The phone renders in OBS (DistroAV decodes it independently) but its console tile stays dead. Likely
+causes, in order:
+
+**(a) The `ndi_source` name does not EXACTLY match.** `src/segugio/ndi/ndi_source.py` `_resolve_source`
+does a literal `source_name in names` match against `finder.get_source_names()`. A near-miss name
+(`LOCALHOST (iPhone)` vs `LOCALHOST (iPhone Camera for OBS Studio App)`) silently never resolves, so
+that camera coasts with no frames. Discover the live name and paste **that** exact string into
+`ndi_source` (see the Prerequisites "discover them, don't hardcode" bullet).
+
+**(b) Confirm HX decode + frame count with the diagnostic.** Run it from the venv that has cyndilib +
+the system NDI 6.3.2 runtime (this box: **`venv312`**) with the phone's camera view ACTIVE:
+
+```powershell
+# Windows PowerShell — venv312 has cyndilib + the system NDI runtime; segugio is editable-installed
+# there, so a plain invocation works:
+venv312\Scripts\python.exe tools\verify_ndi_hx_decode.py "LOCALHOST (iPhone)"
+# If `segugio` is NOT importable in the venv you run this from, prepend the src path:
+$env:PYTHONPATH = "src"; venv312\Scripts\python.exe tools\verify_ndi_hx_decode.py "LOCALHOST (iPhone)"
+```
+
+Pass the **exact** advertised NDI source name as the first argument (default: `"LOCALHOST (iPhone)"`).
+`PASS` = the version-pairing fix decodes the HX phone (frames at res > 0); `FAIL` (still 0x0) means
+HX decode is not happening — re-check the system NDI runtime (Prerequisites) before blaming the
+console.
+
+**(c) List the live source names to copy the exact string.** A short cyndilib `Finder` discovery
+one-liner prints the names the senders actually advertise:
+
+```powershell
+# Windows PowerShell — same venv as (b)
+venv312\Scripts\python.exe -c "from cyndilib.finder import Finder; f=Finder(); f.open(); import time; time.sleep(2); print(f.get_source_names()); f.close()"
+```
+
+Copy the EXACT advertised name into the camera's `ndi_source` in config.
+
+**(d) The load-bearing reminder — the console only RENDERS what the orchestrator PUBLISHES.** With no
+orchestrator running (or with `preview.enabled: false`), no JPEGs are written, so every tile stays
+DEAD (404 placeholders) **even when OBS sees the phone**. Start the orchestrator (Section 2 above),
+preview-enabled, pointed at the SAME opcomm dir as the console.
+
+For the NDI runtime / Access Manager / active-camera-view prerequisites, see the "Prerequisites" NDI
+bullets above — they apply here unchanged.
+
+---
+
 ## GPU latency env (Phase 6)
 
 The decision-loop latency work (TensorRT FP16 + batched inference for RBT-05, `<150ms` p95)

@@ -94,7 +94,9 @@ def test_index_serves_italian_console(client):
     # Italian console controls (D-04 four concerns on one page).
     assert "Disciplina" in html
     assert "Avvia run" in html and "Ferma run" in html
-    assert "Forza" in html and "Rilascia" in html
+    # MVW-04 (Phase 9 / 09-02): the blind "Forza {cam}" text buttons were REMOVED — the whole tile
+    # is now the force control (asserted in test_ui_tablet_layout.py). "Rilascia (auto)" stays.
+    assert "Rilascia" in html
     assert "Stato live" in html
     # the 3 per-discipline field labels (SCR-02)
     assert "Prese" in html and "Zona" in html and "Totale" in html

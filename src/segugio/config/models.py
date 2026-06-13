@@ -85,11 +85,22 @@ class ModelConfig(BaseModel):
     ``path`` is a ``pathlib.Path`` (never shell-interpolated — path-injection guard).
     The class index must be re-verified against ``model.names`` at load time in
     Phase 4; Phase 1 only carries the configured value.
+
+    Phase 6 latency seams (additive, default to today's eager-FP32 ``.pt`` behavior so any
+    existing ``extra="forbid"`` config still validates without an ``engine_path``/``use_fp16``
+    key):
+      * ``engine_path`` — the cached TensorRT ``.engine`` artifact path (GPU/driver-specific,
+        rebuilt per rig — Pitfall 3). ``None`` = eager ``.pt`` (the current path). The engine
+        load + graceful-fallback wiring lands in Wave 2 (06-03); this is only the config KEY.
+      * ``use_fp16`` — the eager ``half=True`` toggle for the Wave 1 FP16 measurement. ``False``
+        = FP32 (the current path).
     """
 
     model_config = ConfigDict(extra="forbid")
     path: Path = Path("yolo26s.pt")
     class_index: int = 16
+    engine_path: Path | None = None
+    use_fp16: bool = False
 
 
 class Thresholds(BaseModel):

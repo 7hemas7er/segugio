@@ -298,5 +298,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
 | 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
 | 7. Off-tick Frame-Publishing Channel | 4/4 | Complete   | 2026-06-13 |
-| 8. Console Serving, Live Multiview & Safety Hardening | 3/3 | Complete   | 2026-06-13 |
+| 8. Console Serving, Live Multiview & Safety Hardening | 3/3 | Complete    | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | 0/? | Not started | - |

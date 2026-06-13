@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import os
 import threading
-import time
 
 from loguru import logger
 
@@ -110,20 +109,27 @@ class PreviewPublisher:
         Mirrors ``loop.py``'s RBT-04 tick catch (``except Exception: logger.warning(...)``): an
         encode/IO fault in ``_publish`` is logged and the loop CONTINUES — the publisher thread
         is isolated from the director, so a bad frame never perturbs the tick (threat
-        T-07-03-01). When the mailbox is empty the loop sleeps the publish period (no busy-spin).
+        T-07-03-01). When the mailbox is empty the loop WAITS the publish period (no busy-spin).
         Terminates when :meth:`stop` sets the stop event.
+
+        The period wait is ``self._stop.wait(self._period)`` rather than ``time.sleep`` (WR-01):
+        a bare ``time.sleep`` is NOT interrupted by ``stop()``, so with a low-fps config the
+        period can be hundreds of seconds and ``stop()`` (the RBT-04 SAFE shutdown path) would
+        block until the daemon finally woke. ``Event.wait`` returns True immediately when
+        ``stop()`` fires, so shutdown is prompt. The wait also subsumes the top-of-loop
+        ``_stop.is_set()`` check — we break as soon as it returns True.
         """
-        while not self._stop.is_set():
+        while True:
             item = self._drain()
-            if item is None:
-                # nothing new offered — sleep the publish period (do not busy-spin)
-                time.sleep(self._period)
-                continue
-            try:
-                self._publish(*item)
-            except Exception as exc:  # noqa: BLE001 — RBT-04 extended: a publish fault COASTS
-                logger.warning("preview publish coasted: {}", exc)
-            time.sleep(self._period)
+            if item is not None:
+                try:
+                    self._publish(*item)
+                except Exception as exc:  # noqa: BLE001 — RBT-04 extended: publish fault COASTS
+                    logger.warning("preview publish coasted: {}", exc)
+            # Wait the publish period on the STOP EVENT (WR-01): wakes immediately on stop() so
+            # the RBT-04 shutdown path is never blocked by a long (low-fps) publish period.
+            if self._stop.wait(self._period):
+                break
 
     def start(self) -> None:
         """Launch the daemon publisher thread — IDEMPOTENT (CR-01).

@@ -183,6 +183,7 @@ None yet.
 | Date | Slug | Summary |
 |------|------|---------|
 | 2026-06-12 | run-md-ndi-hx-ops-notes | docs/run.md Prerequisites: NDI Tools/HX Driver required on rig (HX decode depends on system 6.3.2 runtime), multi-homed discovery via NDI Access Manager, active camera view, don't-hardcode source names |
+| 2026-06-13 | run-md-phase8-console-multiview | docs/run.md: new "Phase 8 — Console multiview live" section (2-process arch console venv vs orchestratore venv312; console env vars SEGUGIO_OPCOMM_DIR/SEGUGIO_CONFIG/SEGUGIO_CAM_IDS; route GET /preview + /preview/<cam>.jpg; cap config-time max_total_mbps 8 Mbps → SystemExit(2); troubleshooting "OBS vede ma console no" → match esatto ndi_source + tools/verify_ndi_hx_decode.py) — quick 260613-rjz |
 
 ## Deferred Items
 

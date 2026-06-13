@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
 status: executing
-stopped_at: Completed 09-03-PLAN.md
-last_updated: "2026-06-14T00:20:00.000Z"
-last_activity: 2026-06-14 -- Completed 09-03-PLAN.md (explainability sidebar + SCV-01 mirror)
+stopped_at: 09-04-PLAN.md Task 3 (blocking on-device iPad acceptance) — Tasks 1-2 done & committed
+last_updated: "2026-06-13T22:30:20.000Z"
+last_activity: 2026-06-13 -- 09-04 Tasks 1-2 done (switch-history MVW-05 + UXT-03 freshness/leak/sleep hygiene); PAUSED at Task 3 blocking-human checkpoint
 progress:
   total_phases: 9
   completed_phases: 8
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 ## Current Position
 
 Phase: 09 (explainability-informed-override-tablet-ux) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-06-14 -- Completed 09-03-PLAN.md (explainability sidebar + SCV-01 mirror)
-Next: execute 09-04 (Wave 3 — switch-history strip MVW-05 + UXT-03 freshness/leak/sleep hygiene)
+Plan: 4 of 4 — IN PROGRESS (paused at blocking checkpoint)
+Status: 09-04 Tasks 1-2 complete & committed; PAUSED at Task 3 (checkpoint:human-verify, gate=blocking-human)
+Last activity: 2026-06-13 -- 09-04 Tasks 1-2 (switch-history MVW-05 + UXT-03 freshness/leak/sleep hygiene)
+Next: on-device iPad acceptance (Task 3) — multi-hour memory soak + sleep/wake resume + freshness; resume signal "approved" (with observed memory ceiling + the working setTimeout deferral value) or describe failures for a gap-closure plan
 
 ## Performance Metrics
 
@@ -172,7 +172,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- [09-04 BLOCKING CHECKPOINT]: On-device iPad acceptance (Task 3, checkpoint:human-verify gate=blocking-human) — on the REAL operator iPad (iPadOS 26.x, Safari, landscape) per docs/run.md: (1) multi-hour 4-tile memory soak FLAT (tab + server thread count) + record the real decoded-image/GPU ceiling; (2) sleep/wake (device-lock AND app-switch) resumes a FRESH frame, both pageshow.persisted===true and visibilitychange-hidden paths; (3) freeze one feed → tile flips STALE/MORTO "frame non aggiornato" within ~one poll, NEVER "live"; (4) no "Load failed" storm on resume — record the working setTimeout deferral (currently RESUME_DEFER_MS=200); (5) tap-to-force responsive + bottom-trailing "Rilascia (auto)" reachable + decode-swap zero-flash. Resume: "approved" (memory ceiling + deferral value) or describe failures for a gap-closure plan.
 
 ### Blockers/Concerns
 
@@ -201,6 +201,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-14T00:20:00.000Z
-Stopped at: Completed 09-03-PLAN.md
-Resume file: None
+Last session: 2026-06-13T22:30:20.000Z
+Stopped at: 09-04 Task 3 — blocking-human on-device iPad acceptance checkpoint (Tasks 1-2 committed: 250a803, 122557c)
+Resume file: .planning/phases/09-explainability-informed-override-tablet-ux/09-04-SUMMARY.md

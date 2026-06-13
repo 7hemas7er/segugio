@@ -4,6 +4,8 @@
 
 Segugio v1 delivers an operator-less multi-camera auto-director for dog sports (disc dog + agility), **software-complete on synthetic data** — recorded clips as pseudo-cameras and a mock NDI source, no hardware. The journey is a strict dependency chain of unit-testable layers: a central config contract plus a curated multi-condition clip set front-load the de-risk; a pure framing scorer turns per-detection signals into per-camera scores; a decision FSM becomes the single source of truth on "which camera is live" with no flicker and no dead-feed cuts; YOLO + one-tracker-per-camera proves subject selection against the hardest clips; and a final integration phase wires NDI mock, orchestrator, OBS control, watchdog, and the manual score UI end-to-end, closing the milestone. Each phase is independently verifiable on the dev box before integration near the end.
 
+**Milestone v1.1 — Console Regia (live visibility, Phases 7–9).** v1.1 turns the blind Flask control panel into a live oversight console: the operator *sees* every camera, understands *why* the auto-director chose the live cam, and issues *informed* overrides — without touching the crash-isolation guarantee that keeps the v1.0 director reliable (the console still imports only `Flask + segugio.opcomm`, never the orchestrator). This is a publish-and-render problem, not a compute one: the orchestrator already computes the per-camera scores, dog bbox, and FSM reason every tick and already holds the decoded frames; v1.0 simply discards them. The work is a strict dependency chain forced by one new boundary — a frame/thumbnail publishing channel off the director's critical tick. Phase 7 builds and gates that channel (RBT-05 p95 unchanged with preview ON; console crash-isolation proven by an import test with torch/cv2 absent). Phase 8 makes the console serve and render the live multiview, lands the `threaded=True`/Waitress server fix as a safety control (override POSTs must never be blocked), caps preview bandwidth so it degrades before the NDI feeds do, and re-evaluates the threat model now that live competitor video sits behind the endpoint. Phase 9 adds the explainability layer — per-camera score bars, the plain-Italian reason, the dog-lock bbox overlay, the "auto wants vs aired" hint, the switch-history strip, the live score-overlay preview — plus informed clickable-tile overrides, the tablet-first responsive restyle, and the long-run leak/sleep/freshness hygiene. Nothing the operator sees can render before the channel exists, so Phase 7 gates everything.
+
 ## Phases
 
 **Phase Numbering:**
@@ -19,6 +21,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: YOLO + Per-Camera Tracking on Recorded Clips** - Pre-trained YOLO on CUDA with one BoT-SORT tracker per camera (native ReID), competitor-lock and plausibility gate, validated on the curated clips (completed 2026-06-09)
 - [x] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement (verification 2026-06-11: 4/5 — gaps found, CR-01 startup fault-sink) (completed 2026-06-11)
 - [x] **Phase 6: Decision-loop latency optimization** - TensorRT FP16 export + batched/parallel per-camera inference to bring the 4-camera decision loop under the **<300ms** p95 budget (RBT-05, budget rivisto da <150ms 2026-06-13). Phase 05 UAT Test 5 measured 231–247ms p95 with eager-FP32 yolo26s. Canonical path = FP16+batch **eager** (ReID nativa) ~256ms cool; TensorRT engine ~197ms come leva opzionale a più margine (completed 2026-06-13; RBT-05 MET <300ms on RTX 4000 Ada Laptop — see 06-VERIFICATION.md)
+
+### Milestone v1.1 — Console Regia (live visibility)
+
+- [ ] **Phase 7: Off-tick Frame-Publishing Channel** - The GATING foundation for every v1.1 visual feature: an orchestrator-side `PreviewPublisher` daemon thread + `atomic_write_bytes` + `preview.json` sidecar publish downscaled per-camera JPEG thumbnails and the per-camera "why" data off the director's critical tick — proven not to regress RBT-05 and to keep the console crash-isolated (PRV-01/02/03)
+- [ ] **Phase 8: Console Serving, Live Multiview & Safety Hardening** - The console consumes the channel: a responsive multiview grid of all cameras with LIVE/tally and dead-feed marking, plus the `threaded=True`/Waitress server fix (override POSTs never blocked — a safety control), a preview-bandwidth cap so the preview degrades before NDI feeds, and a written threat re-evaluation now that competitor video sits behind the endpoint (MVW-01/02/03, UXT-02)
+- [ ] **Phase 9: Explainability, Informed Override & Tablet UX** - The "e perché" layer + informed override + tablet polish: per-camera score bars, plain-Italian reason, dog-lock bbox overlay, "auto wants vs aired" hint, switch-history strip, live score-overlay preview, clickable-tile overrides, tablet-first responsive restyle, and long-run leak/sleep/freshness hygiene (MVW-04/05, WHY-01/02/03/04, SCV-01, UXT-01/03)
 
 ## Phase Details
 
@@ -177,26 +185,19 @@ Plans:
 - [x] 05-08-PLAN.md — IO/thread robustness: route `atomic_write_text` through the `_atomic_replace` retry (WR-04, Windows OBS sharing-violation) + de-busy-spin/auto-reconnect the NDI `_receiver_loop` (CR-02 code fix; real CPU/reconnect stays HARDWARE-deferred), each with a headless regression test [Gap Closure]
 - [x] 05-09-PLAN.md — RUNNABLE ENTRY POINT (UAT gap, the half-met phase goal): `build_orchestrator(config, channel_dir)` factory (src/segugio/orchestrator/runtime.py) composing real NdiFrameSource + ObsWsController + per-camera PerCameraTracker + opcomm channel_paths -> `Orchestrator.from_config(...)` (heavy imports lazy, injectable seam for headless tests) + `python -m segugio <config>` (`__main__.py`: load -> build -> run, Ctrl-C -> shutdown SAFE coast, RBT-04) + docs/run.md (OBS-up/OBS-down launch) — unblocks D-07 UAT Tests 1-4 [Gap Closure]
 
-## Progress
+### Phase 6: Decision-loop latency optimization
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+**Goal**: Bring the multi-camera decision loop within the **<300ms p95** budget (RBT-05; budget rivisto da <150ms il 2026-06-13 dopo la misura sul rig) via TensorRT FP16 export + batched/parallel per-camera inference, preserving native BoT-SORT ReID and the never-crash invariant.
+**Depends on**: Phase 5 (the integrated orchestrator loop + `run_measured` latency harness + the gpu-marked `test_latency.py`)
+**Requirements**: RBT-05
+**Success Criteria** (what must be TRUE):
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
-| 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
-| 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
-| 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
-| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
-| 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
+  1. The 4-camera frame→YOLO→score→FSM→OBS decision loop measures p95 < 300ms on the deploy GPU, recorded by re-running `tests/test_latency.py -m gpu`
+  2. ONE batched FP16 detection forward per tick replaces the 4 serial `model.track()` calls, and native BoT-SORT ReID is confirmed still engaged on the batched path (no silent cls fallback)
+  3. The engine-aware loader falls back gracefully to the eager `.pt` on any engine/build failure and never crashes the process (RBT-04)
+  4. The TensorRT FP16 engine is available as an optional higher-margin lever (`tools/build_engine.py`, ~197ms p95) without becoming a hard runtime dependency
 
-### Phase 6: Decision-loop latency optimization — TensorRT FP16 export + batched/parallel per-camera inference to meet the <300ms budget (RBT-05)
-
-**Goal:** Bring the multi-camera decision loop within the **<300ms p95** budget (RBT-05; budget rivisto da <150ms il 2026-06-13 dopo la misura sul rig). Phase 05 UAT Test 5 measured the v1 baseline — **4× yolo26s, eager torch FP32, serialized per tick — at 231–247ms p95** (YOLO inference ≈100% of the loop; ingest/score/fsm/obs sum ~0.5ms; ~58–62ms per single serialized inference; **yolo26n does NOT help on GPU**, so the degradation ladder's rung 1 is a dead end). Delivered, with re-measurement after each: (1) **TensorRT FP16 export** of the detector (`tools/build_engine.py`, ~197ms p95 — kept as an OPTIONAL higher-margin lever); (2) **batched per-camera inference** — ONE FP16 forward per tick replacing the 4 serial `model.track()` calls; (3) re-ran `tests/test_latency.py -m gpu`. **OUTCOME:** the canonical **FP16+batch eager** path (ReID nativa preservata) measures ~256ms p95 cool < 300ms on the RTX 4000 Ada **Laptop** GPU → RBT-05 MET. ⚠ Thermal variance observed (cool ~210–256ms, heat-soaked outlier ~546ms): for sustained live operation prefer a **desktop deploy GPU** (better cooling, no throttle) or the engine's extra margin. The original <150ms target is reachable only on faster/cooler deploy hardware (re-measure there). `_DEGRADATION_LADDER` (fewer cams) intentionally NOT used — it defeats the multi-cam product.
-**Requirements**: RBT-05 (decision-loop latency p95 < 300ms — rivisto da <150ms; the dominant project risk).
-**Depends on:** Phase 5 (the integrated orchestrator loop + `run_measured` latency harness + the gpu-marked `test_latency.py`)
-**Plans:** 3/3 plans complete
+**Plans**: 3 plans (Wave 0: 06-01 · Wave 1: 06-02 · Wave 2: 06-03)
 
 Plans:
 
@@ -211,3 +212,67 @@ Plans:
 **Wave 2** *(the engine track — AUTHORIZED: 06-02 measured ~210ms, still over the 150ms budget)*
 
 - [x] 06-03-PLAN.md — TensorRT FP16 engine: `checkpoint:decision` resolving the engine↔ReID story (Open Q1, Option a/b) + `tools/build_engine.py` one-time cached build CLI + engine-aware `PerCameraTracker` loader with graceful eager fallback (RBT-04, never crash) + `is_engine` threaded into the reid gate + build the engine on the rig and confirm 4-cam p95 < 150ms (RBT-05 — the phase goal) [Wave 2]
+
+### Phase 7: Off-tick Frame-Publishing Channel
+
+**Goal**: A new off-tick publishing channel exposes what the orchestrator already computes — downscaled per-camera JPEG thumbnails plus a per-camera "why" sidecar (framing score, tracking state, dog bbox, FSM auto-candidate, recent-cuts ring) — to the crash-isolated console, built so it provably never steals time from the director's critical tick and never widens the console's import surface. This is the gating foundation: nothing the operator sees in v1.1 can render until this channel exists and is proven safe.
+**Depends on**: Phase 6 (the latency-tuned orchestrator loop + `run_measured` RBT-05 harness it must not regress) and Phase 5 (the `opcomm` atomic-file channel, `DirectorStatus`/`status.json` reverse channel, and the crash-isolated Flask console it extends)
+**Requirements**: PRV-01, PRV-02, PRV-03
+**Success Criteria** (what must be TRUE):
+
+  1. With the `PreviewPublisher` running, re-running the RBT-05 latency harness (`run_measured` / `test_latency.py -m gpu`) shows the 4-camera decision-loop p95 unchanged within noise — frame resize/JPEG-encode/atomic-write happen on a daemon thread fed by a latest-only mailbox, never on the tick (HARD gate: preview ON must not regress RBT-05)
+  2. A crash-isolation import test proves `import segugio.ui` resolves and the console starts with the heavy stack (`ultralytics`/`torch`/`numpy`/`cv2`/`cyndilib`) uninstalled — the console still imports only Flask + `segugio.opcomm` (HARD gate)
+  3. The orchestrator writes downscaled per-camera JPEG thumbnails and a `preview.json` sidecar into a separate, size-bounded `opcomm/preview/` media dir via fixed-filename atomic overwrite (`atomic_write_bytes`, no fsync for the ephemeral frames); a half-written JPEG or sidecar is never read torn
+  4. The `preview.json` sidecar (`PreviewDoc`, frozen, safe-default reader that never raises) carries per-camera framing score + tracking state (tracking/coast/lost) + normalized dog bbox + the FSM auto-candidate + a ring of recent cuts — entirely separate from the unchanged safety-critical `status.json`
+  5. A publisher fault (encode/IO error) coasts and is logged without perturbing the director or crashing the process (RBT-04 extended to the preview path)
+
+**Plans**: TBD
+
+### Phase 8: Console Serving, Live Multiview & Safety Hardening
+
+**Goal**: The crash-isolated console consumes the new channel and renders the first thing the operator actually needs — a live, flicker-free multiview of every camera with an unmistakable LIVE/tally indicator and at-a-glance dead-feed marking — landing in the same phase the two safety controls that the streaming endpoint makes mandatory: the multi-threaded server so a preview stream can never block an override POST, and a hard preview-bandwidth cap so the preview degrades on contended WiFi before the NDI feeds ever appear to die. Because this is the phase that first puts live competitor video behind the `0.0.0.0` endpoint, a written threat re-evaluation is an acceptance criterion.
+**Depends on**: Phase 7 (the publish channel, `preview.json` sidecar and `opcomm/preview/` JPEGs the console serves and renders)
+**Requirements**: MVW-01, MVW-02, MVW-03, UXT-02
+**Success Criteria** (what must be TRUE):
+
+  1. The console serves and renders a responsive CSS-Grid multiview of all cameras — `<img>` per camera refreshed flicker-free (preload `Image()` + swap, cache-busted) at the configured cadence — via two new routes (`GET /preview/<cam>.jpg` whitelisted `send_file`, `GET /preview` sidecar JSON), the console import set still Flask + `segugio.opcomm` only
+  2. The tile of the camera currently on air carries an unmistakable LIVE/tally indicator (red border/badge + "ON AIR: CAM X" banner) driven by `status.live_cam`, and any dead/stale feed is greyed-out/"MORTO"-marked on its tile from `status.alive` + preview freshness
+  3. With a preview stream active, a POST `/command` override is served promptly with no freeze — the `threaded=True`/Waitress server fix is in place so serving thumbnails never pins the lone worker and blocks the safety-critical override control (UXT-02)
+  4. Total preview traffic stays under a configured bitrate ceiling (fps + resolution + JPEG-quality cap); with phones live the feed-watchdog false-death rate is unchanged — the preview degrades first, the director's feeds never starve
+  5. A written v1.1 threat re-evaluation for live-video-behind-`0.0.0.0` plus the LAN/AP isolation requirement exists in the project docs
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 9: Explainability, Informed Override & Tablet UX
+
+**Goal**: The console becomes a true regia — the operator not only sees the cameras but understands *why* the auto-director chose the live one and can override from what they see. This phase publishes-and-renders the explainability layer (per-camera score bars, the plain-Italian reason, the dog-lock bbox overlay, the "auto wants vs aired" hint, the switch-history strip), turns every multiview tile into an informed force-cam control, shows a live preview of how the score will appear on the OBS overlay as the operator types, restyles the whole console tablet-first, and adds the long-run hygiene that keeps a tablet on contended WiFi honest (no leaks, sleep/wake resume, and a freshness stamp so a frozen frame is never shown as "live").
+**Depends on**: Phase 8 (the serving infrastructure, multiview grid, threaded server and bandwidth cap every feature here rides on)
+**Requirements**: MVW-04, MVW-05, WHY-01, WHY-02, WHY-03, WHY-04, SCV-01, UXT-01, UXT-03
+**Success Criteria** (what must be TRUE):
+
+  1. The console renders the live "why": per-camera framing-score bars (a leaderboard with tracking/coast/lost state) from `preview.json`, the current choice's reason in plain Italian from `status.reason` ("Auto: miglior inquadratura" / "Override operatore" / "Soggetto perso → SAFE"), and a CSS/SVG dog-lock bbox drawn on the live tile from the sidecar box coords (no image processing in Flask)
+  2. Override is informed and direct: clicking any multiview tile forces that camera (replacing the blind text buttons), "Rilascia (auto)" remains a distinct control, and during an override the console shows which camera the auto-director would pick right now ("auto vuole vs in onda") plus a switch-history strip of recent cuts + reasons from the sidecar ring — so the operator knows when it is safe to release
+  3. As the operator types a score, the console shows a live client-side preview of exactly how it will look on the OBS overlay (reusing `render_overlay_text`, no orchestrator round-trip) (SCV-01)
+  4. The whole console is responsive and tablet-first: the grid reflows, override targets are large touch targets, the live cam + reason stay visible, and the score form is usable one-handed (UXT-01)
+  5. Long-run hygiene holds on the real operator tablet: a multi-hour soak keeps tab memory and server thread count flat (no leak), sleep/wake resumes a fresh preview, and a freshness stamp/staleness overlay guarantees a frozen frame is never shown as "live" — the preview degrades first, the director never (UXT-03)
+
+**Plans**: TBD
+**UI hint**: yes
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Foundation, Config & Curated Clip Set | 4/4 | Complete   | 2026-06-09 |
+| 2. Framing Scorer (pure logic) | 4/4 | Complete   | 2026-06-09 |
+| 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
+| 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
+| 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
+| 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
+| 7. Off-tick Frame-Publishing Channel | 0/? | Not started | - |
+| 8. Console Serving, Live Multiview & Safety Hardening | 0/? | Not started | - |
+| 9. Explainability, Informed Override & Tablet UX | 0/? | Not started | - |

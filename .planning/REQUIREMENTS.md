@@ -137,6 +137,8 @@ Esplicitamente esclusi da v1. Documentati per prevenire scope creep.
 | Re-ID con modello dedicato/pesante | Il ReID *nativo* (cheap) è in v1; quello pesante no |
 | Latenza <50ms end-to-end glass-to-glass | Fisicamente impossibile; riformulata in due budget |
 | Adjudication automatica (scoring/faults/prese via CV) | Il giudice è autoritativo; un overlay in disaccordo è peggio di nessun overlay |
+| MJPEG / WebSocket / OBS-multiview-embed come trasporto preview v1.1 | Research v1.1 li ha respinti: rompono/affaticano la crash-isolation o aggiungono un server di rete sul director; il trasporto v1.1 è polling di thumbnail JPEG sul canale file opcomm |
+| Pannello di tuning live del director dalla console | Nuovo canale di scrittura nel core decisionale; contraddice il design read-mostly crash-isolato (anti-feature research) |
 
 ## Traceability
 
@@ -185,22 +187,51 @@ Ogni requisito v1 → esattamente una fase (100% coverage, nessun orfano).
 | RBT-01 | Phase 5 | Complete |
 | RBT-02 | Phase 5 | Complete |
 | RBT-04 | Phase 5 | Complete |
-| RBT-05 | Phase 5 | Complete |
+| RBT-05 | Phase 5 → met in Phase 6 (latency optimization, <300ms) | Complete |
+
+### Traceability — v1.1 Console Regia
+
+Ogni requisito v1.1 → esattamente una fase (100% coverage, nessun orfano). La numerazione delle fasi continua dalla v1.0 (parte da Phase 7).
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| PRV-01 | Phase 7 | Pending |
+| PRV-02 | Phase 7 | Pending |
+| PRV-03 | Phase 7 | Pending |
+| MVW-01 | Phase 8 | Pending |
+| MVW-02 | Phase 8 | Pending |
+| MVW-03 | Phase 8 | Pending |
+| UXT-02 | Phase 8 | Pending |
+| MVW-04 | Phase 9 | Pending |
+| MVW-05 | Phase 9 | Pending |
+| WHY-01 | Phase 9 | Pending |
+| WHY-02 | Phase 9 | Pending |
+| WHY-03 | Phase 9 | Pending |
+| WHY-04 | Phase 9 | Pending |
+| SCV-01 | Phase 9 | Pending |
+| UXT-01 | Phase 9 | Pending |
+| UXT-03 | Phase 9 | Pending |
 
 **Coverage:**
 
-- v1 requirements: 41 total
-- Mapped to phases: 41 (100%)
-- Unmapped: 0 ✓
+- v1 requirements: 41 total — mapped 41 (100%), unmapped 0 ✓
+- v1.1 requirements: 16 total — mapped 16 (100%), unmapped 0 ✓
 
-**Per-phase counts:**
+**Per-phase counts (v1):**
 
 - Phase 1 — Foundation, Config & Curated Clip Set: 6 (CFG-01..04, TST-01, TST-02)
 - Phase 2 — Framing Scorer (pure logic): 7 (FRM-01..07)
 - Phase 3 — Decision Engine FSM: 8 (DEC-01..07, RBT-03)
 - Phase 4 — YOLO + Per-Camera Tracking on Clips: 5 (TRK-01..05)
 - Phase 5 — Integration (NDI Mock, Orchestrator, OBS, Score UI): 15 (NDI-01..03, OBS-01..05, SCR-01..04, RBT-01, RBT-02, RBT-04, RBT-05)
+- Phase 6 — Decision-loop latency optimization: RBT-05 met under the revised <300ms budget
+
+**Per-phase counts (v1.1):**
+
+- Phase 7 — Off-tick Frame-Publishing Channel: 3 (PRV-01, PRV-02, PRV-03)
+- Phase 8 — Console Serving, Live Multiview & Safety Hardening: 4 (MVW-01, MVW-02, MVW-03, UXT-02)
+- Phase 9 — Explainability, Informed Override & Tablet UX: 9 (MVW-04, MVW-05, WHY-01..04, SCV-01, UXT-01, UXT-03)
 
 ---
 *Requirements defined: 2026-06-09*
-*Last updated: 2026-06-09 after roadmap creation (traceability populated, 41/41 mapped)*
+*Last updated: 2026-06-13 after v1.1 roadmap creation (v1.1 traceability populated, 16/16 mapped to Phases 7–9)*

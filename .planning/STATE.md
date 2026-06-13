@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Console Regia - visibilita live
 status: planning
-last_updated: "2026-06-13T07:53:48.364Z"
+last_updated: "2026-06-13T08:30:00.000Z"
 last_activity: 2026-06-13
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,18 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-09)
+See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 06 — decision-loop-latency-optimization-tensorrt-fp16-export-batc
+**Current focus:** Phase 7 — Off-tick Frame-Publishing Channel (the gating foundation of milestone v1.1 Console Regia)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 7 — Off-tick Frame-Publishing Channel (not started — roadmap created, ready for planning)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-13 — Milestone v1.1 started
+Status: Ready to plan Phase 7
+Last activity: 2026-06-13 — v1.1 roadmap created (Phases 7–9 appended; 16/16 v1.1 reqs mapped)
+Next: `/gsd-plan-phase 7`
 
 ## Performance Metrics
 
@@ -86,13 +87,22 @@ Last activity: 2026-06-13 — Milestone v1.1 started
 
 ### Roadmap Evolution
 
-- Phase 6 added (2026-06-13): Decision-loop latency optimization (TensorRT FP16 export + batched/parallel per-camera inference) to meet RBT-05 <150ms — created from the Phase 05 UAT Test 5 finding (4× yolo26s eager-FP32 measured 231–247ms p95; yolo26n ineffective on GPU). The milestone's latency success criterion is not met until this lands.
+- Milestone v1.1 "Console Regia — visibilità live" roadmap created (2026-06-13): 3 phases appended after the v1.0 Phases 1–6 (numbering continues at Phase 7, no reset). 16/16 v1.1 requirements mapped. The shape is dependency-forced — the off-tick frame-publishing channel gates everything:
+  - **Phase 7 — Off-tick Frame-Publishing Channel** (PRV-01/02/03): the gating foundation. `PreviewPublisher` daemon thread + `atomic_write_bytes` + `preview.json` sidecar publish per-camera JPEG thumbnails + the "why" data off the critical tick. Two HARD gates: (a) RBT-05 p95 unchanged with preview ON; (b) console crash-isolation proven by an import test with the heavy stack (ultralytics/torch/cv2/cyndilib) absent.
+  - **Phase 8 — Console Serving, Live Multiview & Safety Hardening** (MVW-01/02/03, UXT-02): multiview grid + LIVE/tally + dead-feed marking, plus the `threaded=True`/Waitress server fix folded in as a SAFETY item (override POSTs never blocked, not cosmetic), a preview-bandwidth cap (preview degrades before NDI feeds), and a written threat re-eval (live video behind 0.0.0.0).
+  - **Phase 9 — Explainability, Informed Override & Tablet UX** (MVW-04/05, WHY-01/02/03/04, SCV-01, UXT-01/03): score bars + plain-Italian reason + dog-lock bbox overlay + "auto wants vs aired" hint + switch-history strip + score preview + clickable-tile overrides + tablet restyle + leak/sleep/freshness hygiene.
+- Phase 6 added (2026-06-13): Decision-loop latency optimization (TensorRT FP16 export + batched/parallel per-camera inference) to meet RBT-05 — created from the Phase 05 UAT Test 5 finding (4× yolo26s eager-FP32 measured 231–247ms p95; yolo26n ineffective on GPU). Closed under the revised <300ms budget (FP16+batch eager ~256ms cool with native ReID; TensorRT engine ~197ms optional).
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Milestone v1.1]: Console Regia is a publish-and-render problem, not compute — the orchestrator already computes per-camera scores, dog bbox, FSM reason every tick and holds the decoded frames; v1.0 discards them. v1.1 exposes them over a new off-tick file channel.
+- [Milestone v1.1]: Transport = polling per-camera JPEG thumbnails over the existing atomic-file opcomm channel (separate `opcomm/preview/` dir). MJPEG / WebSocket / OBS-multiview-embed REJECTED by research (break/strain crash-isolation or add a network server on the director).
+- [Milestone v1.1]: Per-camera "why" data travels in a NEW `preview.json` sidecar, NOT bloated into the safety-critical write-on-change `status.json`.
+- [Milestone v1.1]: The console stays crash-isolated (imports only Flask + `segugio.opcomm`); JPEG encode happens in the orchestrator, the console only `send_file`s bytes. Proven by an import test with the heavy stack absent (the Phase 7 hard gate).
+- [Milestone v1.1]: The `threaded=True`/Waitress fix is a SAFETY control (override POST must never be blocked by a preview stream), not polish — it lands in Phase 8 with the first streaming endpoint.
 - [Milestone v1]: Software-complete on synthetic data (recorded clips + mock NDI); all 5 phases hardware-free on the dev box
 - [Phase 1]: Curated multi-condition clip set + config contract front-loaded as the decisive de-risk
 - [Phase 2/3]: Pure-logic brains (scorer, FSM) built and unit-tested in isolation on synthetic streams before YOLO is wired
@@ -147,7 +157,9 @@ None yet.
 - [Phase 4 — RESOLVED 2026-06-10 GPU UAT]: Native-ReID engagement on yolo26s VERIFIED on RTX 4000 Ada (assert_native_reid_engaged does not raise with end2end=False → no silent yolo26n-cls.pt fallback). COCO dog recall MEASURED on the 6 hard slices: strong on close/clear (handler_close cam_c 0.89, dusk_distant 0.76, sprint_blur 0.69), weak on distant/small + crowd (distant 0.04, crowd_distractor 0.16) — candidate for dog-detector fine-tuning later. NOTE: GPU UAT also found+fixed a real bug — the tracker yaml was passed as a bare name and never resolved, so TRK-01/TRK-02 were dead on the real path (silent coast every frame); fixed in detector.py with fail-loud abs-path resolution + CPU regression test.
 - [Phase 6 / 06-01 — RESOLVED 2026-06-13]: The py3.12 cu12x-torch + tensorrt GPU env (venv312: Python 3.12.10, torch 2.12.0+cu126, ultralytics 8.4.62, tensorrt-cu12 10.16.1.11, RTX 4000 Ada driver 596.36) is LIVE — torch.cuda.is_available()=True and the gpu latency test collects+runs. 06-02 RAN the gpu gate on it (p95 ~210ms). All Wave-1/Wave-2 latency work unblocked.
 - [Phase 6 / 06-02 — RBT-05 gate, INFORMS 06-03]: The cheap rung (eager FP16 + ONE batched forward per tick) measured p95 ~210ms ≥ 150ms on the RTX 4000 Ada — it did NOT meet RBT-05. 06-03 (TensorRT FP16 engine build) is AUTHORIZED and required to cross the budget. 06-03 should weigh keeping FP32 detection if FP16 visibly regresses recall on real distant/dusk footage (RESEARCH A5 — not spot-checked this run; the gpu gate uses synthetic frames).
-- [Phase 6 / 06-03 — RBT-05 STILL OPEN]: The TensorRT FP16 engine (static batch=4) measured 4-cam loop p95 ~193-195ms on the RTX 4000 Ada Laptop GPU (AC power) — only marginally better than the 06-02 eager FP16+batch rung (~210ms) and STILL >= 150ms. The engine genuinely engaged (cls-ReID fallback WARNS not crashes, real tracking confirmed). RBT-05 (<150ms) is NOT met by the engine on this Laptop GPU. Next lever needed (NOT silently applied): (1) Option (b) eager-track + engine-detect-only (06-03 re-plan/split); (2) yolo26n engine swap; (3) LAST RESORT FLAGGED — camera-reduction ladder (defeats the multi-cam product value). Re-measure on the DESKTOP deploy GPU first (a Laptop GPU under-parallelizes the batch4 forward).
+- [Phase 6 / 06-03 — RESOLVED 2026-06-13 under revised budget]: The TensorRT FP16 engine (static batch=4) measured 4-cam loop p95 ~193-195ms; the canonical FP16+batch eager path ~256ms cool — both < the revised <300ms budget → RBT-05 MET on the RTX 4000 Ada Laptop GPU. ⚠ Thermal variance (heat-soaked outlier ~546ms) → prefer a desktop deploy GPU for sustained live; original <150ms reachable only on faster/cooler hardware.
+- [Milestone v1.1 — carry into Phase 9 planning]: Tablet transport (iOS Safari MJPEG support + background-tab timer/suspension) flagged for `--research-phase` if the operator tablet is an iPad/Safari; Android Chrome / desktop are standard. (Research SUMMARY gap.)
+- [Milestone v1.1 — carry into Phase 7/8 planning]: Re-verify BoT-SORT native ReID actually engages on yolo26s at startup before depending on `locked`/`track_id` stability in the Phase 9 dog-lock bbox overlay; validate the <=5–8 Mbps preview bandwidth budget with phones live before Phase 8 acceptance; document the fsync-drop for ephemeral preview JPEGs explicitly in `atomic_write_bytes` so it is not silently reverted.
 
 ## Quick Tasks Completed
 
@@ -165,6 +177,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T05:29:06.536Z
-Stopped at: 06-02 complete — batched FP16 rung measured on the rig (p95 ~210ms, FAIL → 06-03 authorized)
-Resume file: .planning/phases/06-decision-loop-latency-optimization-tensorrt-fp16-export-batc/06-03-PLAN.md
+Last session: 2026-06-13T08:30:00.000Z
+Stopped at: v1.1 roadmap created — Phases 7–9 appended to ROADMAP.md, 16/16 v1.1 reqs mapped, STATE + REQUIREMENTS traceability updated
+Resume file: .planning/ROADMAP.md (review the v1.1 phase details) → then `/gsd-plan-phase 7`

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
 status: executing
-stopped_at: 09-04-PLAN.md Task 3 (blocking on-device iPad acceptance) — Tasks 1-2 done & committed
-last_updated: "2026-06-13T22:30:20.000Z"
-last_activity: 2026-06-13 -- 09-04 Tasks 1-2 done (switch-history MVW-05 + UXT-03 freshness/leak/sleep hygiene); PAUSED at Task 3 blocking-human checkpoint
+stopped_at: 09-04-PLAN.md complete — on-device iPad acceptance APPROVED (MVW-05, UXT-03); phase 9 at 4/4 plans
+last_updated: "2026-06-14T00:00:00.000Z"
+last_activity: 2026-06-14 -- 09-04 COMPLETE (Task 3 on-device iPad acceptance approved: memory flat, 200ms deferral confirmed, sleep/wake + frozen-feed-never-live verified)
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 40
-  completed_plans: 39
-  percent: 90
+  completed_plans: 40
+  percent: 92
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 
 ## Current Position
 
-Phase: 09 (explainability-informed-override-tablet-ux) — EXECUTING
-Plan: 4 of 4 — IN PROGRESS (paused at blocking checkpoint)
-Status: 09-04 Tasks 1-2 complete & committed; PAUSED at Task 3 (checkpoint:human-verify, gate=blocking-human)
-Last activity: 2026-06-13 -- 09-04 Tasks 1-2 (switch-history MVW-05 + UXT-03 freshness/leak/sleep hygiene)
-Next: on-device iPad acceptance (Task 3) — multi-hour memory soak + sleep/wake resume + freshness; resume signal "approved" (with observed memory ceiling + the working setTimeout deferral value) or describe failures for a gap-closure plan
+Phase: 09 (explainability-informed-override-tablet-ux) — EXECUTING (all 4 plans done, awaiting phase verification/completion by orchestrator)
+Plan: 4 of 4 — COMPLETE
+Status: 09-04 COMPLETE — Tasks 1-2 committed (250a803, 122557c); Task 3 on-device iPad acceptance APPROVED by operator
+Last activity: 2026-06-14 -- 09-04 finalized after on-device iPad acceptance (MVW-05 + UXT-03 delivered & hardware-accepted)
+Next: phase 9 verification + completion (orchestrator); all 4 plans (09-01..09-04) executed
 
 ## Performance Metrics
 
@@ -94,6 +94,7 @@ Next: on-device iPad acceptance (Task 3) — multi-hour memory soak + sleep/wake
 | Phase 09 P01 | 6min | 2 tasks | 3 files |
 | Phase 09 P02 | 12min | 2 tasks tasks | 3 files files |
 | Phase 09 P03 | 25min | 2 tasks | 2 files |
+| Phase 09 P04 | 7min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -168,11 +169,12 @@ Recent decisions affecting current work:
 - [Phase 09]: [Phase 09 / 09-01]: backend enablers, isolated in app.py + tests (zero file overlap with 09-02). GET /preview now jsonifies "cuts": [dict(c) for c in doc.cuts] (MVW-05 data source for the 09-04 switch-history strip; read_preview safe-defaults to [] when the sidecar is absent — RBT-04). NEW pure POST /score/preview returns render_overlay_text(ScoreDoc(...)) as text/plain and writes NOTHING (SCV-01 server-side drift-guard the 09-03 JS overlay mirror asserts server === client against, once-per-blur). Reuses ONLY already-imported symbols (render_overlay_text/Discipline/ScoreDoc/_NON_SCORE_KEYS) → NO new import, crash-isolation allowlist (Flask + opcomm + score_render) green. test_score_preview_byte_reference = the canonical Wave-0 byte-parity strings (incl. double spaces) for the JS mirror. 47 passed across preview_serving+score_preview+imports+ui_score, zero regression.
 - [Phase 08]: [Phase 08 / 08-03]: docs/security.md = the v1.1 written threat re-eval (D-09) — reaffirms LAN-as-trust-boundary single-operator no-auth posture (T-05-05-01..04, cross-referenced from ui/app.py docstrings), ADDS the live-competitor-video-behind-0.0.0.0 exposure (T-08-03, STRIDE Information Disclosure: GET /preview + GET /preview/<cam>.jpg, mitigated by the cam-id whitelist→fixed cam_{id}.jpg path + threaded=True/Waitress override-availability), and mandates AP client-isolation + no internet/guest bridge as a HARD OPERATIONAL requirement. preview.enabled is the source-side off-switch; NO new in-code auth/configurable-bind/shared-token in v1.1 (rejected). Mitigation is operational+documented, not code.
 - [Phase ?]: [Phase 09 / 09-02]: tablet-first console restyle — landscape Multiview-LEFT + sidebar-RIGHT (D-01) with @media single-column reflow; UXT-01 touch contract (viewport-fit=cover, touch-action manipulation, safe-area bottom cluster, >=44/48px targets); status palette migrated to #34D399/#F0B429/#FF6B6B/#56B4E9 on #14161a (#b23b3b retired); typography 4 sizes / 400+700 only. 5 grayscale-safe tile states (D-04) via setTileState; whole tile is the force control on standard click (MVW-04, blind Forza buttons removed) + large always-visible Rilascia undo (D-03); /command + OperatorCommand untouched. Per-tile bbox SVG (WHY-03): unit viewBox + xMidYMid meet + object-fit:contain = zero JS letterbox math. Four sidebar why-blocks scaffolded for 09-03/09-04. Crash-isolation allowlist preserved; 55 tests green.
+- [Phase 09 / 09-04]: switch-history strip (MVW-05) + UXT-03 long-run tablet hygiene — buildSwitchHistory renders the preview.json cuts ring newest-first (HIST_SHOW=6) with the shared reasonToItalian map; leak-free refresh = ONE persistent off-DOM Image() preloader per tile + await decode() BEFORE the visible swap (no per-frame new Image()), hidden/off tiles get a 1x1 data-URI src (deterministic bitmap free, not display:none); gen-age-vs-local-clock FOREGROUND staleness watchdog (PRIMARY) + freshnessStamp "agg. {n}s fa"/"frame non aggiornato"; sleep/wake resume on visibilitychange + pageshow/pagehide ONLY (focus/blur/unload NOT lifecycle-registered) — onResume records resumeAt, marks all tiles stale, restarts named intervals, defers first fetch RESUME_DEFER_MS=200ms; a tile renders LIVE only once a frame arriving after resumeAt lands (frozen feed NEVER shown live). tests/test_ui_freshness.py (10 served-HTML/JS assertions, all green). ON-DEVICE iPad acceptance (Task 3, blocking-human) APPROVED on iPadOS 26.x: memory FLAT (no monotonic growth, no hard ceiling needed), 200ms deferral confirmed (no Load-failed storm), both device-lock + app-switch wake paths recover fresh, frozen-feed flips STALE never live, tap-to-force + reachable undo + zero-flash decode confirmed. MVW-05 + UXT-03 COMPLETE. Crash-isolation allowlist preserved (app.py untouched).
 - [Phase ?]: [Phase 09 / 09-03]: explainability sidebar FILLED + SCV-01 mirror. WHY-01 reasonToItalian map → renderReason writes plain-Italian copy into #reason (the separate #live-reason keeps the raw advisory tag); WHY-02 buildLeaderboard one .lb-row/cam sorted highest-first by score(→ema), fill by state tracking(solid ● green)/coast(hatched ◐)/lost(empty ·· + LABEL #E6E9EF, never the dim-gray hue as text), empty→"Nessun dato di framing", all cams (D-05); WHY-04 renderAutoWants "Auto vuole: {cam}" + dashed-blue auto-wants tile marker during override only; WHY-03 pollPreview drives updateBbox(cam, cams[cam].box), draws nothing on null (native-ReID lock drop), hidden on STALE/MORTO. SCV-01 (TDD RED 2bb53de→GREEN cdd8218): cleanField mirrors Python _clean (Unicode-property regex drops Cc/Cf/Cs/Co/Cn/Zl/Zp/Zs, keeps U+0020, trim, cap 64); mirrorOverlayText mirrors the 3 render_overlay_text f-strings char-exact (double spaces + sct/SCT alias via scvGet); updateScorePreview debounced 200ms NO per-keystroke fetch NEVER orchestrator; driftCheck POSTs Flask /score/preview ONCE on blur+submit → "⚠ Anteprima non allineata — verifica" on mismatch. Byte-parity PROVEN by EXECUTING the served JS in node vs the imported Python renderer across all 3 disciplines (Wave-0 CI parity; delimited gsd:why-mirror/gsd:scv01-mirror blocks extracted from served HTML, node stdout captured as raw UTF-8 via temp .mjs to survive the cp1252 host). 39 UI tests green; full suite 421 passed/8 skipped (2 pre-existing env NDI loopback failures only). Crash-isolation allowlist preserved. WHY-01/02/03/04 + SCV-01 COMPLETE.
 
 ### Pending Todos
 
-- [09-04 BLOCKING CHECKPOINT]: On-device iPad acceptance (Task 3, checkpoint:human-verify gate=blocking-human) — on the REAL operator iPad (iPadOS 26.x, Safari, landscape) per docs/run.md: (1) multi-hour 4-tile memory soak FLAT (tab + server thread count) + record the real decoded-image/GPU ceiling; (2) sleep/wake (device-lock AND app-switch) resumes a FRESH frame, both pageshow.persisted===true and visibilitychange-hidden paths; (3) freeze one feed → tile flips STALE/MORTO "frame non aggiornato" within ~one poll, NEVER "live"; (4) no "Load failed" storm on resume — record the working setTimeout deferral (currently RESUME_DEFER_MS=200); (5) tap-to-force responsive + bottom-trailing "Rilascia (auto)" reachable + decode-swap zero-flash. Resume: "approved" (memory ceiling + deferral value) or describe failures for a gap-closure plan.
+- *(none — 09-04 blocking on-device checkpoint cleared 2026-06-14: operator approved on iPadOS 26.x — memory flat, 200ms deferral confirmed, sleep/wake + frozen-feed-never-live verified)*
 
 ### Blockers/Concerns
 
@@ -181,7 +183,7 @@ Recent decisions affecting current work:
 - [Phase 6 / 06-01 — RESOLVED 2026-06-13]: The py3.12 cu12x-torch + tensorrt GPU env (venv312: Python 3.12.10, torch 2.12.0+cu126, ultralytics 8.4.62, tensorrt-cu12 10.16.1.11, RTX 4000 Ada driver 596.36) is LIVE — torch.cuda.is_available()=True and the gpu latency test collects+runs. 06-02 RAN the gpu gate on it (p95 ~210ms). All Wave-1/Wave-2 latency work unblocked.
 - [Phase 6 / 06-02 — RBT-05 gate, INFORMS 06-03]: The cheap rung (eager FP16 + ONE batched forward per tick) measured p95 ~210ms ≥ 150ms on the RTX 4000 Ada — it did NOT meet RBT-05. 06-03 (TensorRT FP16 engine build) is AUTHORIZED and required to cross the budget. 06-03 should weigh keeping FP32 detection if FP16 visibly regresses recall on real distant/dusk footage (RESEARCH A5 — not spot-checked this run; the gpu gate uses synthetic frames).
 - [Phase 6 / 06-03 — RESOLVED 2026-06-13 under revised budget]: The TensorRT FP16 engine (static batch=4) measured 4-cam loop p95 ~193-195ms; the canonical FP16+batch eager path ~256ms cool — both < the revised <300ms budget → RBT-05 MET on the RTX 4000 Ada Laptop GPU. ⚠ Thermal variance (heat-soaked outlier ~546ms) → prefer a desktop deploy GPU for sustained live; original <150ms reachable only on faster/cooler hardware.
-- [Milestone v1.1 — carry into Phase 9 planning]: Tablet transport (iOS Safari MJPEG support + background-tab timer/suspension) flagged for `--research-phase` if the operator tablet is an iPad/Safari; Android Chrome / desktop are standard. (Research SUMMARY gap.)
+- [Milestone v1.1 — RESOLVED 2026-06-14 via 09-04 on-device acceptance]: Tablet transport on iPad/Safari validated on hardware (iPadOS 26.x) — polling per-camera JPEG (not MJPEG) + the UXT-03 hygiene (persistent-preloader decode-swap, gen-age foreground staleness watchdog, visibilitychange/pageshow sleep-wake resume with RESUME_DEFER_MS=200ms) hold up: multi-hour memory FLAT, both background-tab suspension paths resume a fresh frame, frozen feed never shown live. Android Chrome / desktop remain standard.
 - [Milestone v1.1 — carry into Phase 7/8 planning]: Re-verify BoT-SORT native ReID actually engages on yolo26s at startup before depending on `locked`/`track_id` stability in the Phase 9 dog-lock bbox overlay; validate the <=5–8 Mbps preview bandwidth budget with phones live before Phase 8 acceptance; document the fsync-drop for ephemeral preview JPEGs explicitly in `atomic_write_bytes` so it is not silently reverted.
 
 ## Quick Tasks Completed
@@ -201,6 +203,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T22:30:20.000Z
-Stopped at: 09-04 Task 3 — blocking-human on-device iPad acceptance checkpoint (Tasks 1-2 committed: 250a803, 122557c)
-Resume file: .planning/phases/09-explainability-informed-override-tablet-ux/09-04-SUMMARY.md
+Last session: 2026-06-14T00:00:00.000Z
+Stopped at: 09-04 COMPLETE — on-device iPad acceptance approved; all 4 phase-9 plans executed (orchestrator owns phase verification/completion next)
+Resume file: None

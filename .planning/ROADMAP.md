@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 7: Off-tick Frame-Publishing Channel** - The GATING foundation for every v1.1 visual feature: an orchestrator-side `PreviewPublisher` daemon thread + `atomic_write_bytes` + `preview.json` sidecar publish downscaled per-camera JPEG thumbnails and the per-camera "why" data off the director's critical tick — proven not to regress RBT-05 and to keep the console crash-isolated (PRV-01/02/03) (completed 2026-06-13)
 - [x] **Phase 8: Console Serving, Live Multiview & Safety Hardening** - The console consumes the channel: a responsive multiview grid of all cameras with LIVE/tally and dead-feed marking, plus the `threaded=True`/Waitress server fix (override POSTs never blocked — a safety control), a preview-bandwidth cap so the preview degrades before NDI feeds, and a written threat re-evaluation now that competitor video sits behind the endpoint (MVW-01/02/03, UXT-02) (completed 2026-06-13)
-- [ ] **Phase 9: Explainability, Informed Override & Tablet UX** - The "e perché" layer + informed override + tablet polish: per-camera score bars, plain-Italian reason, dog-lock bbox overlay, "auto wants vs aired" hint, switch-history strip, live score-overlay preview, clickable-tile overrides, tablet-first responsive restyle, and long-run leak/sleep/freshness hygiene (MVW-04/05, WHY-01/02/03/04, SCV-01, UXT-01/03)
+- [x] **Phase 9: Explainability, Informed Override & Tablet UX** - The "e perché" layer + informed override + tablet polish: per-camera score bars, plain-Italian reason, dog-lock bbox overlay, "auto wants vs aired" hint, switch-history strip, live score-overlay preview, clickable-tile overrides, tablet-first responsive restyle, and long-run leak/sleep/freshness hygiene (MVW-04/05, WHY-01/02/03/04, SCV-01, UXT-01/03) (completed 2026-06-13)
 
 ## Phase Details
 
@@ -297,7 +297,7 @@ Plans:
 
 **Wave 3** *(blocked on 09-03 — same file console.html)*
 
-- [ ] 09-04-PLAN.md — Switch-history strip (MVW-05) + UXT-03 hygiene: leak-free decode-swap refresh, gen-age freshness watchdog + stamp, sleep/wake resume, and a blocking on-device iPad acceptance checkpoint [Wave 3] — **IN PROGRESS: Tasks 1-2 done & committed (250a803, 122557c); PAUSED at Task 3 blocking-human on-device iPad acceptance**
+- [x] 09-04-PLAN.md — Switch-history strip (MVW-05) + UXT-03 hygiene: leak-free decode-swap refresh, gen-age freshness watchdog + stamp, sleep/wake resume, and a blocking on-device iPad acceptance checkpoint [Wave 3] — **IN PROGRESS: Tasks 1-2 done & committed (250a803, 122557c); PAUSED at Task 3 blocking-human on-device iPad acceptance**
 
 ## Progress
 
@@ -314,4 +314,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
 | 7. Off-tick Frame-Publishing Channel | 4/4 | Complete   | 2026-06-13 |
 | 8. Console Serving, Live Multiview & Safety Hardening | 3/3 | Complete    | 2026-06-13 |
-| 9. Explainability, Informed Override & Tablet UX | 2/4 | In Progress|  |
+| 9. Explainability, Informed Override & Tablet UX | 4/4 | Complete   | 2026-06-13 |

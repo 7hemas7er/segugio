@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-06-13T22:03:05.430Z"
-last_activity: 2026-06-13 -- Completed 09-01-PLAN.md (backend enablers)
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-06-14T00:20:00.000Z"
+last_activity: 2026-06-14 -- Completed 09-03-PLAN.md (explainability sidebar + SCV-01 mirror)
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 39
-  completed_plans: 37
-  percent: 89
+  total_plans: 40
+  completed_plans: 39
+  percent: 90
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 ## Current Position
 
 Phase: 09 (explainability-informed-override-tablet-ux) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
-Last activity: 2026-06-13 -- Completed 09-01-PLAN.md (backend enablers)
-Next: execute 09-02 (Wave 1 parallel)
+Last activity: 2026-06-14 -- Completed 09-03-PLAN.md (explainability sidebar + SCV-01 mirror)
+Next: execute 09-04 (Wave 3 — switch-history strip MVW-05 + UXT-03 freshness/leak/sleep hygiene)
 
 ## Performance Metrics
 
@@ -93,6 +93,7 @@ Next: execute 09-02 (Wave 1 parallel)
 | Phase 08 P03 | 3min | 1 tasks | 1 files |
 | Phase 09 P01 | 6min | 2 tasks | 3 files |
 | Phase 09 P02 | 12min | 2 tasks tasks | 3 files files |
+| Phase 09 P03 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -167,6 +168,7 @@ Recent decisions affecting current work:
 - [Phase 09]: [Phase 09 / 09-01]: backend enablers, isolated in app.py + tests (zero file overlap with 09-02). GET /preview now jsonifies "cuts": [dict(c) for c in doc.cuts] (MVW-05 data source for the 09-04 switch-history strip; read_preview safe-defaults to [] when the sidecar is absent — RBT-04). NEW pure POST /score/preview returns render_overlay_text(ScoreDoc(...)) as text/plain and writes NOTHING (SCV-01 server-side drift-guard the 09-03 JS overlay mirror asserts server === client against, once-per-blur). Reuses ONLY already-imported symbols (render_overlay_text/Discipline/ScoreDoc/_NON_SCORE_KEYS) → NO new import, crash-isolation allowlist (Flask + opcomm + score_render) green. test_score_preview_byte_reference = the canonical Wave-0 byte-parity strings (incl. double spaces) for the JS mirror. 47 passed across preview_serving+score_preview+imports+ui_score, zero regression.
 - [Phase 08]: [Phase 08 / 08-03]: docs/security.md = the v1.1 written threat re-eval (D-09) — reaffirms LAN-as-trust-boundary single-operator no-auth posture (T-05-05-01..04, cross-referenced from ui/app.py docstrings), ADDS the live-competitor-video-behind-0.0.0.0 exposure (T-08-03, STRIDE Information Disclosure: GET /preview + GET /preview/<cam>.jpg, mitigated by the cam-id whitelist→fixed cam_{id}.jpg path + threaded=True/Waitress override-availability), and mandates AP client-isolation + no internet/guest bridge as a HARD OPERATIONAL requirement. preview.enabled is the source-side off-switch; NO new in-code auth/configurable-bind/shared-token in v1.1 (rejected). Mitigation is operational+documented, not code.
 - [Phase ?]: [Phase 09 / 09-02]: tablet-first console restyle — landscape Multiview-LEFT + sidebar-RIGHT (D-01) with @media single-column reflow; UXT-01 touch contract (viewport-fit=cover, touch-action manipulation, safe-area bottom cluster, >=44/48px targets); status palette migrated to #34D399/#F0B429/#FF6B6B/#56B4E9 on #14161a (#b23b3b retired); typography 4 sizes / 400+700 only. 5 grayscale-safe tile states (D-04) via setTileState; whole tile is the force control on standard click (MVW-04, blind Forza buttons removed) + large always-visible Rilascia undo (D-03); /command + OperatorCommand untouched. Per-tile bbox SVG (WHY-03): unit viewBox + xMidYMid meet + object-fit:contain = zero JS letterbox math. Four sidebar why-blocks scaffolded for 09-03/09-04. Crash-isolation allowlist preserved; 55 tests green.
+- [Phase ?]: [Phase 09 / 09-03]: explainability sidebar FILLED + SCV-01 mirror. WHY-01 reasonToItalian map → renderReason writes plain-Italian copy into #reason (the separate #live-reason keeps the raw advisory tag); WHY-02 buildLeaderboard one .lb-row/cam sorted highest-first by score(→ema), fill by state tracking(solid ● green)/coast(hatched ◐)/lost(empty ·· + LABEL #E6E9EF, never the dim-gray hue as text), empty→"Nessun dato di framing", all cams (D-05); WHY-04 renderAutoWants "Auto vuole: {cam}" + dashed-blue auto-wants tile marker during override only; WHY-03 pollPreview drives updateBbox(cam, cams[cam].box), draws nothing on null (native-ReID lock drop), hidden on STALE/MORTO. SCV-01 (TDD RED 2bb53de→GREEN cdd8218): cleanField mirrors Python _clean (Unicode-property regex drops Cc/Cf/Cs/Co/Cn/Zl/Zp/Zs, keeps U+0020, trim, cap 64); mirrorOverlayText mirrors the 3 render_overlay_text f-strings char-exact (double spaces + sct/SCT alias via scvGet); updateScorePreview debounced 200ms NO per-keystroke fetch NEVER orchestrator; driftCheck POSTs Flask /score/preview ONCE on blur+submit → "⚠ Anteprima non allineata — verifica" on mismatch. Byte-parity PROVEN by EXECUTING the served JS in node vs the imported Python renderer across all 3 disciplines (Wave-0 CI parity; delimited gsd:why-mirror/gsd:scv01-mirror blocks extracted from served HTML, node stdout captured as raw UTF-8 via temp .mjs to survive the cp1252 host). 39 UI tests green; full suite 421 passed/8 skipped (2 pre-existing env NDI loopback failures only). Crash-isolation allowlist preserved. WHY-01/02/03/04 + SCV-01 COMPLETE.
 
 ### Pending Todos
 
@@ -199,6 +201,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T22:02:55.304Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-06-14T00:20:00.000Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None

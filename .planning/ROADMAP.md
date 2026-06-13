@@ -293,7 +293,7 @@ Plans:
 
 **Wave 2** *(blocked on 09-02 — same file console.html)*
 
-- [ ] 09-03-PLAN.md — Explainability core: plain-Italian reason (WHY-01), score leaderboard with track states (WHY-02), auto-wants hint + tile marker (WHY-04), live bbox data wiring (WHY-03), SCV-01 client mirror + drift-guard [Wave 2]
+- [x] 09-03-PLAN.md — Explainability core: plain-Italian reason (WHY-01), score leaderboard with track states (WHY-02), auto-wants hint + tile marker (WHY-04), live bbox data wiring (WHY-03), SCV-01 client mirror + drift-guard [Wave 2]
 
 **Wave 3** *(blocked on 09-03 — same file console.html)*
 

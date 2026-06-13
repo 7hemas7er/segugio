@@ -96,14 +96,14 @@
 
 ### Spiegabilità ("e perché") (WHY)
 
-- [ ] **WHY-01**: La console mostra il **motivo** della scelta corrente in italiano chiaro (rende `status.reason`: "Auto: miglior inquadratura" / "Override operatore" / "Soggetto perso → SAFE" …)
-- [ ] **WHY-02**: **Barre di score di framing per-camera** (leaderboard live) con stato tracking/coast/lost — l'operatore *vede* perché una camera vince in questo istante
+- [x] **WHY-01**: La console mostra il **motivo** della scelta corrente in italiano chiaro (rende `status.reason`: "Auto: miglior inquadratura" / "Override operatore" / "Soggetto perso → SAFE" …)
+- [x] **WHY-02**: **Barre di score di framing per-camera** (leaderboard live) con stato tracking/coast/lost — l'operatore *vede* perché una camera vince in questo istante
 - [x] **WHY-03**: **Overlay bbox dog-lock** sulla tile live (box normalizzato disegnato in CSS/SVG dal `preview.json`, nessun image-processing in Flask) — mostra che il sistema è agganciato al cane in gara
-- [ ] **WHY-04**: Hint **"auto vuole vs in onda"** — durante un override mostra quale camera sceglierebbe l'auto-director adesso, così l'operatore sa quando è sicuro rilasciare (mantiene il sistema più spesso in auto)
+- [x] **WHY-04**: Hint **"auto vuole vs in onda"** — durante un override mostra quale camera sceglierebbe l'auto-director adesso, così l'operatore sa quando è sicuro rilasciare (mantiene il sistema più spesso in auto)
 
 ### Preview punteggio (SCV)
 
-- [ ] **SCV-01**: **Preview live del punteggio** come apparirà sull'overlay OBS mentre l'operatore digita (riusa `render_overlay_text`, nessun round-trip all'orchestrator)
+- [x] **SCV-01**: **Preview live del punteggio** come apparirà sull'overlay OBS mentre l'operatore digita (riusa `render_overlay_text`, nessun round-trip all'orchestrator)
 
 ### UX tablet & robustezza (UXT)
 
@@ -204,11 +204,11 @@ Ogni requisito v1.1 → esattamente una fase (100% coverage, nessun orfano). La 
 | UXT-02 | Phase 8 | Complete |
 | MVW-04 | Phase 9 | Complete |
 | MVW-05 | Phase 9 | Pending |
-| WHY-01 | Phase 9 | Pending |
-| WHY-02 | Phase 9 | Pending |
+| WHY-01 | Phase 9 | Complete |
+| WHY-02 | Phase 9 | Complete |
 | WHY-03 | Phase 9 | Complete |
-| WHY-04 | Phase 9 | Pending |
-| SCV-01 | Phase 9 | Pending |
+| WHY-04 | Phase 9 | Complete |
+| SCV-01 | Phase 9 | Complete |
 | UXT-01 | Phase 9 | Complete |
 | UXT-03 | Phase 9 | Pending |
 

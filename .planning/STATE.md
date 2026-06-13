@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: Console Regia - visibilita live
+milestone_name: — Console Regia
 status: planning
-last_updated: "2026-06-13T08:30:00.000Z"
-last_activity: 2026-06-13
+stopped_at: Phase 7 context gathered
+last_updated: "2026-06-13T09:23:12.130Z"
+last_activity: 2026-06-13 — v1.1 roadmap created (Phases 7–9 appended; 16/16 v1.1 reqs mapped)
 progress:
-  total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 9
+  completed_phases: 6
+  total_plans: 28
+  completed_plans: 28
+  percent: 67
 ---
 
 # Project State
@@ -177,6 +178,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T08:30:00.000Z
-Stopped at: v1.1 roadmap created — Phases 7–9 appended to ROADMAP.md, 16/16 v1.1 reqs mapped, STATE + REQUIREMENTS traceability updated
-Resume file: .planning/ROADMAP.md (review the v1.1 phase details) → then `/gsd-plan-phase 7`
+Last session: 2026-06-13T09:23:12.109Z
+Stopped at: Phase 7 context gathered
+Resume file: .planning/phases/07-off-tick-frame-publishing-channel/07-CONTEXT.md

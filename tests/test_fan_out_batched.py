@@ -168,7 +168,7 @@ def test_fan_out_one_batched_forward_per_tick(make_config):
     source = _DictSource({cid: _Frame(cid) for cid in cam_ids})
     orch = _orch(cfg, trackers, source)
 
-    dets_by_cam, locked_energy = orch._fan_out(tick=0)
+    dets_by_cam, locked_energy, _frames_by_cam = orch._fan_out(tick=0)
 
     # ONE batched forward this tick; NEVER model.track([frames]) (#13107).
     assert len(model.predict_calls) == 1
@@ -348,7 +348,7 @@ def test_fan_out_none_frame_coasts(make_config):
     source = _DictSource(frames)
     orch = _orch(cfg, trackers, source)
 
-    dets_by_cam, _ = orch._fan_out(tick=0)
+    dets_by_cam, _, _ = orch._fan_out(tick=0)
 
     # The dead camera coasts to a None signal; its tracker is NOT updated with detections.
     assert dets_by_cam[dead] is None

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
-status: executing
+status: verifying
 stopped_at: Phase 8 context gathered
-last_updated: "2026-06-13T15:20:59.839Z"
+last_updated: "2026-06-13T15:25:10.744Z"
 last_activity: 2026-06-13 -- Phase 08 execution started
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 35
-  completed_plans: 34
-  percent: 78
+  completed_plans: 35
+  percent: 89
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 
 Phase: 08 (console-serving-live-multiview-safety-hardening) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-13 -- Phase 08 execution started
 Next: `/gsd-plan-phase 7`
 
@@ -89,6 +89,7 @@ Next: `/gsd-plan-phase 7`
 | Phase 07 P04 | 12min | 3 tasks tasks | 5 files files |
 | Phase 08 P01 | 7min | 3 tasks | 7 files |
 | Phase 08 P02 | 4min | 2 tasks | 2 files |
+| Phase 08 P03 | 3min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 08-01: numpy stays out of HEAVY_MODULES (hard runtime dep); console numpy-absent assertion via a dedicated guard test
 - [Phase ?]: 08-01: preview JPEG route mitigates path traversal by whitelisting <cam> against cam_ids + a fixed cam_{id}.jpg prefix (T-05-05-01)
 - [Phase ?]: [Phase 08 / 08-02]: preview-bandwidth cap (MVW-03) is a CONFIG-TIME guarantee — PreviewParams.max_total_mbps (default 8.0 Mbps) + Config._preview_bitrate_within_cap @model_validator computes worst-case fps×bytes×N_cams bitrate and rejects over-cap configs fail-fast (SystemExit(2) via loader, CFG-01); NO runtime throttle (D-01 declined). bpp=0.30 q55 calibration tunable + gated by default-passes/cranked-fails test; enabled=false short-circuits (D-09). Real-WiFi false-death validation is a hardware-milestone carry-forward (D-02).
+- [Phase 08]: [Phase 08 / 08-03]: docs/security.md = the v1.1 written threat re-eval (D-09) — reaffirms LAN-as-trust-boundary single-operator no-auth posture (T-05-05-01..04, cross-referenced from ui/app.py docstrings), ADDS the live-competitor-video-behind-0.0.0.0 exposure (T-08-03, STRIDE Information Disclosure: GET /preview + GET /preview/<cam>.jpg, mitigated by the cam-id whitelist→fixed cam_{id}.jpg path + threaded=True/Waitress override-availability), and mandates AP client-isolation + no internet/guest bridge as a HARD OPERATIONAL requirement. preview.enabled is the source-side off-switch; NO new in-code auth/configurable-bind/shared-token in v1.1 (rejected). Mitigation is operational+documented, not code.
 
 ### Pending Todos
 
@@ -191,6 +193,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T15:20:35.705Z
+Last session: 2026-06-13T15:24:34.887Z
 Stopped at: Phase 8 context gathered
 Resume file: .planning/phases/08-console-serving-live-multiview-safety-hardening/08-CONTEXT.md

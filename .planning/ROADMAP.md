@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Milestone v1.1 — Console Regia (live visibility)
 
 - [x] **Phase 7: Off-tick Frame-Publishing Channel** - The GATING foundation for every v1.1 visual feature: an orchestrator-side `PreviewPublisher` daemon thread + `atomic_write_bytes` + `preview.json` sidecar publish downscaled per-camera JPEG thumbnails and the per-camera "why" data off the director's critical tick — proven not to regress RBT-05 and to keep the console crash-isolated (PRV-01/02/03) (completed 2026-06-13)
-- [ ] **Phase 8: Console Serving, Live Multiview & Safety Hardening** - The console consumes the channel: a responsive multiview grid of all cameras with LIVE/tally and dead-feed marking, plus the `threaded=True`/Waitress server fix (override POSTs never blocked — a safety control), a preview-bandwidth cap so the preview degrades before NDI feeds, and a written threat re-evaluation now that competitor video sits behind the endpoint (MVW-01/02/03, UXT-02)
+- [x] **Phase 8: Console Serving, Live Multiview & Safety Hardening** - The console consumes the channel: a responsive multiview grid of all cameras with LIVE/tally and dead-feed marking, plus the `threaded=True`/Waitress server fix (override POSTs never blocked — a safety control), a preview-bandwidth cap so the preview degrades before NDI feeds, and a written threat re-evaluation now that competitor video sits behind the endpoint (MVW-01/02/03, UXT-02) (completed 2026-06-13)
 - [ ] **Phase 9: Explainability, Informed Override & Tablet UX** - The "e perché" layer + informed override + tablet polish: per-camera score bars, plain-Italian reason, dog-lock bbox overlay, "auto wants vs aired" hint, switch-history strip, live score-overlay preview, clickable-tile overrides, tablet-first responsive restyle, and long-run leak/sleep/freshness hygiene (MVW-04/05, WHY-01/02/03/04, SCV-01, UXT-01/03)
 
 ## Phase Details
@@ -266,7 +266,7 @@ Plans:
 
 - [x] 08-01-PLAN.md — Serving routes (`GET /preview`, `GET /preview/<cam>.jpg` whitelisted send_file) + CSS-Grid multiview + LIVE/MORTO marking + `threaded=True`/Waitress safety fix + crash-isolation guard (MVW-01/02/03, UXT-02) [Wave 1]
 - [x] 08-02-PLAN.md — Config-time preview-bandwidth cap: `PreviewParams.max_total_mbps` + over-cap-rejection `@model_validator` (fail-fast, D-01/D-02) [Wave 1]
-- [ ] 08-03-PLAN.md — `docs/security.md` v1.1 threat re-evaluation: live-video-behind-`0.0.0.0` + AP client-isolation hard requirement (D-09) [Wave 1]
+- [x] 08-03-PLAN.md — `docs/security.md` v1.1 threat re-evaluation: live-video-behind-`0.0.0.0` + AP client-isolation hard requirement (D-09) [Wave 1]
 
 ### Phase 9: Explainability, Informed Override & Tablet UX
 
@@ -298,5 +298,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
 | 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
 | 7. Off-tick Frame-Publishing Channel | 4/4 | Complete   | 2026-06-13 |
-| 8. Console Serving, Live Multiview & Safety Hardening | 2/3 | In Progress|  |
+| 8. Console Serving, Live Multiview & Safety Hardening | 3/3 | Complete   | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | 0/? | Not started | - |

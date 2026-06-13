@@ -137,3 +137,58 @@ Run on the Windows / RTX box with live OBS + NDI senders
 
 This plan makes the `python -m segugio config.example.yaml` command **exist and be launchable**;
 actually running it against live hardware is UAT Tests 1-4, executed on the Windows / RTX box.
+
+---
+
+## GPU latency env (Phase 6)
+
+The decision-loop latency work (TensorRT FP16 + batched inference for RBT-05, `<150ms` p95)
+needs a **CUDA-enabled** torch + a TensorRT runtime — neither is in the headless dev venv. The
+current py3.14 venv has **CPU-only torch** (`2.12.0+cpu`) and **no `tensorrt` cp314 wheel**, so
+every `-m gpu` test SKIPs there and nothing is measurable (project memory
+`gpu-torch-cpu-only-py314.md`). Stand up a **py3.12** venv on the RTX 4000 Ada rig first.
+
+> **Run all GPU work on AC power.** On battery the box throttles hard and inflates every
+> CPU/latency reading — a measurement taken on battery is meaningless (project memory
+> `dev-box-perf-on-ac.md`).
+
+### Stand up the py3.12 cu12x-torch + tensorrt venv
+
+```bash
+# 1. Create a py3.12 venv (py3.14 has no cu12x torch wheel and no tensorrt cp314 wheel)
+py -3.12 -m venv venv312
+venv312\Scripts\activate
+# 2. Install Segugio's pinned stack
+pip install -r requirements.txt
+# 3. Install a CUDA-enabled torch (NOT the +cpu wheel) matching the deploy CUDA.
+#    Confirm the channel against the installed NVIDIA driver (596.36) on the rig.
+pip install torch --index-url https://download.pytorch.org/whl/cu126
+# 4. Install the TensorRT runtime wheel (pulls its own CUDA libs)
+pip install tensorrt
+```
+
+### Verify the GPU path is live BEFORE any export / measurement
+
+```bash
+# torch sees the CUDA device
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+#   → True   NVIDIA RTX 4000 Ada Generation
+# tensorrt imports at a 10.x version
+python -c "import tensorrt; print(tensorrt.__version__)"
+#   → 10.x
+# the gpu-marked latency test COLLECTS on this env (proves the marker resolves)
+pytest tests/test_latency.py -m gpu --co -q
+```
+
+If `torch.cuda.is_available()` is **False** or `import tensorrt` fails, resolve the wheel/driver
+mismatch (the cu12x channel vs. the installed driver) before doing any GPU work — every
+downstream latency measurement is blocked until both probes pass.
+
+### The `.engine` artifact is GPU-specific — rebuild per rig, never commit
+
+A TensorRT `.engine` (and the intermediate `.onnx`) is **specific to the exact GPU + driver +
+TensorRT version it was built on**. It is **never committed and never copied between GPUs** —
+copying a foreign `.engine` either fails to load or silently mis-runs. Build it **on the deploy
+rig** from the trusted locked `.pt`, as a one-time cached artifact beside the weights. The build
+CLI (`tools/build_engine.py`) lands in **06-03** — see that plan for the export command; the
+`.engine`/`.onnx` files are gitignored so a foreign binary is never tracked.

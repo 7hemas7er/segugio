@@ -1,6 +1,13 @@
 # --- YOLO model weights (auto-download on first use; never committed) ---
 *.pt
 
+# --- TensorRT build artifacts (GPU/driver-specific; rebuilt per rig, never committed) ---
+# A .engine (and the intermediate .onnx) is specific to the exact GPU + driver + TensorRT it
+# was built on — never copied between GPUs. Built on the deploy rig by tools/build_engine.py
+# (lands in 06-03); see docs/run.md "GPU latency env".
+*.engine
+*.onnx
+
 # --- Python build / cache artifacts ---
 __pycache__/
 *.py[cod]

@@ -155,16 +155,23 @@ every `-m gpu` test SKIPs there and nothing is measurable (project memory
 ### Stand up the py3.12 cu12x-torch + tensorrt venv
 
 ```bash
-# 1. Create a py3.12 venv (py3.14 has no cu12x torch wheel and no tensorrt cp314 wheel)
+# 0. Install Python 3.12 if absent (py3.14 / 3.13-Store have no cu12x torch + tensorrt cp wheels)
+winget install Python.Python.3.12
+# 1. Create a py3.12 venv
 py -3.12 -m venv venv312
 venv312\Scripts\activate
-# 2. Install Segugio's pinned stack
+python -m pip install --upgrade pip
+# 2. Install the CUDA-enabled torch + torchvision FIRST (NOT the +cpu wheel), matching the
+#    deploy CUDA, so the next step's ultralytics does not drag in a CPU torch override.
+#    Confirm the channel against the installed NVIDIA driver (596.36) on the rig — cu126
+#    runs fine under driver 596.36 (driver >> CUDA 12.6 requirement).
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+# 3. Install Segugio's pinned stack (ultralytics sees the cu126 torch already present)
 pip install -r requirements.txt
-# 3. Install a CUDA-enabled torch (NOT the +cpu wheel) matching the deploy CUDA.
-#    Confirm the channel against the installed NVIDIA driver (596.36) on the rig.
-pip install torch --index-url https://download.pytorch.org/whl/cu126
-# 4. Install the TensorRT runtime wheel (pulls its own CUDA libs)
-pip install tensorrt
+# 4. Install the TensorRT runtime wheel — pin the cu12 10.x variant to MATCH torch's CUDA 12.6.
+#    NOTE: bare `pip install tensorrt` now resolves to 11.x pulling cu13 (CUDA 13) libs, which
+#    mismatches the cu126 torch — use the explicit cu12 package instead:
+pip install "tensorrt-cu12<11"
 ```
 
 ### Verify the GPU path is live BEFORE any export / measurement

@@ -189,20 +189,20 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Decision Engine FSM | 4/4 | Complete   | 2026-06-09 |
 | 4. YOLO + Per-Camera Tracking on Clips | 4/4 | Complete   | 2026-06-09 |
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
-| 6. Decision-loop latency optimization | 0/3 | Planned    | — |
+| 6. Decision-loop latency optimization | 1/3 | In Progress|  |
 
 ### Phase 6: Decision-loop latency optimization — TensorRT FP16 export + batched/parallel per-camera inference to meet the <150ms budget (RBT-05)
 
 **Goal:** Bring the multi-camera decision loop within the **<150ms p95** budget (target <80ms, RBT-05) on the production CUDA GPU. Phase 05 UAT Test 5 measured the v1 baseline — **4× yolo26s, eager torch FP32, serialized per tick — at 231–247ms p95** (YOLO inference ≈100% of the loop; ingest/score/fsm/obs sum ~0.5ms; ~58–62ms per single serialized inference; **yolo26n does NOT help on GPU**, so the degradation ladder's rung 1 is a dead end). Deliver, with re-measurement after each: (1) **TensorRT FP16 export** of the detector on the exact deploy CUDA/TensorRT combo (the documented prod path — eager FP32 is the slow path); (2) **batch or parallelize the per-camera inferences** (today the loop calls one `model.track()` per camera sequentially); (3) re-run `tests/test_latency.py -m gpu` and confirm p95 < 150ms (4-cam canonical config) on the CUDA env. Treat the existing `_DEGRADATION_LADDER` (fewer cams / lower imgsz·fps) as a last resort only — reducing cameras defeats the multi-cam product. Wiring overhead is already negligible; this phase is purely the inference path.
 **Requirements**: RBT-05 (decision-loop latency p95 < 150ms, target < 80ms — the dominant project risk).
 **Depends on:** Phase 5 (the integrated orchestrator loop + `run_measured` latency harness + the gpu-marked `test_latency.py`)
-**Plans:** 3 plans (Wave 0: 06-01 · Wave 1: 06-02 · Wave 2: 06-03 — strictly serial; each measurement gates the next, and 06-03 the engine build is gated on 06-02's FP16+batch rung still exceeding budget)
+**Plans:** 1/3 plans executed
 
 Plans:
 
 **Wave 0** *(hard prerequisite — env + headless seams; blocks every measurement)*
 
-- [ ] 06-01-PLAN.md — Wave-0 substrate: confirm the py3.12 cu12x-torch + tensorrt GPU env on the rig (human checkpoint) + engine-aware `assert_native_reid_engaged` (warn-not-raise on engine, HARD-raise unchanged on eager) + additive `ModelConfig.engine_path`/`use_fp16` keys + the Track-B batched-detect adapter (`batched.py`) with a #13107 per-camera state-isolation guard + gitignore `*.engine`/`*.onnx` + docs/run.md env note [Wave 0]
+- [x] 06-01-PLAN.md — Wave-0 substrate: confirm the py3.12 cu12x-torch + tensorrt GPU env on the rig (human checkpoint) + engine-aware `assert_native_reid_engaged` (warn-not-raise on engine, HARD-raise unchanged on eager) + additive `ModelConfig.engine_path`/`use_fp16` keys + the Track-B batched-detect adapter (`batched.py`) with a #13107 per-camera state-isolation guard + gitignore `*.engine`/`*.onnx` + docs/run.md env note [Wave 0]
 
 **Wave 1** *(the cheap rung first — blocked on 06-01)*
 

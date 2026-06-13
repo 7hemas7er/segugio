@@ -25,6 +25,7 @@ htmlcov/
 # --- virtualenvs ---
 .venv/
 venv/
+venv312/
 env/
 
 # --- opcomm runtime channel (operator<->system files: status/command/runstate/score/overlay) ---

@@ -143,6 +143,27 @@ class ActionHoldParams(BaseModel):
     window_ticks: Annotated[int, Field(ge=1)] = 5
 
 
+class PreviewParams(BaseModel):
+    """Off-tick preview publish defaults (D-05) — the console's live-preview fidelity seeds.
+
+    The off-tick frame-publishing channel publishes per-camera JPEG thumbnails + the "why"
+    sidecar on its OWN slower clock (~``fps``), never on the 30 Hz decision tick. These four
+    keys tune publish cadence + thumbnail fidelity. ``enabled`` is ON by default (D-06) — when
+    set to ``false`` the orchestrator builds NO publisher (byte-identical to v1.0).
+
+    Additive sub-model: an existing ``extra="forbid"`` config WITHOUT a ``preview:`` block still
+    validates (defaults in), exactly like ``scoring``/``tracking``/``action_hold``. These are
+    starting fidelity SEEDS; **Phase 8 owns the HARD preview-bandwidth cap** (preview must
+    degrade before the NDI feeds). Bounds mirror the ``Thresholds``/``ActionHoldParams`` style.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = True  # D-06: ON by default
+    fps: Annotated[float, Field(gt=0.0, le=30.0)] = 5.0  # ~5 fps publish cadence
+    max_width: Annotated[int, Field(ge=64, le=1920)] = 384  # downscale target width (px)
+    jpeg_quality: Annotated[int, Field(ge=1, le=100)] = 55  # cv2 IMWRITE_JPEG_QUALITY
+
+
 class Config(BaseModel):
     """The single typed config root — the contract all later phases import."""
 
@@ -155,6 +176,7 @@ class Config(BaseModel):
     scoring: ScorerParams = Field(default_factory=ScorerParams)
     tracking: TrackingParams = Field(default_factory=TrackingParams)
     action_hold: ActionHoldParams = Field(default_factory=ActionHoldParams)
+    preview: PreviewParams = Field(default_factory=PreviewParams)
 
     @model_validator(mode="after")
     def _zones_are_weighted(self) -> "Config":

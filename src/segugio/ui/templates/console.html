@@ -102,6 +102,24 @@
                 display: none; }
     .tile.auto-wants .auto-tag { display: block; }
 
+    /* STALE overlay text (UXT-03): centered "STALE"/"RICONNESSIONE…" over a frozen/reconnecting
+       tile. Shown only while the tile carries .stale (a frozen frame is NEVER labelled live). */
+    .stale-overlay { position: absolute; inset: 0; display: none; align-items: center;
+                     justify-content: center; pointer-events: none;
+                     font-size: 0.875rem; font-weight: 700; color: #E6E9EF;
+                     text-shadow: 0 1px 3px #000; background: rgba(20,22,26,0.35); }
+    .tile.stale .stale-overlay { display: flex; }
+
+    /* Freshness stamp (UXT-03): "agg. {n}s fa" / "frame non aggiornato", tabular micro text. */
+    .freshness { font-size: 0.75rem; font-weight: 700; color: #b9b9b9;
+                 margin: 8px 0 0; font-variant-numeric: tabular-nums; }
+    .freshness.stale { color: #FF6B6B; }
+
+    /* Switch-history rows (MVW-05): one compact row per recent cut, newest-first. */
+    .hist-row { font-size: 0.875rem; font-weight: 400; color: #e8e8e8;
+                padding: 4px 0; border-bottom: 1px solid #222; }
+    .hist-row:last-child { border-bottom: 0; }
+
     /* Dog-lock bbox overlay (WHY-03): one inline SVG per tile, positioned exactly over the <img>
        with zero padding/border, hidden on STALE/MORTO. */
     .bbox-overlay { position: absolute; inset: 0; width: 100%; height: 100%;
@@ -166,13 +184,14 @@
     <div class="multiview" id="multiview">
       {% for cam in cam_ids %}
       <div class="tile" id="tile-{{ cam }}" role="button" aria-pressed="false" data-cam="{{ cam }}" tabindex="0">
-        <img id="img-{{ cam }}" alt="{{ cam }}">
+        <img id="img-{{ cam }}" alt="{{ cam }}" decoding="sync">
         <svg class="bbox-overlay" id="bbox-{{ cam }}" viewBox="0 0 1 1" preserveAspectRatio="xMidYMid meet">
           <rect class="bbox-rect" id="rect-{{ cam }}" vector-effect="non-scaling-stroke" x="0" y="0" width="0" height="0"></rect>
         </svg>
         <span class="badge" id="badge-{{ cam }}">{{ cam }}</span>
         <span class="ribbon" id="ribbon-{{ cam }}">🔒 FORZATA</span>
         <span class="auto-tag" id="autotag-{{ cam }}">▸ auto →</span>
+        <div class="stale-overlay" id="stale-{{ cam }}">STALE</div>
       </div>
       {% endfor %}
     </div>
@@ -277,6 +296,8 @@
           <legend>Stato live</legend>
           <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
           <div id="feeds"></div>
+          <!-- UXT-03 freshness stamp: "agg. {n}s fa" / "frame non aggiornato" (never "LIVE" stale). -->
+          <div class="freshness" id="freshness">agg. 0s fa</div>
         </fieldset>
 
       </div>
@@ -600,13 +621,67 @@
     const PUBLISH_MS = 200;            // ~5 fps publish cadence
     const STALE_MS = PUBLISH_MS * 3;   // gen not advancing within ~2-3x → whole-channel stale (D-05)
 
-    // Flicker-free refresh: preload off-DOM via new Image(), swap on onload. ?t=<gen> changes ONLY
-    // on a genuine new frame (Open Q #2), saving bytes on contended WiFi. (UXT-03 persistent-img +
-    // decode()-before-swap hygiene is finalized in 09-03; this plan keeps the persistent <img>.)
-    function refreshTile(cam, gen) {
-      const img = new Image();
-      img.onload = () => { document.getElementById("img-" + cam).src = img.src; };
-      img.src = "/preview/" + cam + ".jpg?t=" + gen;
+    // UXT-03 flicker-free + leak-free refresh (UI-SPEC §Flicker-free leak-free refresh, VERIFIED):
+    // ONE persistent off-DOM Image() preloader PER TILE, created ONCE into `preloaders` — NEVER a
+    // fresh Image per frame (the pre-09-04 leak). Per gen advance: set the preloader.src to the
+    // ?t=<gen> nonce URL (load-bearing — NOT no-store alone; Safari may bfcache a no-store image),
+    // `await preloader.decode()` (the real flicker control — `decoding="sync"` on the visible <img>
+    // is only belt-and-suspenders), then swap the visible <img>.src to the SAME decoded URL. On a
+    // decode() reject (EncodingError when the src is superseded mid-decode, or a fetch fail) SKIP the
+    // frame WITHOUT throwing (silent coast). Target ONE decoded bitmap per tile steady-state.
+    const preloaders = {};                       // cam -> the single persistent Image() preloader
+    function preloaderFor(cam) {
+      let img = preloaders[cam];
+      if (!img) { img = new Image(); preloaders[cam] = img; }   // created ONCE per tile, then reused
+      return img;
+    }
+    async function refreshTile(cam, gen) {
+      const visible = document.getElementById("img-" + cam);
+      if (!visible) return;
+      const pre = preloaderFor(cam);
+      const url = "/preview/" + cam + ".jpg?t=" + gen;          // ?t=<gen> cache-bust (load-bearing)
+      pre.src = url;
+      try {
+        await pre.decode();                                     // decode BEFORE swap (zero flash)
+        visible.src = pre.src;                                  // swap to the decoded frame
+      } catch (e) {
+        /* decode reject (superseded src / fetch fail) → skip this frame, never throw (coast) */
+      }
+    }
+
+    // UXT-03 hidden/off tiles: a camera dropped to SAFE / not in `cams` → set the visible <img>.src
+    // to a 1×1 TRANSPARENT data-URI (NOT display:none — a display:none <img> still holds the fetched
+    // bytes + may keep a decoded bitmap). The data-URI deterministically frees the decoded bitmap.
+    const BLANK_PX = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+    function blankTile(cam) {
+      const visible = document.getElementById("img-" + cam);
+      if (visible && visible.src !== BLANK_PX) visible.src = BLANK_PX;
+    }
+
+    // MVW-05 switch-history strip (UI-SPEC §Switch-history): render the preview.json `cuts` ring
+    // (newest-LAST as written) into #switch-history NEWEST-FIRST, showing the most-recent
+    // HIST_SHOW rows, each `"{from} → {to} · {reason-it}"` with the reason mapped through the same
+    // reasonToItalian map as WHY-01 ("SAFE" passes through that map's default → "In attesa…" only if
+    // it were a reason; from/to cam ids are shown verbatim). Empty ring → "Nessun cambio recente".
+    const HIST_SHOW = 6;                          // 5–8 rows fit the sidebar (Claude's discretion)
+    function buildSwitchHistory(cuts) {
+      const box = document.getElementById("switch-history");
+      if (!box) return;
+      const ring = Array.isArray(cuts) ? cuts : [];
+      if (ring.length === 0) { box.textContent = "Nessun cambio recente"; return; }
+      // newest-first = reverse the newest-last ring, then take the first HIST_SHOW.
+      const rows = ring.slice().reverse().slice(0, HIST_SHOW);
+      box.innerHTML = "";
+      rows.forEach(cut => {
+        const c = cut || {};
+        const from = c.from != null ? c.from : "—";
+        const to = c.to != null ? c.to : "—";
+        const reasonIt = reasonToItalian(c.reason);
+        const row = document.createElement("div");
+        row.className = "hist-row";
+        row.textContent = from + " → " + to + " · " + reasonIt;
+        box.appendChild(row);
+      });
     }
 
     async function pollPreview() {
@@ -618,12 +693,19 @@
         const cams = p.cams || {};
         // WHY-02: rebuild the framing-score leaderboard every poll (cheap; reflects coast/lost).
         buildLeaderboard(cams);
+        // MVW-05: rebuild the switch-history strip every poll from the cuts ring (cheap; newest-first).
+        buildSwitchHistory(p.cuts);
         // WHY-04: auto-wants line + candidate-tile marker (only meaningful during an override).
         renderAutoWants(lastStatus, p);
-        if (p.gen !== lastGen) {          // refresh tiles ONLY on a new frame
+        if (p.gen > lastGen) {            // gen-strictly-advances gate: refresh ONLY on a NEW frame
           lastGen = p.gen;
           lastGenAt = Date.now();
-          CAMS.forEach(c => refreshTile(c, p.gen));
+          CAMS.forEach(c => {
+            // UXT-03 leak-free: a cam present in `cams` decode-swaps; an off/dropped cam (not in
+            // `cams`) is blanked to the 1×1 data-URI so its decoded bitmap frees deterministically.
+            if (Object.prototype.hasOwnProperty.call(cams, c)) refreshTile(c, p.gen);
+            else blankTile(c);
+          });
           // WHY-03: update each tile's bbox geometry ONLY on a gen advance (1–4 Hz). cams[id].box
           // is [cx,cy,w,h] normalized or null; draw nothing when box is null. The tile CSS hides
           // the whole overlay on .stale/.dead, so a frozen/dead frame never shows a box.

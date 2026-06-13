@@ -136,10 +136,20 @@
         headers: { "Content-Type": "application/x-www-form-urlencoded" } });
     }
 
-    // --- score form: post only the visible discipline's fields ---
+    // --- score form: post only the visible discipline's fields (WR-05) ---
+    // FormData includes display:none inputs, so the hidden disciplines' empty fields would also be
+    // posted. Build the body explicitly: the discipline + ONLY the inputs inside the .campi block
+    // matching the selected discipline (the one that is not .hidden).
     document.getElementById("form-score").addEventListener("submit", e => {
       e.preventDefault();
-      post("/score", new FormData(e.target));
+      const data = { discipline: sel.value };
+      const visible = document.querySelector('.campi[data-disc="' + sel.value + '"]');
+      if (visible) {
+        visible.querySelectorAll("input, select").forEach(inp => {
+          if (inp.name) data[inp.name] = inp.value;
+        });
+      }
+      post("/score", data);
     });
 
     // --- run start/stop (D-09) ---

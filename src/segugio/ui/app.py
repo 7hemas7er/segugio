@@ -103,7 +103,10 @@ def create_app(channel_dir: str, cam_ids=()):
         except ValueError:
             return ("disciplina sconosciuta", 400)
         # Everything else is the operator's free-form per-discipline field set (display-only).
-        fields = {k: v for k, v in form.items() if k not in _NON_SCORE_KEYS}
+        # WR-05: drop EMPTY values so the hidden (display:none) fieldsets of the other disciplines —
+        # which FormData still serializes — do not sweep stray empty nome/timer/tempo/sct/faults
+        # keys into ScoreDoc.fields, the OBS overlay render, and every score.json write.
+        fields = {k: v for k, v in form.items() if k not in _NON_SCORE_KEYS and v.strip()}
         doc = ScoreDoc(discipline=discipline, fields=fields)
         # Write BOTH: score.json (structured, for the UI) AND overlay.txt (rendered, for OBS).
         write_score(_path(_SCORE_FILE), doc)

@@ -61,6 +61,52 @@ def test_serve_preview_sidecar_json(client):
     assert "cam_wide" in data["cams"]
 
 
+# --- cuts ring (MVW-05) ------------------------------------------------------ #
+
+
+def test_serve_preview_sidecar_exposes_cuts(client):
+    """GET /preview exposes the recent-cuts ring under `cuts` (the 09-04 switch-history strip).
+
+    Write a PreviewDoc with a non-empty cuts tuple via write_preview and assert GET /preview
+    returns those exact cut dicts under the `cuts` key, newest-last as written (MVW-05 data
+    source). The existing gen/tick/auto_candidate/cams keys stay present (no Phase-8 regression).
+    """
+    c, ch = client
+    cuts = (
+        {"tick": 10, "from": "SAFE", "to": "cam_wide", "reason": "auto"},
+        {"tick": 25, "from": "cam_wide", "to": "cam_long", "reason": "auto"},
+    )
+    write_preview(
+        str(ch["preview"]),
+        PreviewDoc(
+            tick=30,
+            gen=4,
+            auto_candidate="cam_long",
+            cams={"cam_wide": {}, "cam_long": {}},
+            cuts=cuts,
+        ),
+    )
+    resp = c.get("/preview")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "cuts" in data
+    assert isinstance(data["cuts"], list)
+    # The returned cut dicts equal the written ring, in order (newest-last).
+    assert data["cuts"] == [dict(c) for c in cuts]
+    # No regression to the Phase-8 contract keys.
+    assert set(data) >= {"gen", "tick", "auto_candidate", "cams", "cuts"}
+
+
+def test_serve_preview_cuts_empty_when_absent(client):
+    """With no preview file, `cuts` is `[]` and the route returns 200 (read_preview safe-default)."""
+    c, ch = client
+    # Remove the preview.json the fixture wrote → read_preview safe-defaults to PreviewDoc().
+    ch["preview"].unlink()
+    resp = c.get("/preview")
+    assert resp.status_code == 200
+    assert resp.get_json()["cuts"] == []
+
+
 # --- whitelist (T-05-05-01) -------------------------------------------------- #
 
 

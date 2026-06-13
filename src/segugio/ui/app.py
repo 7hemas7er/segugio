@@ -183,6 +183,10 @@ def create_app(channel_dir: str, cam_ids=()):
                 "tick": doc.tick,
                 "auto_candidate": doc.auto_candidate,
                 "cams": doc.cams,
+                # MVW-05: expose the already-parsed recent-cuts ring (newest-last) so the console
+                # switch-history strip (09-04) has its data source. Mirror write_preview's precedent
+                # ([dict(c) for c in doc.cuts]); read_preview safe-defaults cuts to () → [] here.
+                "cuts": [dict(c) for c in doc.cuts],
             }
         )
 

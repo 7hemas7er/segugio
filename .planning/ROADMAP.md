@@ -281,8 +281,23 @@ Plans:
   4. The whole console is responsive and tablet-first: the grid reflows, override targets are large touch targets, the live cam + reason stay visible, and the score form is usable one-handed (UXT-01)
   5. Long-run hygiene holds on the real operator tablet: a multi-hour soak keeps tab memory and server thread count flat (no leak), sleep/wake resumes a fresh preview, and a freshness stamp/staleness overlay guarantees a frozen frame is never shown as "live" — the preview degrades first, the director never (UXT-03)
 
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1 parallel: 09-01, 09-02 · Wave 2: 09-03 · Wave 3: 09-04)
 **UI hint**: yes
+
+Plans:
+
+**Wave 1** *(parallel — zero file overlap: 09-01 touches app.py + tests, 09-02 touches console.html + tests)*
+
+- [ ] 09-01-PLAN.md — Backend enablers: GET /preview exposes the cuts ring (MVW-05) + a pure POST /score/preview drift-guard render route + Wave-0 byte-parity reference; crash-isolation re-asserted [Wave 1]
+- [ ] 09-02-PLAN.md — Console shell: tablet-first landscape multiview+sidebar layout, touch/viewport contract, palette/typography migration, 5 grayscale-safe tile states, tap-to-force gesture (blind buttons removed), dog-lock bbox SVG scaffold (UXT-01, MVW-04, WHY-03) [Wave 1]
+
+**Wave 2** *(blocked on 09-02 — same file console.html)*
+
+- [ ] 09-03-PLAN.md — Explainability core: plain-Italian reason (WHY-01), score leaderboard with track states (WHY-02), auto-wants hint + tile marker (WHY-04), live bbox data wiring (WHY-03), SCV-01 client mirror + drift-guard [Wave 2]
+
+**Wave 3** *(blocked on 09-03 — same file console.html)*
+
+- [ ] 09-04-PLAN.md — Switch-history strip (MVW-05) + UXT-03 hygiene: leak-free decode-swap refresh, gen-age freshness watchdog + stamp, sleep/wake resume, and a blocking on-device iPad acceptance checkpoint [Wave 3]
 
 ## Progress
 

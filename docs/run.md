@@ -196,6 +196,44 @@ downstream latency measurement is blocked until both probes pass.
 A TensorRT `.engine` (and the intermediate `.onnx`) is **specific to the exact GPU + driver +
 TensorRT version it was built on**. It is **never committed and never copied between GPUs** —
 copying a foreign `.engine` either fails to load or silently mis-runs. Build it **on the deploy
-rig** from the trusted locked `.pt`, as a one-time cached artifact beside the weights. The build
-CLI (`tools/build_engine.py`) lands in **06-03** — see that plan for the export command; the
+rig** from the trusted locked `.pt`, as a one-time cached artifact beside the weights. The
 `.engine`/`.onnx` files are gitignored so a foreign binary is never tracked.
+
+### Build the engine (one-time, on the rig)
+
+On the py3.12 GPU venv, on the RTX 4000 Ada, **on AC power**:
+
+```bash
+# Default: yolo26s.pt, imgsz=640, static batch=4, FP16, end2end=False, device=0
+venv312\Scripts\python.exe tools/build_engine.py
+```
+
+It runs for **minutes** (the export compiles a GPU-specific engine) and writes
+`yolo26s.engine` beside the weights — note the printed `engine written: <path>`. Flags:
+
+```bash
+venv312\Scripts\python.exe tools/build_engine.py --weights yolo26s.pt --imgsz 640 --batch 4
+venv312\Scripts\python.exe tools/build_engine.py --dynamic   # dynamic-batch (reduced-camera op)
+```
+
+> The Ultralytics `format="engine"` export may pull in `onnx` / `onnxslim` / `onnxruntime`. If
+> the export errors asking for them, install into the GPU venv and retry:
+> `venv312\Scripts\python.exe -m pip install onnx onnxslim onnxruntime`.
+
+**Caveats (do NOT skip):**
+
+- **GPU-specific — rebuild per rig.** The engine binds to this exact GPU + driver (596.36) +
+  TensorRT (10.16.x) combo. A new rig (or a driver/TensorRT upgrade) needs a fresh build.
+- **AC power only.** On battery the box throttles and the build (and any subsequent latency
+  measurement) is meaningless (project memory `dev-box-perf-on-ac.md`).
+- **Static `batch=4`** matches the 4-cam fan-out; the loop pads dead-camera slots with a blank
+  frame, so a static batch is valid. Use `--dynamic` only if reduced-camera operation must run
+  on the engine.
+
+### Point the loop at the engine
+
+Set `model.engine_path` to the built `yolo26s.engine` in the config (and keep
+`model.use_fp16: true`). `PerCameraTracker` loads the engine when `engine_path` is set and the
+file exists, and on **any** load failure (missing / incompatible / wrong-GPU) degrades
+gracefully to the eager `.pt` — it **never crashes** (RBT-04). A missing/incompatible engine is
+the staleness signal; just rebuild and relaunch.

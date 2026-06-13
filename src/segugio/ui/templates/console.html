@@ -26,10 +26,33 @@
     .feed-ok { color: #46c46a; } .feed-dead { color: #e35d5d; }
     .pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px;
             background: #222; margin-right: 0.3rem; }
+    /* --- Multiview (MVW-01/02/03): responsive grid ON TOP of the controls (D-06) --- */
+    .onair { font-weight: 700; margin: 0 0 0.5rem; font-size: 1.1rem; }
+    .multiview { display: grid; gap: 0.5rem; margin: 0 0 1rem;
+                 grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .tile { position: relative; border: 3px solid #333; border-radius: 8px; overflow: hidden; }
+    .tile img { width: 100%; display: block; background: #000; aspect-ratio: 16 / 9; }
+    .tile.live { border-color: #b23b3b; }                 /* MVW-02 on-air red border */
+    .tile.dead { opacity: 0.5; }                          /* MVW-03 dead/stale */
+    .badge { position: absolute; top: 4px; left: 4px; padding: 0.1rem 0.4rem;
+             border-radius: 4px; font-size: 0.8rem; background: #222; color: #b9b9b9; }
+    .badge.live { background: #b23b3b; color: #fff; }     /* LIVE badge */
+    .badge.dead { background: #444; color: #e35d5d; }     /* MORTO badge */
   </style>
 </head>
 <body>
   <h1>Segugio — Console Regia</h1>
+
+  <!-- (0) MULTIVIEW — live grid ON TOP (D-06): one display-only tile per camera, on-air marked
+       LIVE (red border + badge + banner), dead/stale tiles marked MORTO. Tiles are STRICTLY
+       display-only (D-07) — the text override buttons below stay the override control. -->
+  <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
+  <div class="multiview" id="multiview">
+    <div class="tile" id="tile-cam_wide"><img id="img-cam_wide" alt="CAM Wide"><span class="badge" id="badge-cam_wide">CAM Wide</span></div>
+    <div class="tile" id="tile-cam_long"><img id="img-cam_long" alt="CAM Long"><span class="badge" id="badge-cam_long">CAM Long</span></div>
+    <div class="tile" id="tile-cam_low"><img id="img-cam_low" alt="CAM Low"><span class="badge" id="badge-cam_low">CAM Low</span></div>
+    <div class="tile" id="tile-cam_handler"><img id="img-cam_handler" alt="CAM Handler"><span class="badge" id="badge-cam_handler">CAM Handler</span></div>
+  </div>
 
   <!-- (1) SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02) -->
   <form id="form-score" method="post" action="/score">
@@ -129,6 +152,55 @@
     document.getElementById("rilascia").addEventListener("click", () =>
       post("/command", { release: "1" }));
 
+    // --- multiview: cam id set (same as the override buttons) + freshness state ---
+    const CAMS = ["cam_wide", "cam_long", "cam_low", "cam_handler"];
+    const CAM_LABEL = { cam_wide: "CAM Wide", cam_long: "CAM Long",
+                        cam_low: "CAM Low", cam_handler: "CAM Handler" };
+    let lastGen = -1, lastGenAt = 0;
+    const PUBLISH_MS = 200;               // ~5 fps publish cadence
+    const STALE_MS = PUBLISH_MS * 3;      // gen not advancing within ~2-3x → whole-channel stale (D-05)
+
+    // Flicker-free refresh: preload off-DOM via new Image(), swap on onload (MVW-01 — browser-native
+    // double-buffer, no blob-URL leak). ?t=<gen> changes ONLY on a genuine new frame (Open Q #2),
+    // saving bytes on contended WiFi.
+    function refreshTile(cam, gen) {
+      const img = new Image();
+      img.onload = () => { document.getElementById("img-" + cam).src = img.src; };
+      img.src = "/preview/" + cam + ".jpg?t=" + gen;
+    }
+
+    async function pollPreview() {
+      try {
+        const r = await fetch("/preview");
+        const p = await r.json();
+        if (p.gen !== lastGen) {          // refresh tiles ONLY on a new frame
+          lastGen = p.gen;
+          lastGenAt = Date.now();
+          CAMS.forEach(c => refreshTile(c, p.gen));
+        }
+      } catch (e) { /* coast — a poll error never breaks the page */ }
+    }
+    setInterval(pollPreview, PUBLISH_MS);
+
+    // LIVE/MORTO marking driven by /status (live_cam + alive) and gen-freshness (D-04
+    // belt-and-suspenders: alive==false OR whole-channel stale → MORTO).
+    function markTiles(status) {
+      const stale = (Date.now() - lastGenAt) > STALE_MS;
+      CAMS.forEach(cam => {
+        const tile = document.getElementById("tile-" + cam);
+        const dead = (status.alive && status.alive[cam] === false) || stale;
+        const live = cam === status.live_cam && !dead;
+        tile.classList.toggle("live", live);   // MVW-02 red border
+        tile.classList.toggle("dead", dead);   // MVW-03
+        const badge = document.getElementById("badge-" + cam);
+        badge.classList.toggle("live", live);
+        badge.classList.toggle("dead", dead);
+        badge.textContent = dead ? "MORTO" : (live ? "LIVE" : CAM_LABEL[cam]);
+      });
+      // D-03 minimal banner (NOT the plain-Italian reason — that is Phase 9 WHY-01).
+      document.getElementById("onair-cam").textContent = status.live_cam || "—";
+    }
+
     // --- live status poll (D-11) ---
     async function pollStatus() {
       try {
@@ -144,6 +216,7 @@
           span.textContent = cam + ": " + (ok ? "vivo" : "morto");
           feeds.appendChild(span);
         });
+        markTiles(s);   // drive the multiview LIVE/MORTO marking from the same status poll
       } catch (e) { /* coast — a poll error never breaks the page */ }
     }
     pollStatus();

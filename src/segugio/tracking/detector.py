@@ -127,7 +127,7 @@ class PerCameraTracker:
     returns the per-frame ``Results`` (or ``None`` on a blank/decode-failure frame → coast).
     """
 
-    def __init__(self, model_path, dog_idx: int, tracker_yaml) -> None:
+    def __init__(self, model_path, dog_idx: int, tracker_yaml, use_fp16: bool = False) -> None:
         """Load the YOLO model for this camera (lazy heavy import inside the constructor).
 
         Args:
@@ -139,6 +139,10 @@ class PerCameraTracker:
                 exist HERE — a missing/misnamed config fails loudly at construction rather than
                 degrading to a silent per-frame coast (Ultralytics ``check_yaml`` does NOT search
                 the repo ``trackers/`` dir, so the bare name alone does not resolve).
+            use_fp16: when True, the per-camera fallback ``track()`` runs ``half=True`` (eager
+                FP16) so the serial path also runs FP16 if the batched fan-out is bypassed.
+                Defaults to False (FP32, today's path). The batched fan-out threads FP16 via
+                ``batched_detect_dispatch(..., use_fp16=...)`` directly, independent of this.
         """
         from ultralytics import YOLO  # lazy — heavy import INSIDE the constructor
 
@@ -146,6 +150,7 @@ class PerCameraTracker:
         self.tracker_yaml = _resolve_tracker_yaml(tracker_yaml)
         self.model = YOLO(str(model_path))  # own predictor.trackers state per camera
         self.dog_idx = int(dog_idx)
+        self.use_fp16 = bool(use_fp16)
 
     def track(self, frame: "np.ndarray"):
         """Run one persistent track step on a single BGR crop for THIS camera.
@@ -174,6 +179,7 @@ class PerCameraTracker:
                 classes=[self.dog_idx],  # dog only (index resolved BY NAME at startup)
                 tracker=self.tracker_yaml,  # botsort_dog.yaml (check_yaml-resolvable)
                 end2end=False,  # ◀ CRITICAL: enables native-feature ReID (TRK-02)
+                half=self.use_fp16,  # eager FP16 toggle (Wave-1 measurement); FP32 by default
                 verbose=False,
             )
         except Exception as exc:  # noqa: BLE001 — live-robustness: never crash on one bad frame

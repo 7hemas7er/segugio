@@ -54,16 +54,23 @@ def _blank_like(frames_by_cam: dict) -> "np.ndarray":
     return np.zeros((1, 1, 3), dtype="uint8")
 
 
-def batched_detect_dispatch(model, frames_by_cam, trackers_by_cam, dog_idx, tick):
+def batched_detect_dispatch(
+    model, frames_by_cam, trackers_by_cam, dog_idx, tick, use_fp16: bool = False
+):
     """Run ONE batched detection forward then dispatch per-camera detections to N trackers.
 
     Steps:
       1. Build the per-camera frame list in a STABLE camera order (the keys of
          ``frames_by_cam``), padding any ``None``/blank slot with a blank frame so a static
          ``batch=N`` engine forward stays valid (Pitfall 4).
-      2. Run ONE ``model.predict([f0..fN], classes=[dog_idx], verbose=False)`` — detection
-         only, NEVER ``model.track([frames])`` (#13107). ``ultralytics`` is used only through
-         the injected ``model``; nothing heavy is imported here.
+      2. Run ONE ``model.predict([f0..fN], classes=[dog_idx], end2end=False, half=use_fp16,
+         verbose=False)`` — detection only, NEVER ``model.track([frames])`` (#13107).
+         ``end2end=False`` keeps the eager model exposing the in-graph Detect head so native
+         BoT-SORT ReID stays engageable even under FP16 (the whole point of the cheap rung —
+         FP16 preserves native ReID where a TensorRT engine breaks it, RESEARCH Pitfall 1).
+         ``half=use_fp16`` is the eager FP16 toggle — a predict kwarg, no engine needed
+         (RESEARCH Alternatives "Eager torch FP16"). ``ultralytics`` is used only through the
+         injected ``model``; nothing heavy is imported here.
       3. Dispatch each camera's detection result to its OWN persistent
          ``trackers_by_cam[cam_id]`` via that tracker's ``update(detections, frame)``. A dead
          (``None``/blank) slot dispatches NOTHING and coasts to ``None`` — mirroring
@@ -77,6 +84,9 @@ def batched_detect_dispatch(model, frames_by_cam, trackers_by_cam, dog_idx, tick
             exposing ``update(detections, frame) -> Results`` (#13107: one tracker per cam_id).
         dog_idx: the dog class index (resolved BY NAME upstream — never hardcoded 16).
         tick: the current loop tick (advisory; threaded through for parity with the loop).
+        use_fp16: when True, run the single forward at ``half=True`` (eager FP16) — halving
+            per-forward compute while preserving native-feature ReID (``end2end=False`` keeps
+            the in-graph Detect head). Defaults to False (FP32, today's path).
 
     Returns:
         ``{cam_id: Results | None}`` — the per-camera consumer map (``_arrays_from_results``
@@ -99,10 +109,17 @@ def batched_detect_dispatch(model, frames_by_cam, trackers_by_cam, dog_idx, tick
                 blank = _blank_like(frames_by_cam)
             batch_frames.append(blank)  # pad so the static-batch forward stays valid
 
-    # 2. ONE batched DETECTION forward (never model.track([frames]) — #13107).
+    # 2. ONE batched DETECTION forward (never model.track([frames]) — #13107). end2end=False
+    #    keeps the in-graph Detect head so native ReID stays engageable even at half=True;
+    #    half=use_fp16 is the eager FP16 toggle (a predict kwarg, no engine — RESEARCH "Eager
+    #    torch FP16").
     try:
         results = model.predict(
-            batch_frames, classes=[int(dog_idx)], verbose=False
+            batch_frames,
+            classes=[int(dog_idx)],
+            end2end=False,
+            half=bool(use_fp16),
+            verbose=False,
         )
     except Exception as exc:  # noqa: BLE001 — live-robustness: never crash the loop on a bad batch
         logger.warning(

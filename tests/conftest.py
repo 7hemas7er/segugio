@@ -439,6 +439,42 @@ def file_channel(tmp_path: Path) -> dict:
     }
 
 
+@pytest.fixture
+def preview_channel(file_channel: dict) -> dict:
+    """Extend ``file_channel`` with the Phase-7 ``preview/`` sub-dir the console serves (Phase 8).
+
+    Builds ``<dir>/preview/`` then writes:
+      * ``cam_cam_wide.jpg`` + ``cam_cam_long.jpg`` — raw fake-JPEG bytes (NO cv2). The
+        ``cam_<id>.jpg`` name encodes the LOAD-BEARING Pitfall-3 mapping: id ``cam_wide`` →
+        on-disk file ``cam_cam_wide.jpg`` (the route builds the path from a FIXED ``cam_{id}.jpg``
+        prefix, never from the raw URL segment — T-05-05-01).
+      * ``preview/preview.json`` via :func:`write_preview` (gen/tick/auto_candidate/cams).
+
+    Adds ``preview_dir`` (the ``preview/`` Path) and ``preview`` (the ``preview.json`` Path) keys
+    to the returned dict. Imports are in-body so this conftest stays heavy-import-free (like
+    :func:`_as_camera_scores`).
+    """
+    from segugio.opcomm.channel import write_preview
+    from segugio.opcomm.records import PreviewDoc
+
+    pdir = file_channel["dir"] / "preview"
+    pdir.mkdir()
+    (pdir / "cam_cam_wide.jpg").write_bytes(b"\xff\xd8\xff\xe0fakejpeg")
+    (pdir / "cam_cam_long.jpg").write_bytes(b"\xff\xd8\xff\xe0fakejpeglong")
+    write_preview(
+        str(pdir / "preview.json"),
+        PreviewDoc(
+            tick=1,
+            gen=1,
+            auto_candidate="cam_wide",
+            cams={"cam_wide": {}, "cam_long": {}},
+        ),
+    )
+    file_channel["preview_dir"] = pdir
+    file_channel["preview"] = pdir / "preview.json"
+    return file_channel
+
+
 def _as_camera_scores(samples, status_default=None):
     """Wrap each ``ScoreSample`` (no status field) as a ``CameraScore`` (RESEARCH Pitfall 2).
 

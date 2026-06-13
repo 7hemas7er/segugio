@@ -17,6 +17,13 @@ import pytest
 
 HEAVY_MODULES = ["torch", "ultralytics", "cyndilib", "obsws_python"]
 
+# The crash-isolated console (segugio.ui) must resolve with EVEN numpy absent (Pitfall 5):
+# the panel imports ONLY flask + segugio.opcomm and never decodes — so numpy/cv2/torch must
+# never leak into it. numpy is a hard runtime dep for the rest of PHASE1_SURFACE (synth/framing
+# legitimately import it at module top), so it is NOT in HEAVY_MODULES; it is forced absent ONLY
+# in the dedicated console guard below.
+CONSOLE_HEAVY_MODULES = HEAVY_MODULES + ["numpy", "cv2"]
+
 PHASE1_SURFACE = [
     "segugio",
     "segugio.config",
@@ -26,6 +33,7 @@ PHASE1_SURFACE = [
     "segugio.decision",  # 03-01: the pure FSM joins the proven lazy-import surface (transitions is light)
     "segugio.tracking",  # 04-01: the per-camera tracking layer (pure surface; cv2 lazy-imported in the heavy edge)
     "segugio.opcomm",  # 05-01: the atomic-file operator↔system channel (stdlib + loguru only)
+    "segugio.ui",  # 08-01: the crash-isolated Flask console (Flask imported INSIDE create_app; opcomm-only at top)
     "segugio.ndi",  # 05-01: the FrameSource interface (cyndilib lazy-imported in the real impl, Wave 2)
     "segugio.obs",  # 05-01: the ObsController interface (obsws lazy-imported in the real impl, Wave 2)
     "segugio.watchdog_feed",  # 05-04: the pure feed-liveness math (math + typing only)
@@ -74,6 +82,29 @@ def test_segugio_config_imports_with_torch_absent(
     import segugio.config  # noqa: F401  — must not raise with torch blocked
 
     assert "segugio.config" in sys.modules
+
+
+def test_console_resolves_with_heavy_stack_and_numpy_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The crash-isolated console imports AND create_app builds with torch/cv2/numpy/cyndilib/obsws
+    forced absent (Pitfall 5 / D-03 RBT-04 — the panel never decodes, so it must never need numpy).
+    """
+    for name in CONSOLE_HEAVY_MODULES:
+        monkeypatch.setitem(sys.modules, name, None)
+    for cached in list(sys.modules):
+        if cached == "segugio" or cached.startswith("segugio."):
+            monkeypatch.delitem(sys.modules, cached, raising=False)
+
+    import segugio.ui  # noqa: F401 — must not raise with the heavy stack + numpy blocked
+
+    from segugio.ui.app import create_app
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        app = create_app(tmp, cam_ids=["cam_wide"])
+        assert app is not None
 
 
 def test_configure_logging_is_idempotent() -> None:

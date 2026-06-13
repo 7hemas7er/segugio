@@ -109,6 +109,38 @@
     .bbox-rect { fill: none; stroke: #34D399; stroke-width: 2px; visibility: hidden; }
     .tile.dead .bbox-overlay, .tile.stale .bbox-overlay { display: none; }
 
+    /* --- Score leaderboard (WHY-02, UI-SPEC §Score leaderboard): horizontal bars 24-32px,
+       sorted highest-first, fill by track state (3 redundant channels: hue + fill-treatment +
+       glyph/label). The lost-row LABEL renders in #E6E9EF (NEVER the dim-gray lost hue as text — checker note). --- */
+    .lb-row { display: grid; grid-template-columns: 2.5rem 1fr 2.75rem; align-items: center;
+              gap: 8px; margin: 0 0 8px; }
+    .lb-row:last-child { margin-bottom: 0; }
+    .lb-label { font-size: 0.875rem; font-weight: 700; color: #E6E9EF; }
+    .lb-bar { position: relative; height: 24px; border-radius: 4px; background: #1d2026;
+              border: 1px solid #333; overflow: hidden; }
+    .lb-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+               border-radius: 4px 0 0 4px; }
+    /* tracking → solid green fill + ● */
+    .lb-fill.tracking { background: #34D399; }
+    /* coast → hatched neutral (#9CA3AF) + ◐ — a categorically different fill, not just a hue. */
+    .lb-fill.coast { background-color: #9CA3AF;
+                     background-image: repeating-linear-gradient(45deg,
+                       rgba(20,22,26,0.55) 0, rgba(20,22,26,0.55) 4px,
+                       transparent 4px, transparent 8px); }
+    /* lost → empty/outline bar (no fill); the row LABEL stays #E6E9EF (checker). */
+    .lb-fill.lost { background: transparent; }
+    .lb-state { font-size: 0.75rem; font-weight: 700; color: #b9b9b9; }
+    .lb-value { font-size: 0.75rem; font-weight: 700; text-align: right; color: #E6E9EF; }
+
+    /* --- SCV-01 score-overlay preview (Anteprima overlay) + drift warning. --- */
+    #overlay-preview { font-size: 1rem; font-weight: 400; color: #e8e8e8;
+                       background: #1d2026; border: 1px solid #333; border-radius: 6px;
+                       padding: 16px; min-height: 24px; white-space: pre-wrap;
+                       word-break: break-word; }
+    #drift-warning { display: none; margin: 8px 0 0; font-size: 0.875rem; font-weight: 700;
+                     color: #F0B429; }
+    #drift-warning.show { display: block; }
+
     /* --- Bottom-trailing thumb-arc cluster (UXT-01 reachability): undo + score form, safe-area
        padded so it clears the home indicator. --- */
     .cluster-bottom { margin-top: 24px;
@@ -283,6 +315,108 @@
     const CAMS = {{ cam_ids | tojson }};
     const CAM_LABEL = Object.fromEntries(CAMS.map(c => [c, c]));
 
+    // ===== gsd:why-mirror:start =====
+    // WHY-01 reason → plain-Italian copy (UI-SPEC §Copywriting Contract). The mapping is the
+    // single source of truth for the sidebar #reason string. Unknown/none → "In attesa…".
+    const REASON_IT = {
+      "auto": "Auto: miglior inquadratura",
+      "override": "Override operatore",
+      "subject-lost": "Soggetto perso → SAFE",
+      "feed-dead": "Feed morto → fallback",
+      "shutdown": "Arresto → SAFE",
+      "none": "In attesa…",
+    };
+    function reasonToItalian(reason) {
+      return Object.prototype.hasOwnProperty.call(REASON_IT, reason)
+        ? REASON_IT[reason] : "In attesa…";
+    }
+    // ===== gsd:why-mirror:end =====
+
+    // WHY-01: write the mapped Italian reason into #reason (replaces the raw s.reason echo).
+    function renderReason(status) {
+      const el = document.getElementById("reason");
+      if (el) el.textContent = reasonToItalian(status && status.reason);
+    }
+
+    // WHY-02: build the per-camera framing-score leaderboard, sorted highest-first by score
+    // (falling back to ema), one .lb-row per cam, fill treatment by cams[id].state. Empty/absent
+    // cams → "Nessun dato di framing" (UI-SPEC §Score leaderboard). Shows ALL cams (D-05).
+    function buildLeaderboard(cams) {
+      const board = document.getElementById("leaderboard");
+      if (!board) return;
+      const entries = Object.entries(cams || {});
+      if (entries.length === 0) {
+        board.textContent = "Nessun dato di framing";
+        return;
+      }
+      // Sort highest-first by score (then ema). Stable enough for the small N of cams.
+      const scoreOf = c => {
+        const v = (c && (c.score != null ? c.score : c.ema));
+        return typeof v === "number" ? v : -1;
+      };
+      entries.sort((a, b) => scoreOf(b[1]) - scoreOf(a[1]));
+      board.innerHTML = "";
+      entries.forEach(([cam, info]) => {
+        const c = info || {};
+        const state = c.state || "lost";
+        const raw = (c.score != null ? c.score : c.ema);
+        const score = typeof raw === "number" ? raw : 0;
+        const pct = Math.max(0, Math.min(1, score)) * 100;
+
+        const row = document.createElement("div");
+        row.className = "lb-row";
+        row.dataset.cam = cam;
+
+        const label = document.createElement("span");
+        label.className = "lb-label";
+        // lost-row LABEL must stay #E6E9EF (checker note) — .lb-label CSS sets it for every row.
+        label.textContent = CAM_LABEL[cam] || cam;
+
+        const bar = document.createElement("div");
+        bar.className = "lb-bar";
+        const fill = document.createElement("div");
+        // .lb-fill.tracking | .coast | .lost — fill treatment encodes track state.
+        fill.className = "lb-fill " + (state === "tracking" ? "tracking"
+          : state === "coast" ? "coast" : "lost");
+        // lost = empty/outline (no width); tracking/coast = proportional width.
+        fill.style.width = (state === "lost" ? 0 : pct) + "%";
+        bar.appendChild(fill);
+
+        const value = document.createElement("span");
+        value.className = "lb-value tabular";
+        // glyph + value/label per state: tracking ● {score}; coast ◐ coast; lost ·· lost.
+        if (state === "tracking") value.textContent = "● " + score.toFixed(2);
+        else if (state === "coast") value.textContent = "◐ coast";
+        else value.textContent = "·· lost";
+
+        row.appendChild(label);
+        row.appendChild(bar);
+        row.appendChild(value);
+        board.appendChild(row);
+      });
+    }
+
+    // WHY-04: during an override, write "Auto vuole: {cam}" + flag the candidate tile auto-wants;
+    // cleared when not overriding. The tile marker coexists with the FORZATA tile (D-04).
+    function renderAutoWants(status, preview) {
+      const el = document.getElementById("auto-wants");
+      const overriding = status && status.reason === "override";
+      const candidate = (preview && preview.auto_candidate) || lastAutoCandidate;
+      if (el) {
+        el.textContent = (overriding && candidate) ? ("Auto vuole: " + candidate) : "—";
+      }
+      // Tile marker is applied by markTiles() (from /status, which also knows live/dead/stale);
+      // here we additionally flag the candidate when the preview loop knows it during an override.
+      if (overriding && candidate) {
+        const tile = document.getElementById("tile-" + candidate);
+        // Only mark auto-wants if the tile is not already the FORZATA/dead/stale one.
+        if (tile && !tile.classList.contains("forzata")
+            && !tile.classList.contains("dead") && !tile.classList.contains("stale")) {
+          setTileState(candidate, "auto-wants");
+        }
+      }
+    }
+
     // --- Override gesture (MVW-04, D-02/D-03): the WHOLE TILE is the force control. A standard
     //     `click` on a tile POSTs /command {force_cam} IMMEDIATELY (no dialog). We bind ONLY the
     //     standard `click` event — the synthetic touch-event click handlers are intentionally NOT
@@ -348,6 +482,8 @@
     // compute an enormous Date.now()-0 staleness and falsely paint every tile MORTO on first paint.
     let lastGen = -1, lastGenAt = Date.now();
     let lastAutoCandidate = "SAFE";   // /preview auto_candidate — the cam auto WANTS this tick
+    let lastPreview = null;           // last /preview payload (for renderAutoWants from /status)
+    let lastStatus = null;            // last /status payload (for renderAutoWants from /preview)
     const PUBLISH_MS = 200;            // ~5 fps publish cadence
     const STALE_MS = PUBLISH_MS * 3;   // gen not advancing within ~2-3x → whole-channel stale (D-05)
 
@@ -364,14 +500,20 @@
       try {
         const r = await fetch("/preview");
         const p = await r.json();
+        lastPreview = p;
         lastAutoCandidate = p.auto_candidate || "SAFE";
+        const cams = p.cams || {};
+        // WHY-02: rebuild the framing-score leaderboard every poll (cheap; reflects coast/lost).
+        buildLeaderboard(cams);
+        // WHY-04: auto-wants line + candidate-tile marker (only meaningful during an override).
+        renderAutoWants(lastStatus, p);
         if (p.gen !== lastGen) {          // refresh tiles ONLY on a new frame
           lastGen = p.gen;
           lastGenAt = Date.now();
           CAMS.forEach(c => refreshTile(c, p.gen));
           // WHY-03: update each tile's bbox geometry ONLY on a gen advance (1–4 Hz). cams[id].box
-          // is [cx,cy,w,h] normalized or null; the data wiring is finalized in 09-03's preview loop.
-          const cams = p.cams || {};
+          // is [cx,cy,w,h] normalized or null; draw nothing when box is null. The tile CSS hides
+          // the whole overlay on .stale/.dead, so a frozen/dead frame never shows a box.
           CAMS.forEach(c => updateBbox(c, (cams[c] || {}).box));
         }
       } catch (e) { /* coast — a poll error never breaks the page */ }
@@ -409,8 +551,11 @@
       try {
         const r = await fetch("/status");
         const s = await r.json();
+        lastStatus = s;
         document.getElementById("live-cam").textContent = s.live_cam;
         document.getElementById("live-reason").textContent = s.reason;
+        // WHY-01: the sidebar #reason renders the plain-Italian copy (not the raw advisory tag).
+        renderReason(s);
         const feeds = document.getElementById("feeds");
         feeds.innerHTML = "";
         Object.entries(s.alive || {}).forEach(([cam, ok]) => {
@@ -420,6 +565,8 @@
           feeds.appendChild(span);
         });
         markTiles(s);   // drive the multiview 5-state marking from the same status poll
+        // WHY-04: keep the "Auto vuole: {cam}" sidebar line in sync with the latest status.
+        renderAutoWants(s, lastPreview);
       } catch (e) { /* coast — a poll error never breaks the page */ }
     }
     pollStatus();

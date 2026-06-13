@@ -23,7 +23,7 @@ import os
 import time
 from typing import Any
 
-__all__ = ["atomic_write_json", "atomic_write_text"]
+__all__ = ["atomic_write_bytes", "atomic_write_json", "atomic_write_text"]
 
 # Windows-only transient: if a reader (OBS / the orchestrator / the UI poll) holds the TARGET
 # open at the instant of os.replace → MoveFileEx, Windows raises PermissionError [WinError 5]
@@ -93,4 +93,33 @@ def atomic_write_text(path: str, text: str) -> None:
         f.write(text)
         f.flush()
         os.fsync(f.fileno())
+    _atomic_replace(tmp, path)  # atomic on the same volume (Windows: MoveFileEx + retry)
+
+
+def atomic_write_bytes(path: str, data: bytes, *, fsync: bool = True) -> None:
+    """Write raw bytes to ``path`` atomically (temp → optional fsync → os.replace).
+
+    The binary sibling of :func:`atomic_write_text` — the off-tick preview channel (PRV-03)
+    publishes per-camera JPEG thumbnails through this. Opens the same-directory temp in ``"wb"``
+    (no encoding), writes ``data``, and routes the final swap through the SAME
+    :func:`_atomic_replace` retry the JSON/text paths use, so a console reader holding the JPEG
+    open at the instant of the Windows MoveFileEx swap is retried — not propagated as a writer
+    crash. A reader interleaved with rapid writes therefore never sees a partial/empty file,
+    INDEPENDENT of the ``fsync`` setting.
+
+    fsync gate (D-04): pass ``fsync=False`` for the ephemeral preview JPEGs — they are
+    regenerated every frame, so durability does not matter and skipping ``os.fsync`` removes a
+    few ms of disk time on the publisher thread. KEEP the default ``fsync=True`` for
+    ``preview.json`` (a torn/old sidecar would mislead the console — and ``write_preview`` rides
+    on :func:`atomic_write_json`, which always fsyncs). The Windows MoveFileEx sharing-violation
+    race against the console reader is covered by :func:`_atomic_replace`'s retry, INDEPENDENT of
+    fsync. DO NOT silently re-enable fsync for the JPEGs — this drop is a deliberate decision
+    (D-04 / STATE.md carry-forward / Pitfall 3).
+    """
+    tmp = _temp_path(path)
+    with open(tmp, "wb") as f:
+        f.write(data)
+        f.flush()
+        if fsync:
+            os.fsync(f.fileno())  # durability before the swap (skipped for ephemeral JPEGs)
     _atomic_replace(tmp, path)  # atomic on the same volume (Windows: MoveFileEx + retry)

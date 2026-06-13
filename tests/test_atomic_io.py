@@ -18,7 +18,7 @@ import threading
 
 import pytest
 
-from segugio.opcomm.atomic import atomic_write_json, atomic_write_text
+from segugio.opcomm.atomic import atomic_write_bytes, atomic_write_json, atomic_write_text
 from segugio.opcomm import channel
 from segugio.opcomm.records import (
     Discipline,
@@ -39,6 +39,72 @@ def test_atomic_round_trip(tmp_path):
     txt_target = tmp_path / "overlay.txt"
     atomic_write_text(str(txt_target), "Punti: 42 — Però")
     assert txt_target.read_text(encoding="utf-8") == "Punti: 42 — Però"
+
+
+def test_atomic_write_bytes_round_trip(tmp_path):
+    """atomic_write_bytes round-trips raw bytes exactly (binary, incl. NUL/0xFF)."""
+    target = tmp_path / "cam_c.jpg"
+    data = b"\x00\xff\x89PNG\r\n\x1a\n\x00\x01\x02garbage-bytes\xfe"
+    atomic_write_bytes(str(target), data)
+    assert target.read_bytes() == data
+
+
+def test_atomic_write_bytes_fsync_param(tmp_path, monkeypatch):
+    """The fsync param is honored: default fsync=True calls os.fsync once; fsync=False skips it.
+
+    Pitfall 3 / D-04: the ephemeral preview JPEGs are written with fsync=False to skip disk
+    time; preview.json keeps the default fsync=True. Spy on os.fsync (in the atomic module's
+    namespace) to pin the behavior so a later refactor cannot silently re-enable it.
+    """
+    import segugio.opcomm.atomic as atomic_mod
+
+    calls: list[int] = []
+    real_fsync = atomic_mod.os.fsync
+
+    def _spy_fsync(fd):
+        calls.append(fd)
+        return real_fsync(fd)
+
+    monkeypatch.setattr(atomic_mod.os, "fsync", _spy_fsync)
+
+    # fsync=False → os.fsync must NOT be called.
+    atomic_write_bytes(str(tmp_path / "skip.jpg"), b"abc", fsync=False)
+    assert calls == [], "fsync=False must skip os.fsync (D-04 fsync-drop for JPEGs)"
+
+    # default fsync=True → os.fsync called exactly once.
+    atomic_write_bytes(str(tmp_path / "durable.json"), b"def")
+    assert len(calls) == 1, "default fsync=True must call os.fsync exactly once"
+
+
+def test_atomic_write_bytes_retries_on_permission_error(tmp_path, monkeypatch):
+    """atomic_write_bytes routes the swap through _atomic_replace — survives a sharing-violation.
+
+    Same atomicity guarantee as atomic_write_text: an interleaved reader never sees a partial
+    file because the final rename is the proven MoveFileEx-retry primitive.
+    """
+    target = tmp_path / "cam_c.jpg"
+    calls: list[int] = []
+
+    real_replace = os.replace
+
+    def _flaky_replace(src, dst):
+        calls.append(1)
+        if len(calls) == 1:
+            raise PermissionError("[WinError 5] sharing violation")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", _flaky_replace)
+    atomic_write_bytes(str(target), b"\x00\x01")
+
+    assert len(calls) >= 2
+    assert target.read_bytes() == b"\x00\x01"
+
+
+def test_atomic_write_bytes_in_all():
+    """atomic_write_bytes is exported in the module __all__ (public API)."""
+    import segugio.opcomm.atomic as atomic_mod
+
+    assert "atomic_write_bytes" in atomic_mod.__all__
 
 
 def test_temp_is_same_dir(tmp_path, monkeypatch):

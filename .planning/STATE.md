@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
 status: verifying
-stopped_at: Phase 7 context gathered
-last_updated: "2026-06-13T11:49:04.583Z"
+stopped_at: Phase 8 context gathered
+last_updated: "2026-06-13T14:22:25.095Z"
 last_activity: 2026-06-13 -- Phase 07 execution started
 progress:
   total_phases: 9
@@ -186,6 +186,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T11:48:48.006Z
-Stopped at: Phase 7 context gathered
-Resume file: .planning/phases/07-off-tick-frame-publishing-channel/07-CONTEXT.md
+Last session: 2026-06-13T14:22:25.086Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-console-serving-live-multiview-safety-hardening/08-CONTEXT.md

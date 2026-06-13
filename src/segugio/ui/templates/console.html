@@ -510,8 +510,9 @@
         bar.className = "lb-bar";
         const fill = document.createElement("div");
         // .lb-fill.tracking | .coast | .lost — fill treatment encodes track state.
+        // NB: published value is the CANONICAL ScorerStatus enum ("coasting"); CSS class stays "coast".
         fill.className = "lb-fill " + (state === "tracking" ? "tracking"
-          : state === "coast" ? "coast" : "lost");
+          : state === "coasting" ? "coast" : "lost");
         // lost = empty/outline (no width); tracking/coast = proportional width.
         fill.style.width = (state === "lost" ? 0 : pct) + "%";
         bar.appendChild(fill);
@@ -520,7 +521,7 @@
         value.className = "lb-value tabular";
         // glyph + value/label per state: tracking ● {score}; coast ◐ coast; lost ·· lost.
         if (state === "tracking") value.textContent = "● " + score.toFixed(2);
-        else if (state === "coast") value.textContent = "◐ coast";
+        else if (state === "coasting") value.textContent = "◐ coast";
         else value.textContent = "·· lost";
 
         row.appendChild(label);

@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pytest
 
+from segugio.framing.signals import ScorerStatus
 from segugio.opcomm.records import Discipline, ScoreDoc
 from segugio.ui.score_render import render_overlay_text
 
@@ -199,12 +200,17 @@ def test_leaderboard_renders_sorted(client, tmp_path):
       createElement(){ return _el(); },
     };
     """
+    # SCV-01 source-of-truth discipline: feed the REAL published enum values
+    # (ScorerStatus.value, what preview.py writes), NOT a hand-shortened "coast".
+    # A future JS reversion to `=== "coast"` or an enum rename now FAILS this test.
     cams = {
-        "cam_a": {"score": 0.40, "state": "tracking"},
-        "cam_b": {"score": 0.81, "state": "tracking"},
-        "cam_c": {"state": "lost"},
-        "cam_d": {"score": 0.55, "state": "coast"},
+        "cam_a": {"score": 0.40, "state": ScorerStatus.tracking.value},
+        "cam_b": {"score": 0.81, "state": ScorerStatus.tracking.value},
+        "cam_c": {"state": ScorerStatus.lost.value},
+        "cam_d": {"score": 0.55, "state": ScorerStatus.coasting.value},
     }
+    # Guard the discipline itself: the coasting camera must publish "coasting", never "coast".
+    assert cams["cam_d"]["state"] == "coasting"
     call = (
         shim + fn
         + "\nbuildLeaderboard(" + json.dumps(cams) + ");\n"

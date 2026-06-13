@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: — Console Regia
 status: executing
 stopped_at: Phase 8 context gathered
-last_updated: "2026-06-13T15:15:37.425Z"
+last_updated: "2026-06-13T15:20:59.839Z"
 last_activity: 2026-06-13 -- Phase 08 execution started
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 35
-  completed_plans: 33
+  completed_plans: 34
   percent: 78
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 ## Current Position
 
 Phase: 08 (console-serving-live-multiview-safety-hardening) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-13 -- Phase 08 execution started
 Next: `/gsd-plan-phase 7`
@@ -88,6 +88,7 @@ Next: `/gsd-plan-phase 7`
 | Phase 07 P03 | 4min | 2 tasks | 2 files |
 | Phase 07 P04 | 12min | 3 tasks tasks | 5 files files |
 | Phase 08 P01 | 7min | 3 tasks | 7 files |
+| Phase 08 P02 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 07 / 07-04]: hot-path preview wiring — self._preview + guarded offer() AFTER _apply INSIDE the RBT-04 tick try (publisher fault coasts via the same catch, D-02/PRV-01 criterion 5); _fan_out surfaces frames_by_cam (no second source.latest()); orchestrator-owned _cuts_ring (deque maxlen=16) fed at the _apply target-change edge (Pitfall 5); runtime preview_factory seam + construction GUARDED by config.preview.enabled (None when disabled = byte-identical-to-v1.0, D-06) + opcomm/preview/ dir. Disk-smoke writes real cam_<id>.jpg + preview.json; publisher-fault-coast proves a raising offer() rides the catch and status.json still lands (SC5). HARD GATE 1 (gpu preview-ON-vs-OFF p95 no-regression, on-rig noise band) LANDED gated behind the gpu marker — rig-deferred. PRV-01/02/03 done; D-09 done line reached.
 - [Phase ?]: 08-01: numpy stays out of HEAVY_MODULES (hard runtime dep); console numpy-absent assertion via a dedicated guard test
 - [Phase ?]: 08-01: preview JPEG route mitigates path traversal by whitelisting <cam> against cam_ids + a fixed cam_{id}.jpg prefix (T-05-05-01)
+- [Phase ?]: [Phase 08 / 08-02]: preview-bandwidth cap (MVW-03) is a CONFIG-TIME guarantee — PreviewParams.max_total_mbps (default 8.0 Mbps) + Config._preview_bitrate_within_cap @model_validator computes worst-case fps×bytes×N_cams bitrate and rejects over-cap configs fail-fast (SystemExit(2) via loader, CFG-01); NO runtime throttle (D-01 declined). bpp=0.30 q55 calibration tunable + gated by default-passes/cranked-fails test; enabled=false short-circuits (D-09). Real-WiFi false-death validation is a hardware-milestone carry-forward (D-02).
 
 ### Pending Todos
 
@@ -189,6 +191,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-13T15:15:21.808Z
+Last session: 2026-06-13T15:20:35.705Z
 Stopped at: Phase 8 context gathered
 Resume file: .planning/phases/08-console-serving-live-multiview-safety-hardening/08-CONTEXT.md

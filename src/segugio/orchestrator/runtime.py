@@ -91,11 +91,24 @@ def _default_obs_factory(host, port, password):
     return ObsWsController(host=host, port=port, password=password)
 
 
-def _default_tracker_factory(model_path, class_index, tracker_yaml):
-    """Real per-camera tracker builder — LAZY ``PerCameraTracker`` (ultralytics inside the ctor)."""
+def _default_tracker_factory(
+    model_path, class_index, tracker_yaml, engine_path=None, use_fp16=False
+):
+    """Real per-camera tracker builder — LAZY ``PerCameraTracker`` (ultralytics inside the ctor).
+
+    Threads the 06-03 latency keys: ``engine_path`` (the cached TensorRT ``.engine`` — loaded
+    with a graceful eager fallback inside the ctor, RBT-04) and ``use_fp16`` (the eager FP16
+    toggle). Both default to today's eager-FP32 ``.pt`` behavior.
+    """
     from ..tracking.detector import PerCameraTracker
 
-    return PerCameraTracker(model_path, class_index, tracker_yaml)
+    return PerCameraTracker(
+        model_path,
+        class_index,
+        tracker_yaml,
+        use_fp16=use_fp16,
+        engine_path=engine_path,
+    )
 
 
 def build_orchestrator(
@@ -126,8 +139,10 @@ def build_orchestrator(
             ``config.thresholds.watchdog_grace`` seed (WR-02). An explicit value still wins.
         source_factory: ``(cameras) -> FrameSource``; defaults to the real lazy ``NdiFrameSource``.
         obs_factory: ``(host, port, password) -> ObsController``; defaults to ``ObsWsController``.
-        tracker_factory: ``(model_path, class_index, tracker_yaml) -> tracker``; defaults to the
-            real lazy ``PerCameraTracker``. Built ONCE per camera.
+        tracker_factory: ``(model_path, class_index, tracker_yaml, *, engine_path, use_fp16)
+            -> tracker``; defaults to the real lazy ``PerCameraTracker`` (which loads the
+            ``engine_path`` engine with a graceful eager fallback — RBT-04). Built ONCE per
+            camera.
 
     Returns:
         A runnable ``Orchestrator`` ready for ``.run(rate_hz)`` (or ``.run_measured(n)`` headless).
@@ -157,7 +172,13 @@ def build_orchestrator(
     # ONE PerCameraTracker per camera, seeded with config.model.path + class_index (resolved BY
     # NAME at first inference inside the loop — never hardcode 16, CFG-04).
     trackers = {
-        cam.id: tracker_factory(config.model.path, config.model.class_index, _TRACKER_YAML)
+        cam.id: tracker_factory(
+            config.model.path,
+            config.model.class_index,
+            _TRACKER_YAML,
+            engine_path=config.model.engine_path,
+            use_fp16=config.model.use_fp16,
+        )
         for cam in config.cameras
     }
 

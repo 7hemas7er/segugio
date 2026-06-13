@@ -127,8 +127,24 @@ class PerCameraTracker:
     returns the per-frame ``Results`` (or ``None`` on a blank/decode-failure frame → coast).
     """
 
-    def __init__(self, model_path, dog_idx: int, tracker_yaml, use_fp16: bool = False) -> None:
+    def __init__(
+        self,
+        model_path,
+        dog_idx: int,
+        tracker_yaml,
+        use_fp16: bool = False,
+        engine_path=None,
+    ) -> None:
         """Load the YOLO model for this camera (lazy heavy import inside the constructor).
+
+        Engine-aware load with a GRACEFUL eager fallback (06-03, RESEARCH Pattern 3 / RBT-04 —
+        the dominant robustness concern this phase). When ``engine_path`` is set AND the file
+        exists, TRY ``YOLO(<engine>)`` and set ``self.is_engine = True`` (Q1 Option (a): the
+        engine accelerates the FULL ``.track()`` and the reid gate downgrades to a warning). On
+        ANY failure — a missing/incompatible/wrong-GPU/corrupt engine (RESEARCH Pitfall 3), or
+        a missing engine FILE (the staleness signal — there is no metadata schema) — log a
+        WARNING and fall back to the eager ``YOLO(<model_path>)`` with ``self.is_engine = False``.
+        The live director NEVER crashes on a bad engine; it degrades to the eager ``.pt`` path.
 
         Args:
             model_path: path to the YOLO weights (e.g. ``ModelConfig.path`` → ``yolo26s.pt``).
@@ -143,19 +159,49 @@ class PerCameraTracker:
                 FP16) so the serial path also runs FP16 if the batched fan-out is bypassed.
                 Defaults to False (FP32, today's path). The batched fan-out threads FP16 via
                 ``batched_detect_dispatch(..., use_fp16=...)`` directly, independent of this.
+            engine_path: optional cached TensorRT ``.engine`` (``ModelConfig.engine_path``). When
+                set AND on disk, the engine is loaded and ``is_engine`` becomes True; on ANY load
+                failure or a missing file, the loader degrades gracefully to the eager ``.pt``
+                (``is_engine`` False). ``None`` (the default) = today's eager path unchanged.
         """
         from ultralytics import YOLO  # lazy — heavy import INSIDE the constructor
 
         # Resolve + validate BEFORE loading the model so a bad tracker path fails fast.
         self.tracker_yaml = _resolve_tracker_yaml(tracker_yaml)
-        self.model = YOLO(str(model_path))  # own predictor.trackers state per camera
         self.dog_idx = int(dog_idx)
         self.use_fp16 = bool(use_fp16)
-        # Eager ``.pt`` is NOT engine-backed — the HARD TRK-02 ReID gate stays a raise (06-02).
-        # The 06-03 engine-backed tracker sets this True so the gate downgrades to a warning.
-        self.is_engine = False
         # Lazily-built persistent BoT-SORT tracker for the Track-B batched ``update()`` path.
         self._bot = None
+
+        # Engine-aware load with graceful eager fallback (RBT-04). Default (engine_path None)
+        # keeps the eager ``.pt`` path byte-for-byte — ``is_engine`` False → the HARD TRK-02
+        # ReID gate stays a raise; an engine-backed model sets it True → the gate warns (Q1 (a)).
+        self.is_engine = False
+        if engine_path is not None and Path(engine_path).is_file():
+            try:
+                self.model = YOLO(str(engine_path))  # engine accelerates the FULL .track() (Q1 a)
+                self.is_engine = True
+                logger.info("loaded TensorRT engine {} (is_engine=True)", engine_path)
+            except Exception as exc:  # noqa: BLE001 — RBT-04: a bad engine never crashes the loop
+                logger.warning(
+                    "engine load failed for {} — degrading to eager .pt {} (is_engine=False): {}",
+                    engine_path,
+                    model_path,
+                    exc,
+                )
+                self.model = YOLO(str(model_path))
+                self.is_engine = False
+        else:
+            if engine_path is not None:
+                # A configured-but-absent engine IS the staleness signal (no metadata schema) —
+                # coast to eager rather than failing the live loop.
+                logger.warning(
+                    "engine_path {} configured but file is absent — using eager .pt {} "
+                    "(is_engine=False); rebuild the engine on this rig to enable it.",
+                    engine_path,
+                    model_path,
+                )
+            self.model = YOLO(str(model_path))  # own predictor.trackers state per camera
 
     def track(self, frame: "np.ndarray"):
         """Run one persistent track step on a single BGR crop for THIS camera.

@@ -80,10 +80,14 @@ class _FakeObs:
 class _FakeTracker:
     """A per-camera tracker stand-in recording its construction args."""
 
-    def __init__(self, model_path, class_index, tracker_yaml) -> None:
+    def __init__(
+        self, model_path, class_index, tracker_yaml, engine_path=None, use_fp16=False
+    ) -> None:
         self.model_path = model_path
         self.class_index = class_index
         self.tracker_yaml = tracker_yaml
+        self.engine_path = engine_path
+        self.use_fp16 = use_fp16
 
     def track(self, frame):  # pragma: no cover - coast
         return None
@@ -106,8 +110,12 @@ def _build(channel_dir, records=None, **overrides):
         records.setdefault("obs", []).append(obs)
         return obs
 
-    def tracker_factory(model_path, class_index, tracker_yaml):
-        trk = _FakeTracker(model_path, class_index, tracker_yaml)
+    def tracker_factory(
+        model_path, class_index, tracker_yaml, engine_path=None, use_fp16=False
+    ):
+        trk = _FakeTracker(
+            model_path, class_index, tracker_yaml, engine_path=engine_path, use_fp16=use_fp16
+        )
         records.setdefault("tracker", []).append(trk)
         return trk
 

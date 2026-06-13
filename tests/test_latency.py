@@ -148,13 +148,24 @@ def test_loop_latency_p95_under_budget(make_config, tmp_path):
     decision-loop latency budget. Degradation ladder if over budget: yolo26n -> fewer cams ->
     lower AI-path imgsz/fps (logged by run_measured).
     """
-    cfg = make_config()
+    # MEASUREMENT SETUP (06-02 Task 3): arm use_fp16=True on the 4-cam canonical config so the
+    # gpu gate exercises the batched FP16 _fan_out path (the cheap rung — eager half=True + ONE
+    # batched forward per tick). This is the one-line config flip that ARMS the FP16 plumbing
+    # Tasks 1-2 built; it is measurement setup, not new feature work.
+    cfg = make_config(
+        overrides={"model": {"path": "yolo26s.pt", "class_index": 16, "use_fp16": True}}
+    )
     obs = _OkObs()
 
     from segugio.tracking.detector import PerCameraTracker
 
     trackers = {
-        cam.id: PerCameraTracker(cfg.model.path, cfg.model.class_index, "botsort_dog.yaml")
+        cam.id: PerCameraTracker(
+            cfg.model.path,
+            cfg.model.class_index,
+            "botsort_dog.yaml",
+            use_fp16=cfg.model.use_fp16,
+        )
         for cam in cfg.cameras
     }
 

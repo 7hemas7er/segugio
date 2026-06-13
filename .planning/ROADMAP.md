@@ -257,8 +257,16 @@ Plans:
   4. Total preview traffic stays under a configured bitrate ceiling (fps + resolution + JPEG-quality cap); with phones live the feed-watchdog false-death rate is unchanged — the preview degrades first, the director's feeds never starve
   5. A written v1.1 threat re-evaluation for live-video-behind-`0.0.0.0` plus the LAN/AP isolation requirement exists in the project docs
 
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1 parallel: 08-01, 08-02, 08-03 — zero file overlap)
 **UI hint**: yes
+
+Plans:
+
+**Wave 1** *(all parallel — no shared files)*
+
+- [ ] 08-01-PLAN.md — Serving routes (`GET /preview`, `GET /preview/<cam>.jpg` whitelisted send_file) + CSS-Grid multiview + LIVE/MORTO marking + `threaded=True`/Waitress safety fix + crash-isolation guard (MVW-01/02/03, UXT-02) [Wave 1]
+- [ ] 08-02-PLAN.md — Config-time preview-bandwidth cap: `PreviewParams.max_total_mbps` + over-cap-rejection `@model_validator` (fail-fast, D-01/D-02) [Wave 1]
+- [ ] 08-03-PLAN.md — `docs/security.md` v1.1 threat re-evaluation: live-video-behind-`0.0.0.0` + AP client-isolation hard requirement (D-09) [Wave 1]
 
 ### Phase 9: Explainability, Informed Override & Tablet UX
 
@@ -290,5 +298,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Integration — NDI Mock, Orchestrator, OBS & Score UI | 9/9 | Complete   | 2026-06-11 |
 | 6. Decision-loop latency optimization | 3/3 | Complete    | 2026-06-13 |
 | 7. Off-tick Frame-Publishing Channel | 4/4 | Complete   | 2026-06-13 |
-| 8. Console Serving, Live Multiview & Safety Hardening | 0/? | Not started | - |
+| 8. Console Serving, Live Multiview & Safety Hardening | 0/3 | Planned | - |
 | 9. Explainability, Informed Override & Tablet UX | 0/? | Not started | - |

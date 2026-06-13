@@ -21,6 +21,14 @@ array per delivered frame, so the array the tick offered is not mutated under th
 IF a future ``FrameSource`` ever reuses/overwrites a single buffer in place, add a ``.copy()``
 in :meth:`offer` (the dropped-frame mailbox makes an occasional copy cheap) — do NOT add it
 speculatively, it would tax every tick for a hazard that does not exist today.
+
+The SAME by-reference forward-assumption covers ``scores`` (a list) and ``dets`` (a dict),
+which :meth:`offer` likewise stores by reference and the daemon reads off-thread (WR-05). Today
+``scorer.update()`` and the per-tick fan-out each produce a FRESH list/dict every tick, and the
+``CameraScore``/detection records inside are FROZEN dataclasses, so the publisher never observes
+torn or mid-mutation state. IF a future scorer or fan-out ever REUSES/mutates its output buffer
+in place (rather than allocating fresh per tick), :meth:`offer` must snapshot ``scores``/``dets``
+the same way the frame buffers would need copying — do NOT add it speculatively today.
 """
 
 from __future__ import annotations

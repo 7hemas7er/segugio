@@ -237,12 +237,18 @@ class PreviewPublisher:
                 "in_zone": in_zone,
                 "box": box,
             }
-        self._gen += 1
+        # Bump the cache-bust token under the lock (WR-02): the increment is a non-atomic
+        # read-modify-write, and although the CR-01 idempotent guard means a single daemon owns
+        # this today, taking the (cheap, off-tick) lock makes the token's monotonicity robust to
+        # any future second writer rather than relying on the single-writer guarantee.
+        with self._lock:
+            self._gen += 1
+            gen = self._gen
         tick = scores[0].tick if scores else 0
         auto_candidate = str(getattr(decision, "target", "SAFE"))
         return PreviewDoc(
             tick=tick,
-            gen=self._gen,
+            gen=gen,
             auto_candidate=auto_candidate,
             cams=cams,
             cuts=tuple(cuts),

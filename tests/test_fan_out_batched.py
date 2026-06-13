@@ -48,8 +48,26 @@ class _FakeResult:
         self.boxes = _FakeBoxes()
 
 
+class _NativeBot:
+    """A BoT-SORT stand-in whose ``encoder`` is a bare lambda (the native-ReID path shape)."""
+
+    encoder = staticmethod(lambda feats, s: list(feats))  # native lambda, NOT a ReID instance
+
+
+class _FakePredictor:
+    """A predictor stand-in satisfying ``assert_native_reid_engaged`` (native ReID engaged)."""
+
+    def __init__(self) -> None:
+        self.trackers = [_NativeBot()]
+        self._hook = object()  # native path registers a forward-pre-hook (non-None)
+
+
 class _SharedModel:
-    """The ONE shared detection model: records the single batched predict + exposes .names."""
+    """The ONE shared detection model: records the single batched predict + exposes .names.
+
+    Carries a ``predictor`` shaped so the HARD native-ReID gate PASSES (encoder is the native
+    lambda, hook registered) — so the loop's once-before-loop gate runs without falsely tripping.
+    """
 
     def __init__(self, cam_ids: list[str]) -> None:
         self._cam_ids = cam_ids
@@ -57,6 +75,7 @@ class _SharedModel:
         self.track_calls: int = 0
         # {idx: name} so resolve_dog_index finds dog=16 by NAME (never hardcoded).
         self.names = {0: "person", 16: "dog"}
+        self.predictor = _FakePredictor()
 
     def predict(self, frames, **kwargs):
         self.predict_calls.append({"n_frames": len(frames), "kwargs": kwargs})

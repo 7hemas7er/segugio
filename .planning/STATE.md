@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: 06-02 complete — batched FP16 rung measured on the rig (p95 ~210ms, FAIL → 06-03 authorized)
-last_updated: "2026-06-13T05:30:28.299Z"
-last_activity: 2026-06-13 -- 06-02 batched FP16 _fan_out landed + GPU gate RUN on the rig (p95 ~210ms, FAIL → 06-03 authorized)
+status: gaps_found
+stopped_at: 06 verified — 3/3 plans shipped (TensorRT FP16 engine built + batched FP16 loop) but RBT-05 GAP — engine-path p95 ~194–197ms ≥ 150ms on the RTX 4000 Ada Laptop GPU; see 06-VERIFICATION.md
+last_updated: "2026-06-13T07:45:00.000Z"
+last_activity: 2026-06-13 -- 06-03 TensorRT FP16 engine built + GPU gate RUN on the rig (p95 ~194–197ms, FAIL ≥150ms); verifier → gaps_found (4/5 must-haves; RBT-05 open)
 progress:
   total_phases: 6
-  completed_phases: 6
+  completed_phases: 5
   total_plans: 28
   completed_plans: 28
-  percent: 100
+  percent: 83
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 06 (decision-loop-latency-optimization-tensorrt-fp16-export-batc) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-13 -- 06-02 batched FP16 _fan_out landed + GPU gate RUN on the rig (p95 ~210ms, FAIL → 06-03 authorized)
+Phase: 06 (decision-loop-latency-optimization-tensorrt-fp16-export-batc) — GAPS FOUND
+Plan: 3 of 3 shipped
+Status: Verification gaps_found — all deliverables shipped, but RBT-05 (<150ms p95) NOT met: engine-path p95 ~194–197ms on the RTX 4000 Ada Laptop GPU. See 06-VERIFICATION.md → next levers (re-measure on desktop deploy GPU / Option (b) / yolo26n).
+Last activity: 2026-06-13 -- 06-03 TensorRT FP16 engine built + GPU gate RUN on the rig (p95 ~194–197ms, FAIL ≥150ms); verifier → gaps_found
 
-Progress: [████████░░] 80% (4/5 phases verified-complete; Phase 06 plans 2/3 done)
+Progress: [████████░░] 83% (5/6 phases verified-complete; Phase 06 plans 3/3 shipped but RBT-05 gap open)
 
 ## Performance Metrics
 

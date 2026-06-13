@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Decision Engine FSM** - The single source of truth on "which camera is live": hysteresis, dwell, debounce, cooldown, feed-alive guard, action-hold, occlusion-hold, tiebreaker, override + auto-resume (completed 2026-06-09)
 - [x] **Phase 4: YOLO + Per-Camera Tracking on Recorded Clips** - Pre-trained YOLO on CUDA with one BoT-SORT tracker per camera (native ReID), competitor-lock and plausibility gate, validated on the curated clips (completed 2026-06-09)
 - [x] **Phase 5: Integration — NDI Mock, Orchestrator, OBS & Score UI** - End-to-end wiring with no hardware: mock NDI ingest, feed watchdog + fallback, OBS controller, manual score-entry UI, orchestrator tick + fault isolation, latency measurement (verification 2026-06-11: 4/5 — gaps found, CR-01 startup fault-sink) (completed 2026-06-11)
-- [x] **Phase 6: Decision-loop latency optimization** - TensorRT FP16 export + batched/parallel per-camera inference to bring the 4-camera decision loop under the <150ms p95 budget (RBT-05). Phase 05 UAT Test 5 measured 231–247ms p95 with eager-FP32 yolo26s (YOLO inference ≈100% of the loop; yolo26n ineffective on GPU) (not started) (completed 2026-06-13)
+- [ ] **Phase 6: Decision-loop latency optimization** - TensorRT FP16 export + batched/parallel per-camera inference to bring the 4-camera decision loop under the <150ms p95 budget (RBT-05). Phase 05 UAT Test 5 measured 231–247ms p95 with eager-FP32 yolo26s (YOLO inference ≈100% of the loop; yolo26n ineffective on GPU) (plans 3/3 shipped 2026-06-13; engine-path p95 ~194–197ms still ≥ 150ms on the RTX 4000 Ada **Laptop** GPU — GAPS, see 06-VERIFICATION.md)
 
 ## Phase Details
 

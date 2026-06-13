@@ -34,6 +34,7 @@ __all__ = [
     "RunState",
     "OperatorCommand",
     "DirectorStatus",
+    "PreviewDoc",
 ]
 
 
@@ -156,3 +157,47 @@ class DirectorStatus:
         else:
             normalized = {str(k): bool(v) for k, v in dict(self.alive).items()}
         object.__setattr__(self, "alive", normalized)
+
+
+@dataclass(frozen=True)
+class PreviewDoc:
+    """Per-camera 'why' snapshot the console renders (camera live + perché). SIDECAR to status.json.
+
+    The off-tick preview channel's typed record (PRV-02). Mirrors :class:`DirectorStatus` EXACTLY:
+    frozen (hashable + ``==``-comparable so the round-trip equality test works), a normalizing
+    ``__post_init__`` that coerces the nested ``cams``/``cuts`` containers to a deterministic form
+    (so two ``PreviewDoc`` with the same content compare equal regardless of dict insertion order),
+    and a safe-default reader (:func:`channel.read_preview`) that NEVER raises into the loop
+    (RBT-04). Carries the FULL D-07 payload so Phases 8/9 are pure render — this contract is not
+    reopened later.
+
+    This is a SEPARATE channel from the safety-critical ``status.json`` (D-03): ``DirectorStatus``
+    is byte-stable and untouched. The per-camera numeric values (``score``/``ema``/``energy`` and
+    the ``box`` elements) are cast with ``float()`` where they are BUILT (the publisher in plan 03
+    owns that cast — the ``CameraScore`` convention); ``PreviewDoc`` just normalizes the container
+    shapes here.
+
+    Fields:
+      * ``tick`` — the orchestrator tick this snapshot was taken on.
+      * ``gen`` — a monotonic cache-bust token the publisher bumps each publish (console ``?t=<gen>``).
+      * ``auto_candidate`` — ``decision.target``: the camera auto WANTS this tick (id or ``"SAFE"``).
+      * ``cams`` — ``{cam_id: {"score", "ema", "state", "locked", "track_id", "energy",
+        "in_zone", "box"}}`` (``box`` is ``[cx,cy,w,h]`` normalized or ``None``).
+      * ``cuts`` — recent-cuts ring, newest-last, depth ~16:
+        ``({"tick", "from", "to", "reason"}, ...)``.
+    """
+
+    tick: int = 0
+    gen: int = 0
+    auto_candidate: str = "SAFE"
+    cams: dict = field(default_factory=dict)
+    cuts: tuple = ()
+
+    def __post_init__(self) -> None:
+        # Normalize cams to str-keyed dicts of dicts (mirror DirectorStatus.alive normalization)
+        # so two PreviewDocs with the same content compare equal regardless of insertion order —
+        # the round-trip equality contract the preview-channel tests rely on.
+        cams = self.cams if isinstance(self.cams, dict) else dict(self.cams)
+        object.__setattr__(self, "cams", {str(k): dict(v) for k, v in cams.items()})
+        # Normalize cuts to a tuple of dicts (immutable → the frozen dataclass stays hashable).
+        object.__setattr__(self, "cuts", tuple(dict(c) for c in self.cuts))

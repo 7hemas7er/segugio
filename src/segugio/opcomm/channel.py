@@ -23,7 +23,7 @@ import json
 from loguru import logger
 
 from .atomic import atomic_write_json
-from .records import DirectorStatus, OperatorCommand, RunState, ScoreDoc
+from .records import DirectorStatus, OperatorCommand, PreviewDoc, RunState, ScoreDoc
 
 __all__ = [
     "write_score",
@@ -34,6 +34,8 @@ __all__ = [
     "read_command",
     "write_status",
     "read_status",
+    "write_preview",
+    "read_preview",
 ]
 
 
@@ -172,3 +174,51 @@ def read_status(path: str) -> DirectorStatus:
     except (ValueError, TypeError) as exc:
         logger.warning("opcomm invalid DirectorStatus at {} → default ({})", path, exc)
         return DirectorStatus()
+
+
+# --- preview sidecar (PRV-02, off-tick "why" channel) ---------------------- #
+
+
+def write_preview(path: str, doc: PreviewDoc) -> None:
+    """Write a ``PreviewDoc`` atomically to ``preview.json`` (the console polls it).
+
+    Rides on :func:`atomic_write_json`, which ALWAYS fsyncs — that satisfies D-04's "keep fsync
+    for preview.json" for free. The ephemeral JPEGs (NOT this file) are the ones written with
+    ``atomic_write_bytes(fsync=False)``; ``preview.json`` is NEVER routed through
+    ``atomic_write_bytes``. This is a SEPARATE file from ``status.json`` (D-03 separation).
+    """
+    atomic_write_json(
+        path,
+        {
+            "tick": doc.tick,
+            "gen": doc.gen,
+            "auto_candidate": doc.auto_candidate,
+            "cams": doc.cams,
+            "cuts": [dict(c) for c in doc.cuts],
+        },
+    )
+
+
+def read_preview(path: str) -> PreviewDoc:
+    """Read a ``PreviewDoc`` from ``path``; malformed/absent → a default ``PreviewDoc`` (RBT-04).
+
+    Reuses the :func:`_read_json` never-raise boundary (absent/torn/malformed → ``None``) and
+    safe-defaults to an empty ``PreviewDoc()`` on any failure, exactly like :func:`read_status`,
+    so a corrupt/torn/attacker-touched sidecar can never raise into the director loop.
+    """
+    data = _read_json(path)
+    if not isinstance(data, dict):
+        return PreviewDoc()
+    try:
+        cams = data.get("cams")
+        cuts = data.get("cuts", ())
+        return PreviewDoc(
+            tick=int(data.get("tick", 0)),
+            gen=int(data.get("gen", 0)),
+            auto_candidate=data.get("auto_candidate", "SAFE"),
+            cams=cams if isinstance(cams, dict) else {},
+            cuts=tuple(cuts or ()),
+        )
+    except (ValueError, TypeError) as exc:
+        logger.warning("opcomm invalid PreviewDoc at {} → default ({})", path, exc)
+        return PreviewDoc()

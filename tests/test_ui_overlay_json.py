@@ -154,6 +154,56 @@ def test_overlay_json_safe_default_on_corrupt(client):
     assert data["gen"] is not None
 
 
+def _reject_non_finite(token):
+    """parse_constant hook that fails the parse on any non-finite JSON token (test helper)."""
+    raise AssertionError(f"non-finite token leaked into /overlay-json: {token!r}")
+
+
+@pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity"])
+def test_overlay_json_rejects_non_finite_started_at(client, token):
+    """CR-01: a torn overlay_run.json with a non-finite started_at must NOT poison /overlay-json.
+
+    json.loads accepts NaN/Infinity/-Infinity by default and float() coerces them silently, so a
+    torn/legacy/attacker-touched sidecar like {"running": true, "started_at": NaN, "gen": 5} would
+    otherwise re-emit a literal NaN/Infinity token from /overlay-json — INVALID JSON (RFC 8259) that
+    breaks the Phase-11 consumer's .json()/JSON.parse. The read boundary must collapse the bad file
+    to the safe default: response stays 200, body is valid parseable JSON, started_at safe-defaulted.
+    """
+    import json
+
+    c, ch = client
+    ch["overlay_run"].write_text(
+        '{"running": true, "started_at": ' + token + ', "gen": 5}', encoding="utf-8"
+    )
+    resp = c.get("/overlay-json")
+    assert resp.status_code == 200
+    # The serialized body must be RFC-8259-valid JSON — no NaN/Infinity token leaked.
+    raw = resp.get_data(as_text=True)
+    assert "NaN" not in raw and "Infinity" not in raw
+    # And it must round-trip through a STRICT parser (the consumer's await resp.json()).
+    data = json.loads(raw, parse_constant=_reject_non_finite)
+    # Non-finite started_at collapsed to the safe default; the whole file defaulted, so running too.
+    assert data["started_at"] is None
+    assert data["running"] is False
+    assert data["server_now"] is not None
+    assert data["gen"] is not None
+
+
+def test_overlay_json_non_dict_fields_safe_defaulted(client):
+    """WR-01: a non-dict fields on disk must NOT leak out of /overlay-json — coerce to {}.
+
+    read_score guards fields to a dict (mirrors read_status/read_preview). A score.json with
+    "fields": [1,2,3] would otherwise echo a list, violating the {label: value} dict contract the
+    Phase-11 renderer iterates.
+    """
+    c, ch = client
+    ch["score"].write_text(
+        '{"discipline": "disc_tf", "fields": [1, 2, 3]}', encoding="utf-8"
+    )
+    data = c.get("/overlay-json").get_json()
+    assert data["fields"] == {}
+
+
 def test_overlay_json_fields_verbatim(client):
     """fields echoes operator-typed keys+values with NO server-side alias resolution (D-08)."""
     c, _ = client
@@ -208,6 +258,27 @@ def test_gen_seeds_from_disk_on_restart(client):
     c2.post("/run", data={"action": "start"})
     gen = c2.get("/overlay-json").get_json()["gen"]
     assert gen >= 8  # seeded from gen=7, bumped by the /run start — never reset to 0/1
+
+
+def test_score_gen_bump_preserves_live_run_when_disk_torn(client):
+    """WR-03: a /score POST during a live run preserves running/started_at even if the sidecar is torn.
+
+    _bump_score_gen must re-persist run state from authoritative in-memory state, NOT a disk re-read
+    that a momentary torn/absent overlay_run.json would collapse to the default — which would
+    silently flip a live run to running=False/started_at=None on a /score POST. Simulate the torn
+    window by clobbering overlay_run.json between the run-start edge and the /score gen-bump.
+    """
+    c, ch = client
+    c.post("/run", data={"action": "start"})
+    started = c.get("/overlay-json").get_json()["started_at"]
+    assert started is not None
+    # Torn/clobbered sidecar window (e.g. an external touch between the run edge and /score).
+    ch["overlay_run"].write_text("{torn", encoding="utf-8")
+    c.post("/score", data={"discipline": "disc_tf", "points": "10"})
+    data = c.get("/overlay-json").get_json()
+    # The /score gen-bump re-persisted the LIVE run state from memory, not the torn disk default.
+    assert data["running"] is True
+    assert data["started_at"] == started
 
 
 def test_started_at_persists_across_restart(client):

@@ -87,3 +87,77 @@ def test_overlay_run_doc_normalizes():
 
     # started_at=None survives as None (the run-not-started / stopped state).
     assert OverlayRunDoc(started_at=None).started_at is None
+
+
+# --- boundary hardening (CR-01 / WR-02 / WR-04) ------------------------------ #
+
+
+@pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity"])
+def test_overlay_run_rejects_non_finite_started_at(tmp_path, token):
+    """CR-01: a non-finite started_at token on disk collapses the read to the safe default.
+
+    json.loads accepts NaN/Infinity/-Infinity by default; without the parse_constant guard +
+    math.isfinite check a non-finite would survive as OverlayRunDoc(started_at=nan) and escape
+    /overlay-json as an RFC-8259-invalid token. The read boundary must default it (started_at None).
+    """
+    from segugio.opcomm.channel import read_overlay_run
+    from segugio.opcomm.records import OverlayRunDoc
+
+    bad = tmp_path / "overlay_run.json"
+    bad.write_text(
+        '{"running": true, "started_at": ' + token + ', "gen": 5}', encoding="utf-8"
+    )
+    # Whole file defaults (parse_constant rejects the token → _read_json returns None).
+    assert read_overlay_run(str(bad)) == OverlayRunDoc()
+
+
+def test_overlay_run_doc_rejects_non_finite_float():
+    """CR-01 defense-in-depth: OverlayRunDoc rejects a non-finite started_at at construction."""
+    import math
+
+    from segugio.opcomm.records import OverlayRunDoc
+
+    with pytest.raises(ValueError):
+        OverlayRunDoc(started_at=math.nan)
+    with pytest.raises(ValueError):
+        OverlayRunDoc(started_at=math.inf)
+
+
+def test_overlay_run_doc_rejects_bool_started_at():
+    """WR-02: a bool started_at (float(True)=1.0 garbage anchor) is rejected at construction."""
+    from segugio.opcomm.records import OverlayRunDoc
+
+    with pytest.raises(ValueError):
+        OverlayRunDoc(started_at=True)
+    with pytest.raises(ValueError):
+        OverlayRunDoc(started_at=False)
+
+
+def test_overlay_run_bool_started_at_on_disk_defaults(tmp_path):
+    """WR-02: a bool started_at on disk collapses the read to the safe default (None)."""
+    from segugio.opcomm.channel import read_overlay_run
+    from segugio.opcomm.records import OverlayRunDoc
+
+    bad = tmp_path / "overlay_run.json"
+    bad.write_text('{"running": true, "started_at": true, "gen": 5}', encoding="utf-8")
+    assert read_overlay_run(str(bad)) == OverlayRunDoc()
+
+
+def test_overlay_run_running_string_false_is_false(tmp_path):
+    """WR-04: the string "false" must read as running=False (not blanket-truthy True)."""
+    from segugio.opcomm.channel import read_overlay_run
+
+    f = tmp_path / "overlay_run.json"
+    f.write_text('{"running": "false", "started_at": null, "gen": 2}', encoding="utf-8")
+    ovr = read_overlay_run(str(f))
+    assert ovr.running is False
+    assert ovr.gen == 2
+
+
+def test_overlay_run_running_numeric_one_is_true(tmp_path):
+    """WR-04: numeric running=1 still reads True (the pinned coercion is preserved)."""
+    from segugio.opcomm.channel import read_overlay_run
+
+    f = tmp_path / "overlay_run.json"
+    f.write_text('{"running": 1, "started_at": null, "gen": 0}', encoding="utf-8")
+    assert read_overlay_run(str(f)).running is True

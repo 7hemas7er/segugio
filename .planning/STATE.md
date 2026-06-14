@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Phase 11 context gathered
-last_updated: "2026-06-14T18:36:55.749Z"
-last_activity: 2026-06-14 — Phase 10 executed + verified
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-06-14T19:30:00.000Z"
+last_activity: 2026-06-14 -- Completed Phase 11 Plan 01 (overlay backend + branding)
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 20
+  total_plans: 7
+  completed_plans: 5
+  percent: 25
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Milestone v1.2 — Phase 10 complete; next is Phase 11 (Shared Graphical Renderer & /overlay page)
+**Current focus:** Phase 11 — shared-graphical-renderer-overlay-page-branding
 
 ## Current Position
 
-Phase: 11 (not started) — Phase 10 complete & verified
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-14 — Phase 10 executed + verified
+Phase: 11 (shared-graphical-renderer-overlay-page-branding) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 11 (11-01 complete)
+Last activity: 2026-06-14 -- Completed Phase 11 Plan 01 (overlay backend + branding)
 
 ## Performance Metrics
 
@@ -100,6 +100,7 @@ Last activity: 2026-06-14 — Phase 10 executed + verified
 | Phase 10 P02 | 4min | 2 tasks | 3 files |
 | Phase 10 P03 | 6min | 1 task | 3 files |
 | Phase 10 P04 | 9min | 2 tasks | 3 files |
+| Phase 11 P01 | 9min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,7 @@ Recent decisions affecting current work:
 - [Phase 10 / 10-03]: OverlayParams additive extra='forbid' sub-model (config/models.py) with freestyle_duration_s: Annotated[int, Field(gt=0)] = 120 (D-06; orgs override to 90 — resolves the 90s-vs-120s blocker), wired Config.overlay = Field(default_factory=OverlayParams) so a config without an overlay: block still validates under the fail-fast SystemExit(2) loader. freestyle_duration_s is STATIC config — NOT in the /overlay-json payload (D-07); Phase 11 injects it as an entrypoint arg. config.example.yaml documents it; tests/test_config_overlay.py flipped RED→GREEN (xfail markers removed). OVD-03 complete.
 - [Phase 10]: 10-04: GET /overlay-json serves the 6-key contract + Cache-Control no-store, assembled from never-raise readers + time.time() (D-04/D-08)
 - [Phase 10]: 10-04: overlay_run.json side-write strictly after the byte-for-byte-unchanged write_runstate; gen seeds from disk, bumps on /run + /score (/score preserves run state)
+- [Phase 11 / 11-01]: OverlayParams grown additively with the branding config (BRD-01/BRD-02) — event_name (D-08, "" → identity line hides), logo_path (D-07, "" → no logo), and three FLAT str CSS-var theme colors (D-06) defaulting to the console palette #34D399/#14161a/#E6E9EF. Plain str (NOT hex-validated) so any CSS color token is accepted; all defaulted so a config without overlay keys still validates under the fail-fast SystemExit(2) loader. `nome` stays a verbatim ScoreDoc.fields key → BRD-02 with zero data-model change. STATIC config: NOT in /overlay-json (D-07). GET /overlay added inside create_app — a thin host page that render_templates overlay.html (ships 11-02) with overlay_cfg as plain render args + Cache-Control: no-store. create_app signature grew to create_app(channel_dir, cam_ids=(), overlay_cfg=None); a partial overlay_cfg folds over _OVERLAY_CFG_DEFAULTS (a plain console-palette dict in app.py, NOT imported from config). Entrypoint resolves overlay_cfg lazily from cfg.overlay.* (SEGUGIO_CONFIG) with per-field env overrides SEGUGIO_OVERLAY_EVENT/LOGO/ACCENT/PLATE/TEXT — no config import at module top (crash-isolation held). RBT-07 gate extended: test_console_resolves_with_heavy_stack_and_numpy_absent asserts /overlay registered + create_app builds under the heavy-absent block; the full 200+no-store assertion is GATED to once templates/overlay.html exists (11-02 owns it). /overlay-json payload shape unchanged. OVL-01/BRD-01/BRD-02 backend complete.
 
 ### Pending Todos
 
@@ -232,9 +234,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-14T17:51:04.832Z
-Stopped at: Phase 11 context gathered
-Resume file: .planning/phases/11-shared-graphical-renderer-overlay-page-branding/11-CONTEXT.md
+Last session: 2026-06-14T19:30:00.000Z
+Stopped at: Completed 11-01-PLAN.md (overlay backend + branding)
+Resume file: .planning/phases/11-shared-graphical-renderer-overlay-page-branding/11-02-PLAN.md
 
 ## Operator Next Steps
 

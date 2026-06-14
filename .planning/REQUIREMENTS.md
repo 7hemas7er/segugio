@@ -10,16 +10,16 @@
 ### Overlay Rendering (OVL)
 
 - [x] **OVL-01**: La console crash-isolated serve un overlay **browser-source trasparente** via due route — `GET /overlay` (pagina HTML/CSS/JS) + `GET /overlay-json` (dati) — importando solo `Flask + segugio.opcomm` (nessuna nuova dipendenza runtime)
-- [ ] **OVL-02**: L'overlay rende un **lower-third per disciplina** (disc T&F: prese/zona/totale · freestyle: nome+timer · agility: tempo/SCT/faults) riusando la mappatura campi/disciplina esistente; valori mostrati **verbatim** (SCR-04), sanitizzati + length-bounded
+- [x] **OVL-02**: L'overlay rende un **lower-third per disciplina** (disc T&F: prese/zona/totale · freestyle: nome+timer · agility: tempo/SCT/faults) riusando la mappatura campi/disciplina esistente; valori mostrati **verbatim** (SCR-04), sanitizzati + length-bounded
 - [x] **OVL-03**: **Compositing leggibile** su video live — plate semi-opaco, contrasto, banda **title-safe** in basso (mai sopra l'area d'azione del campo), `<body>` trasparente per il compositing OBS
-- [ ] **OVL-04**: **Animazioni sobrie** — enter/exit legato a run start/stop + un *pulse* breve sul cambio di un valore punteggio (niente over-animation, niente movimento costante)
+- [x] **OVL-04**: **Animazioni sobrie** — enter/exit legato a run start/stop + un *pulse* breve sul cambio di un valore punteggio (niente over-animation, niente movimento costante)
 
 ### Run Timer (TMR)
 
-- [ ] **TMR-01**: **Timer di run auto-contante** client-side (zero compute sul director), che ticchetta solo mentre la run è in corso (`running`)
-- [ ] **TMR-02**: **Direzione per disciplina** — T&F conta alla rovescia da 60s, freestyle alla rovescia da una **durata configurabile** (90/120s, org-dependent), agility conta in su mostrato contro l'`SCT` digitato dall'operatore
-- [ ] **TMR-03**: **Comportamento a fine tempo** — per T&F/freestyle il timer si **ferma a 0 e mostra "Tempo"**; agility prosegue oltre l'SCT (overtime), non si ferma all'SCT
-- [ ] **TMR-04**: **Timer robusto allo skew di clock** tra macchine (console e OBS possono essere su host diversi) — `server_now` pubblicato ancora un offset client una-tantum; **mai** una sottrazione naive col clock locale del browser
+- [x] **TMR-01**: **Timer di run auto-contante** client-side (zero compute sul director), che ticchetta solo mentre la run è in corso (`running`)
+- [x] **TMR-02**: **Direzione per disciplina** — T&F conta alla rovescia da 60s, freestyle alla rovescia da una **durata configurabile** (90/120s, org-dependent), agility conta in su mostrato contro l'`SCT` digitato dall'operatore
+- [x] **TMR-03**: **Comportamento a fine tempo** — per T&F/freestyle il timer si **ferma a 0 e mostra "Tempo"**; agility prosegue oltre l'SCT (overtime), non si ferma all'SCT
+- [x] **TMR-04**: **Timer robusto allo skew di clock** tra macchine (console e OBS possono essere su host diversi) — `server_now` pubblicato ancora un offset client una-tantum; **mai** una sottrazione naive col clock locale del browser
 
 ### Overlay Data Channel (OVD)
 
@@ -34,7 +34,7 @@
 ### Branding & Identity (BRD)
 
 - [x] **BRD-01**: **Logo + tema colori configurabili** (CSS variables + path logo da config); il logo sta nell'angolo/plate, mai sopra l'azione
-- [ ] **BRD-02**: **Riga identità persistente** (nome cane/handler + nome evento) — freestyle usa `nome`; T&F/agility la prendono da config o da un campo opzionale (nessun cambio al modello dati)
+- [x] **BRD-02**: **Riga identità persistente** (nome cane/handler + nome evento) — freestyle usa `nome`; T&F/agility la prendono da config o da un campo opzionale (nessun cambio al modello dati)
 
 ### OBS Scene Collection & Setup (SCN)
 
@@ -88,19 +88,19 @@ Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | OVL-01 | Phase 11 | Complete (11-01 routes + 11-02 transparent page) |
-| OVL-02 | Phase 11 | In Progress (11-02 per-discipline #cells skeleton; 11-03 renderer fills the cells) |
+| OVL-02 | Phase 11 | Complete (11-03 renderer fills per-discipline #cells via textContent, byte-exact with render_overlay_text) |
 | OVL-03 | Phase 11 | Complete (11-02 title-safe transparent compositing page) |
-| OVL-04 | Phase 11 | In Progress (11-02 event-only enter/exit/pulse keyframes; 11-03 wires the triggers) |
-| TMR-01 | Phase 11 | Pending |
-| TMR-02 | Phase 11 | Pending |
-| TMR-03 | Phase 11 | Pending |
-| TMR-04 | Phase 11 | Pending |
+| OVL-04 | Phase 11 | Complete (11-03 wires enter/exit run-edge + single pulse on score-change/end-of-countdown) |
+| TMR-01 | Phase 11 | Complete (11-03 client-side rAF run timer, zero director compute) |
+| TMR-02 | Phase 11 | Complete (11-03 disc_tf down 60s, freestyle down freestyleDurationS, agility up vs SCT) |
+| TMR-03 | Phase 11 | Complete (11-03 freeze-at-0 on "Tempo" for countdowns; agility overtime past SCT) |
+| TMR-04 | Phase 11 | Complete (11-03 offset-cancellation via server_now; node test reads near-0 error at ~30s skew) |
 | OVD-01 | Phase 10 | Complete |
 | OVD-02 | Phase 10 | Complete |
-| OVD-03 | Phase 10 | In Progress (freestyle_duration_s config seeded in 10-03; gen-age freshness contract completes in 10-04) |
+| OVD-03 | Phase 11 | Complete (10-03/10-04 server contract; 11-03 client half — gen-age watchdog stops timer + .is-stale degrade) |
 | SCV-02 | Phase 12 | Pending |
 | BRD-01 | Phase 11 | Complete (11-01 config + 11-02 CSS-var theme + logo bug rendered) |
-| BRD-02 | Phase 11 | In Progress (11-02 identity line + event half rendered; 11-03 fills the competitor `nome`) |
+| BRD-02 | Phase 11 | Complete (11-03 identity competitor from verbatim nome across all disciplines + static event) |
 | SCN-01 | Phase 13 | Pending |
 | SCN-02 | Phase 13 | Pending |
 | RBT-06 | Phase 13, Phase 14 | Pending |

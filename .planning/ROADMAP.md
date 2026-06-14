@@ -38,7 +38,7 @@
 **Build order is dependency-forced:** data contract → renderer → SCV-01 unification → OBS wiring → live-robustness hardening. `server_now` (clock-skew anchor) must be in the contract from the first commit; the renderer can only be repointed/wired once it serves a live URL; cross-component degrade behavior can only be validated after the whole path is assembled.
 
 - [x] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified (completed 2026-06-14)
-- [ ] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
+- [x] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
 - [ ] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
 - [ ] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated
 - [ ] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped
@@ -92,7 +92,7 @@
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 11-03-PLAN.md — Shared `overlay-render.js`: sanitize mirror + per-discipline render (textContent sink), offset-cancellation timer (down/up + freeze-at-0/Tempo + agility overtime), gen-age freshness watchdog + degrade (OVL-02/04, TMR-01/02/03/04, BRD-02)
+- [x] 11-03-PLAN.md — Shared `overlay-render.js`: sanitize mirror + per-discipline render (textContent sink), offset-cancellation timer (down/up + freeze-at-0/Tempo + agility overtime), gen-age freshness watchdog + degrade (OVL-02/04, TMR-01/02/03/04, BRD-02) — completed 2026-06-14
 
 **UI hint**: yes
 

@@ -23,7 +23,6 @@ from __future__ import annotations
 import pytest
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-02", strict=False)
 def test_overlay_run_round_trip(tmp_path):
     """write_overlay_run then read_overlay_run round-trips equal (frozen ==)."""
     from segugio.opcomm.channel import read_overlay_run, write_overlay_run
@@ -35,7 +34,6 @@ def test_overlay_run_round_trip(tmp_path):
     assert read_overlay_run(path) == doc
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-02", strict=False)
 def test_overlay_run_default_when_absent(tmp_path):
     """An absent overlay_run.json → read_overlay_run returns the empty default (RBT-04)."""
     from segugio.opcomm.channel import read_overlay_run
@@ -45,7 +43,6 @@ def test_overlay_run_default_when_absent(tmp_path):
     assert read_overlay_run(path) == OverlayRunDoc()
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-02", strict=False)
 @pytest.mark.parametrize(
     "payload",
     [

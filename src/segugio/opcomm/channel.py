@@ -23,7 +23,14 @@ import json
 from loguru import logger
 
 from .atomic import atomic_write_json
-from .records import DirectorStatus, OperatorCommand, PreviewDoc, RunState, ScoreDoc
+from .records import (
+    DirectorStatus,
+    OperatorCommand,
+    OverlayRunDoc,
+    PreviewDoc,
+    RunState,
+    ScoreDoc,
+)
 
 __all__ = [
     "write_score",
@@ -36,6 +43,8 @@ __all__ = [
     "read_status",
     "write_preview",
     "read_preview",
+    "write_overlay_run",
+    "read_overlay_run",
 ]
 
 
@@ -222,3 +231,44 @@ def read_preview(path: str) -> PreviewDoc:
     except (ValueError, TypeError) as exc:
         logger.warning("opcomm invalid PreviewDoc at {} → default ({})", path, exc)
         return PreviewDoc()
+
+
+# --- overlay-run sidecar (OVD-02, console-owned run-edge channel) ----------- #
+
+
+def write_overlay_run(path: str, doc: OverlayRunDoc) -> None:
+    """Write an ``OverlayRunDoc`` atomically to ``overlay_run.json`` (the overlay polls it).
+
+    Rides on :func:`atomic_write_json` (always-fsync + the Windows MoveFileEx sharing-violation
+    retry) so a reader never sees a partially-written run-edge file (D-03 / T-10-02-02). This is
+    a SEPARATE file from the safety-critical ``runstate.json`` — the director NEVER reads it.
+    Never hand-roll ``open(...).write()``.
+    """
+    atomic_write_json(
+        path,
+        {"running": doc.running, "started_at": doc.started_at, "gen": doc.gen},
+    )
+
+
+def read_overlay_run(path: str) -> OverlayRunDoc:
+    """Read an ``OverlayRunDoc`` from ``path``; malformed/absent → a default (RBT-04 / D-04).
+
+    Reuses the :func:`_read_json` never-raise boundary (absent/torn/malformed → ``None``) and
+    safe-defaults to an empty ``OverlayRunDoc()`` on any failure, exactly like
+    :func:`read_preview`, so a corrupt/torn/attacker-touched sidecar can never raise into the
+    ``/overlay-json`` route or the loop (T-10-02-01). ``started_at`` is nullable — a stored
+    ``None`` (the STOP/not-started state, D-03) is preserved, never coerced to ``0.0``.
+    """
+    data = _read_json(path)
+    if not isinstance(data, dict):
+        return OverlayRunDoc()
+    try:
+        started = data.get("started_at")
+        return OverlayRunDoc(
+            running=bool(data.get("running", False)),
+            started_at=None if started is None else float(started),
+            gen=int(data.get("gen", 0)),
+        )
+    except (ValueError, TypeError) as exc:
+        logger.warning("opcomm invalid OverlayRunDoc at {} → default ({})", path, exc)
+        return OverlayRunDoc()

@@ -81,7 +81,21 @@ _PREVIEW_FILE = "preview/preview.json"
 _NON_SCORE_KEYS = frozenset({"discipline"})
 
 
-def create_app(channel_dir: str, cam_ids=()):
+# Console-palette branding defaults (D-06) — mirrored from OverlayParams so the /overlay route
+# always renders a valid page even when a caller passes no overlay_cfg. Kept here as a plain dict
+# (NOT imported from segugio.config) so the crash-isolation allowlist holds: the console never
+# imports the config models at module top.
+_OVERLAY_CFG_DEFAULTS = {
+    "freestyle_duration_s": 120,
+    "event_name": "",
+    "logo_path": "",
+    "theme_accent": "#34D399",
+    "theme_plate": "#14161a",
+    "theme_text": "#E6E9EF",
+}
+
+
+def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None):
     """Build the Flask operator console wired to ``channel_dir`` (the opcomm file directory).
 
     A factory (not a module-level ``app``) so tests inject a tmp_path dir via the Flask test
@@ -92,10 +106,29 @@ def create_app(channel_dir: str, cam_ids=()):
     in as a plain arg (NEVER obtained by ``import segugio.config``, which would break the
     crash-isolation contract). The default ``()`` keeps existing single-arg callers green; with no
     ids passed, ``GET /preview/<cam>.jpg`` 404s every cam (the entrypoint passes the real ids).
+
+    ``overlay_cfg`` is the static branding the ``GET /overlay`` host page renders — a plain dict
+    (``freestyle_duration_s`` + ``event_name`` + ``logo_path`` + the three theme color strings),
+    resolved by the entrypoint EXACTLY like ``cam_ids`` (NEVER ``import segugio.config`` at module
+    top — Pitfall 3 / crash-isolation). ``None`` → the console-palette defaults so a caller that
+    passes nothing still renders a valid page; any keys present override the defaults. This is
+    STATIC config (D-07): it is injected at render time and does NOT enter the ``/overlay-json``
+    poll payload.
     """
-    from flask import Flask, abort, jsonify, render_template, request, send_file
+    from flask import (
+        Flask,
+        abort,
+        jsonify,
+        make_response,
+        render_template,
+        request,
+        send_file,
+    )
 
     cam_ids = frozenset(cam_ids)
+    # Fold the caller's overlay_cfg over the console-palette defaults so the template never sees an
+    # undefined branding var (a partial dict is fine — missing keys fall back to the defaults).
+    overlay_cfg = {**_OVERLAY_CFG_DEFAULTS, **(overlay_cfg or {})}
 
     os.makedirs(channel_dir, exist_ok=True)
 
@@ -274,6 +307,19 @@ def create_app(channel_dir: str, cam_ids=()):
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
+    @app.get("/overlay")
+    def get_overlay():
+        # OVL-01 — the transparent OBS browser-source host page. THIN: no score/run data is baked
+        # in (the page polls /overlay-json each tick), so the page never reloads on a score change.
+        # Only the STATIC branding (freestyle duration + event name + logo path + theme colors) is
+        # injected as plain render args from overlay_cfg — resolved by the entrypoint like cam_ids,
+        # NEVER `import segugio.config` (Pitfall 3 / crash-isolation). overlay.html ships in 11-02.
+        resp = make_response(render_template("overlay.html", **overlay_cfg))
+        # Never cache the host page (the get_overlay_json / get_preview_jpg no-store precedent) —
+        # a CEF browser-source must always re-fetch on refresh, never serve a stale shell.
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
     @app.get("/preview/<cam>.jpg")
     def get_preview_jpg(cam: str):
         # T-05-05-01 path-traversal mitigation: <cam> is whitelisted against the configured ids
@@ -320,6 +366,10 @@ if __name__ == "__main__":  # pragma: no cover - the production entrypoint
     # (SEGUGIO_CAM_IDS); fall back to loading the config only if a path is given. If neither is
     # set, the four default rig ids keep the preview routes serving out of the box.
     _cam_env = os.environ.get("SEGUGIO_CAM_IDS", "").strip()
+    # The static overlay branding (D-07) is resolved HERE too — same lazy discipline as cam_ids so
+    # no config import leaks to the module top. Defaults to the console palette; env vars override
+    # individual fields, and a SEGUGIO_CONFIG path seeds the rest from cfg.overlay.*.
+    _overlay_cfg = dict(_OVERLAY_CFG_DEFAULTS)
     if _cam_env:
         _cam_ids = [c.strip() for c in _cam_env.split(",") if c.strip()]
     else:
@@ -327,11 +377,38 @@ if __name__ == "__main__":  # pragma: no cover - the production entrypoint
         if _cfg_path:
             from ..config.loader import load_config  # lazy: config import stays out of module top
 
-            _cam_ids = [cam.id for cam in load_config(_cfg_path).cameras]
+            _cfg = load_config(_cfg_path)
+            _cam_ids = [cam.id for cam in _cfg.cameras]
+            # Seed the overlay branding from cfg.overlay.* (the config is the source of truth when a
+            # path is given). Env vars below still win over these so an operator can override per run.
+            _ovl = _cfg.overlay
+            _overlay_cfg.update(
+                {
+                    "freestyle_duration_s": _ovl.freestyle_duration_s,
+                    "event_name": _ovl.event_name,
+                    "logo_path": _ovl.logo_path,
+                    "theme_accent": _ovl.theme_accent,
+                    "theme_plate": _ovl.theme_plate,
+                    "theme_text": _ovl.theme_text,
+                }
+            )
         else:
             _cam_ids = ["cam_wide", "cam_long", "cam_low", "cam_handler"]
 
-    app = create_app(_dir, cam_ids=_cam_ids)
+    # Per-field env overrides (win over config) — let an operator brand a run without editing the
+    # config file. Only set keys an env var is actually present for.
+    for _env_key, _cfg_key in (
+        ("SEGUGIO_OVERLAY_EVENT", "event_name"),
+        ("SEGUGIO_OVERLAY_LOGO", "logo_path"),
+        ("SEGUGIO_OVERLAY_ACCENT", "theme_accent"),
+        ("SEGUGIO_OVERLAY_PLATE", "theme_plate"),
+        ("SEGUGIO_OVERLAY_TEXT", "theme_text"),
+    ):
+        _val = os.environ.get(_env_key)
+        if _val is not None and _val.strip():
+            _overlay_cfg[_cfg_key] = _val.strip()
+
+    app = create_app(_dir, cam_ids=_cam_ids, overlay_cfg=_overlay_cfg)
     try:
         # OPTIONAL deploy extra (`pip install segugio[console]`). The import stays INSIDE the
         # entrypoint so the crash-isolation guard passes whether or not waitress is installed.

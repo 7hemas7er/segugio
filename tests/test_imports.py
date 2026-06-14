@@ -115,6 +115,27 @@ def test_console_resolves_with_heavy_stack_and_numpy_absent(
         payload = resp.get_json()
         assert "gen" in payload and "server_now" in payload
 
+        # RBT-07 (Phase 11) — the NEW GET /overlay host page must also register and resolve under
+        # the heavy-absent block: building create_app + the overlay_cfg injection must add no
+        # module-top heavy import (a config/torch import sneaking in would have raised at the
+        # `create_app` build above). The route is registered inside the factory:
+        rules = {r.rule for r in app.url_map.iter_rules()}
+        assert "/overlay" in rules
+
+        # The route renders templates/overlay.html, which is produced by plan 11-02. When it
+        # exists, GET /overlay returns 200 with Cache-Control: no-store (the cross-plan acceptance);
+        # until then a GET 500s on the missing template (the route is still registered + heavy-free,
+        # which is what THIS gate proves). Assert the full contract only once the template ships.
+        import os as _os
+
+        _tpl = _os.path.join(
+            _os.path.dirname(segugio.ui.app.__file__), "templates", "overlay.html"
+        )
+        if _os.path.exists(_tpl):
+            resp = client.get("/overlay")
+            assert resp.status_code == 200
+            assert resp.headers["Cache-Control"] == "no-store"
+
 
 def test_configure_logging_is_idempotent() -> None:
     """Calling configure_logging() twice does not raise and leaves exactly one sink."""

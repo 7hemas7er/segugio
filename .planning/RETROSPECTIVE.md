@@ -1,0 +1,67 @@
+# Project Retrospective
+
+*A living document updated after each milestone. Lessons feed forward into future planning.*
+
+## Milestone: v1.1 — Console Regia
+
+**Shipped:** 2026-06-14
+**Phases:** 3 (7–9) | **Plans:** 11 | **Sessions:** ~2–3 (2026-06-13 → 2026-06-14, estimate)
+
+### What Was Built
+- An **off-tick frame-publishing channel** (`PreviewPublisher` daemon + single-slot mailbox + `atomic_write_bytes` + `preview.json` "why" sidecar) that exposes what the orchestrator already computes — thumbnails, per-camera score, tracking state, dog bbox, FSM auto-candidate, cuts ring — without stealing time from the director's critical tick (PRV-01/02/03).
+- A **live multiview console** served by the crash-isolated Flask app: responsive CSS-Grid, flicker-free refresh, LIVE/tally + dead-feed marking, plus the `threaded=True`/Waitress safety fix, a config-time bandwidth cap, and a written threat re-evaluation (MVW-01/02/03, UXT-02).
+- The **explainability + informed-override + tablet-UX layer**: plain-Italian reason, score leaderboard, dog-lock bbox overlay, "auto wants vs aired" hint, switch-history, tap-to-force override, live OBS score preview, tablet-first restyle, and long-run leak/sleep/freshness hygiene — accepted on a real iPad (MVW-04/05, WHY-01..04, SCV-01, UXT-01/03).
+
+### What Worked
+- **Gating the boundary first.** The milestone introduced exactly one new cross-process boundary (the publish channel). Phase 7 built it *and proved both HARD gates* (RBT-05 p95 unchanged with preview ON; crash-isolation with the heavy stack absent) before any consumer rendered — so Phases 8 and 9 never had to relitigate the boundary.
+- **Adversarial multi-agent review caught a live-data bug unit tests missed.** A 10-agent review found WHY-02's leaderboard "coast" state was dead on real data because of a `coasting`/`coast` enum-literal mismatch — both producer and consumer tests had hardcoded the wrong literal, so the suite was green and wrong (fixed in d6e7555).
+- **The cross-phase integration check + milestone audit caught a defect carried since Phase 5.** WHY-01's `fault` reason rendered as the idle "In attesa…" placeholder; the audit closed it inline (3350c14) and pinned `REASON_IT` to the Python source of truth with a drift-proof test.
+- **Byte-parity proven by execution, not inspection.** The SCV-01 JS overlay mirror was validated by running the served JS in node against the imported Python renderer across all 3 disciplines — a real drift guard, not a hopeful comment.
+
+### What Was Inefficient
+- **SUMMARY frontmatter recording gap.** 09-01/09-03/09-04 shipped requirements (WHY-01/02/04, SCV-01, MVW-05, UXT-03) but left `requirements_completed` empty. The `milestone.complete` CLI harvests that frontmatter, so the auto-generated MILESTONES.md contained garbage one-liners ("COMPLETE — all 3 tasks done", "1. [Rule 3 - Blocking] …") that had to be hand-cleaned at close.
+- **Nyquist validation left as drafts.** 07/08-VALIDATION.md were created but Wave-0 was never completed; 09 has none. Discovery debt that the audit had to flag rather than the workflow closing it.
+- **No per-phase SECURITY.md** despite `security_enforcement` on — threat models live inside the PLANs and `docs/security.md`, but the formal verification step was skipped.
+- **A producer↔consumer contract bug slipped to live data.** The `coasting`/`coast` mismatch only surfaced on real `ScorerStatus`, not in unit tests — a sign the producer and consumer needed a shared contract test on live-shaped data, not parallel hardcoded literals.
+
+### Patterns Established
+- **Gate-the-boundary-first:** when a milestone adds exactly one new cross-process boundary, build and *prove* it (HARD gates) in the first phase before any consumer depends on it.
+- **Crash-isolation as an enforced import test:** `import segugio.ui` must resolve and the console must *start* with the heavy stack (ultralytics/torch/numpy/cv2/cyndilib/obsws) absent — re-asserted as a regression gate each phase.
+- **Publish-and-render over compute:** expose data the core already computes via an off-tick atomic-file channel rather than adding a network server or new write-path into the safety-critical core.
+- **Off-tick latest-only mailbox:** the right shape for "publish without blocking the tick" — `offer()` never blocks, last-writer-wins, frame-drop allowed.
+- **Byte-parity mirror via execution:** prove a JS reimplementation of a Python function by running both and diffing bytes in CI.
+
+### Key Lessons
+1. Keep SUMMARY `requirements_completed` frontmatter populated as you go — the milestone-close CLI harvests it; empty fields produce garbage accomplishments and break traceability.
+2. When the same value crosses a producer→consumer boundary (an enum literal, a JSON key), test the *contract on live-shaped data*, not the literal hardcoded identically on both sides — that's how `coasting`/`coast` stayed green and broken.
+3. Run `/gsd-validate-phase` and `/gsd-secure-phase` *inside* the phase, not at milestone close — leaving them as drafts turns the audit into a debt-discovery tool instead of a confirmation.
+4. Make hardware/field carry-forwards explicit deferred items at close; the open-artifact audit + milestone audit kept all 7 visible rather than silently shipping over them.
+
+### Cost Observations
+- Model mix: not instrumented this milestone (config `model_profile: quality` → opus-leaning). Estimate only.
+- Sessions: ~2–3 across 2026-06-13 → 2026-06-14.
+- Notable: the most expensive single action (the 10-agent adversarial review) was also the highest-value — it caught a green-but-wrong bug that would have shipped a dead UI state to the operator.
+
+---
+
+## Cross-Milestone Trends
+
+### Process Evolution
+
+| Milestone | Sessions | Phases | Key Change |
+|-----------|----------|--------|------------|
+| v1.0 MVP | ~6 (est.) | 6 | Established the GSD synthetic-first dependency chain: pure brains (scorer/FSM) unit-tested before YOLO is wired; integration phase closes the milestone |
+| v1.1 Console Regia | ~2–3 (est.) | 3 | Added adversarial multi-agent review + a formal milestone audit before close; "gate-the-boundary-first" for the one new cross-process boundary |
+
+### Cumulative Quality
+
+| Milestone | Tests | Coverage | Zero-Dep Additions |
+|-----------|-------|----------|-------------------|
+| v1.0 MVP | ~314 headless passed | high on pure modules (framing 99%, decision 100%) | transitions (light), Flask; native-ReID (no extra weights) |
+| v1.1 Console Regia | ~421 passed / 8 skipped | UI suite 76/76; crash-isolation import gate green | none new — reused opcomm atomic-file channel + render_overlay_text; Waitress optional |
+
+### Top Lessons (Verified Across Milestones)
+
+1. **Pure-first, then wire:** building and exhaustively unit-testing the pure logic (scorer, FSM in v1.0; the publish channel + sidecar in v1.1) before the heavy/edge integration keeps defects cheap and the lazy-import boundary honest.
+2. **Green tests can be confidently wrong:** v1.0's CR-01 (startup fault-sink) and v1.1's WHY-02 (`coasting`/`coast`) both passed their unit tests and were caught only by review/integration — adversarial and integration checks earn their cost.
+3. **Software-complete ≠ field-validated:** both milestones close with explicit hardware/field carry-forwards; tracking them as deferred items (not silent gaps) keeps the honesty of "shipped on synthetic data."

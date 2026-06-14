@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
-status: verifying
-stopped_at: Completed 10-03-PLAN.md
+status: Phase 10 complete (verified 4/4) — ready for /gsd-discuss-phase 11
+stopped_at: Phase 10 complete (verified)
 last_updated: "2026-06-14T15:06:04.134Z"
-last_activity: 2026-06-14
+last_activity: 2026-06-14 — Phase 10 executed (4 plans, 3 waves), code-review fixes applied, verified 4/4
 progress:
   total_phases: 5
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 10 — overlay-data-contract-run-timestamp-publish
+**Current focus:** Milestone v1.2 — Phase 10 complete; next is Phase 11 (Shared Graphical Renderer & /overlay page)
 
 ## Current Position
 
-Phase: 11
+Phase: 11 (not started) — Phase 10 complete & verified
 Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-06-14
+Status: Phase 10 complete (verified 4/4 must-haves) — ready for /gsd-discuss-phase 11
+Last activity: 2026-06-14 — Phase 10 executed + verified
 
 ## Performance Metrics
 

@@ -25,6 +25,7 @@ so ``opcomm`` stays an independent leaf package (no opcomm→decision import at 
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -234,5 +235,16 @@ class OverlayRunDoc:
         # started_at is NULLABLE — coerce to float ONLY when present; None is the STOP/absent
         # state and must survive as None (never float(None) → never silently 0.0).
         if self.started_at is not None:
-            object.__setattr__(self, "started_at", float(self.started_at))
+            # WR-02: bool is a subclass of int, so float(True)/float(False) silently yield
+            # 1.0/0.0 — a garbage "run started at epoch 1.0" anchor. Reject bool explicitly so
+            # the reader's except (ValueError, TypeError) collapses it to the safe default (None).
+            if isinstance(self.started_at, bool):
+                raise ValueError("started_at must be a number, not bool")
+            coerced = float(self.started_at)
+            # CR-01 defense-in-depth: a non-finite anchor (NaN/Infinity) is garbage for skew
+            # math AND serializes as an RFC-8259-invalid JSON token from /overlay-json — reject
+            # it here so it can never survive into a record (the reader defaults it to None).
+            if not math.isfinite(coerced):
+                raise ValueError(f"started_at must be finite, got {coerced!r}")
+            object.__setattr__(self, "started_at", coerced)
         object.__setattr__(self, "gen", int(self.gen))

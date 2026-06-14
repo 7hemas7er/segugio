@@ -19,6 +19,7 @@ Light: ``json`` / ``loguru`` only (loguru is a core dep). No heavy imports.
 from __future__ import annotations
 
 import json
+import math
 
 from loguru import logger
 
@@ -48,6 +49,17 @@ __all__ = [
 ]
 
 
+def _reject_non_finite_token(token: str):
+    """``parse_constant`` hook: reject ``NaN``/``Infinity``/``-Infinity`` on read (CR-01).
+
+    ``json.loads`` calls this for each non-standard constant token it encounters. Raising a
+    ``ValueError`` here makes the parse fail, which ``_read_json`` catches and collapses to the
+    safe default — so a non-finite float can never enter a record (and thus never escape
+    ``/overlay-json`` as a non-finite, RFC-8259-invalid JSON token).
+    """
+    raise ValueError(f"non-finite JSON token {token!r}")
+
+
 def _read_json(path: str):
     """Read+parse a JSON file; return ``None`` on absent/empty/malformed (never raises).
 
@@ -66,10 +78,34 @@ def _read_json(path: str):
     if not raw.strip():
         return None
     try:
-        return json.loads(raw)
+        # parse_constant rejects the non-standard tokens NaN / Infinity / -Infinity that
+        # json.loads accepts by default — a torn/legacy/attacker-touched sidecar carrying one
+        # of these would otherwise pass float() coercion silently and re-emit as a non-finite
+        # token from /overlay-json (invalid JSON per RFC 8259, breaks the consumer's .json()
+        # parse). Raising here collapses the whole file to the safe default for ALL readers
+        # (CR-01 belt-and-suspenders — defends every float field on the channel at once).
+        return json.loads(raw, parse_constant=_reject_non_finite_token)
     except (json.JSONDecodeError, ValueError) as exc:
         logger.warning("opcomm malformed JSON at {} → default ({})", path, exc)
         return None
+
+
+def _as_bool(value, default: bool = False) -> bool:
+    """Coerce a read-back JSON value to a STRICT bool (WR-04).
+
+    Blanket ``bool(value)`` is a footgun on a hand-edited/legacy file: the non-empty string
+    ``"false"`` is truthy → ``True``, so an operator who typed ``"running": "false"`` (intending
+    "stopped") would have the overlay read "running". Only real bools, numerics, and the known
+    string forms are accepted; anything else falls back to ``default``. Note ``"running": 1`` →
+    ``True`` is preserved (numeric path), matching the pinned ``test_overlay_run_doc_normalizes``.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return default
 
 
 # --- score (SCR-02) -------------------------------------------------------- #
@@ -88,9 +124,14 @@ def read_score(path: str) -> ScoreDoc:
     if not isinstance(data, dict):
         return ScoreDoc()
     try:
+        # WR-01: guard fields to a dict (mirror read_status/read_preview). A non-dict on disk
+        # (e.g. "fields": [1,2,3]) would otherwise be kept verbatim — ScoreDoc validates only
+        # discipline — and leak a list out of /overlay-json, violating the {label: value} contract.
+        raw_fields = data.get("fields", {})
+        fields = raw_fields if isinstance(raw_fields, dict) else {}
         return ScoreDoc(
             discipline=data.get("discipline", ScoreDoc().discipline),
-            fields=data.get("fields", {}) or {},
+            fields=fields,
         )
     except (ValueError, TypeError) as exc:
         logger.warning("opcomm invalid ScoreDoc at {} → default ({})", path, exc)
@@ -264,9 +305,24 @@ def read_overlay_run(path: str) -> OverlayRunDoc:
         return OverlayRunDoc()
     try:
         started = data.get("started_at")
+        if started is None:
+            started_val = None
+        elif isinstance(started, bool):
+            # WR-02: JSON true/false are Python bools and float(True)=1.0 — a garbage "run started
+            # at epoch 1.0" anchor. Reject here BEFORE float() coercion (which would mask the bool)
+            # so the except below collapses it to the safe default (None).
+            raise ValueError("started_at must be a number, not bool")
+        else:
+            # CR-01 defense-in-depth: 1e999 parses to inf via OVERFLOW (no NaN/Infinity TOKEN, so
+            # parse_constant never fires) — reject non-finite here so started_at never carries a
+            # non-finite anchor into /overlay-json (which would emit an RFC-8259-invalid token).
+            started_val = float(started)
+            if not math.isfinite(started_val):
+                raise ValueError(f"non-finite started_at {started_val!r}")
         return OverlayRunDoc(
-            running=bool(data.get("running", False)),
-            started_at=None if started is None else float(started),
+            # WR-04: strict bool coercion ("false"/garbage → default, not blanket-truthy).
+            running=_as_bool(data.get("running", False)),
+            started_at=started_val,
             gen=int(data.get("gen", 0)),
         )
     except (ValueError, TypeError) as exc:

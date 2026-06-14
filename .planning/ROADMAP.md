@@ -37,7 +37,7 @@
 
 **Build order is dependency-forced:** data contract → renderer → SCV-01 unification → OBS wiring → live-robustness hardening. `server_now` (clock-skew anchor) must be in the contract from the first commit; the renderer can only be repointed/wired once it serves a live URL; cross-component degrade behavior can only be validated after the whole path is assembled.
 
-- [ ] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified
+- [x] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified (completed 2026-06-14)
 - [ ] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
 - [ ] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
 - [ ] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated
@@ -65,7 +65,7 @@
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-04-PLAN.md — Wave 2: `GET /overlay-json` route + `/run`+`/score` gen wiring + crash-isolation gate (OVD-01/02/03, RBT-07)
+- [x] 10-04-PLAN.md — Wave 2: `GET /overlay-json` route + `/run`+`/score` gen wiring + crash-isolation gate (OVD-01/02/03, RBT-07)
 
 ### Phase 11: Shared Graphical Renderer, /overlay Page & Branding
 
@@ -140,7 +140,7 @@
 | 7. Off-tick Frame-Publishing Channel | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 8. Console Serving, Live Multiview & Safety Hardening | v1.1 | 3/3 | Complete | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
-| 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 2/4 | In Progress|  |
+| 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete   | 2026-06-14 |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 0/TBD | Not started | - |
 | 12. SCV-01 Unification | v1.2 | 0/TBD | Not started | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |

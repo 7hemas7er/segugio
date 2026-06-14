@@ -44,7 +44,7 @@
 ### Robustness (RBT)
 
 - [ ] **RBT-06**: `overlay.txt` **mantenuto come fallback degradato** (SCR-01) — browser-source primaria, text source "read from file" come fallback sempre-funziona se la browser-source muore/blanka on-air
-- [ ] **RBT-07**: **Crash-isolation della console preservata** — test di import verde con lo stack pesante assente (`torch`/`cv2`/`ultralytics`/`numpy`/`cyndilib`/`obsws`); gate per ogni fase
+- [x] **RBT-07**: **Crash-isolation della console preservata** — test di import verde con lo stack pesante assente (`torch`/`cv2`/`ultralytics`/`numpy`/`cyndilib`/`obsws`); gate per ogni fase
 
 ## Future Requirements
 
@@ -104,7 +104,7 @@ Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/
 | SCN-01 | Phase 13 | Pending |
 | SCN-02 | Phase 13 | Pending |
 | RBT-06 | Phase 13, Phase 14 | Pending |
-| RBT-07 | Phase 10 | Pending |
+| RBT-07 | Phase 10 | Complete |
 
 **Note RBT-06:** the `overlay.txt` fallback is *wired* in Phase 13 (scene-collection text source retained) and *verified end-to-end under failure* in Phase 14 (the live-robustness degrade gate). The requirement is delivered by Phase 13; Phase 14 is its acceptance validation.
 

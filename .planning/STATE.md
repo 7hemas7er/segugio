@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
-status: executing
+status: verifying
 stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-06-14T14:19:40.411Z"
+last_updated: "2026-06-14T14:37:56.003Z"
 last_activity: 2026-06-14 -- Completed Phase 10 Plan 03 (OverlayParams config)
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 0
+  completed_plans: 4
+  percent: 20
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 
 Phase: 10 (overlay-data-contract-run-timestamp-publish) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-14 -- Completed Phase 10 Plan 03 (OverlayParams config)
 
 ## Performance Metrics
@@ -98,6 +98,7 @@ Last activity: 2026-06-14 -- Completed Phase 10 Plan 03 (OverlayParams config)
 | Phase 10 P01 | 8min | 2 tasks | 4 files |
 | Phase 10 P02 | 4min | 2 tasks | 3 files |
 | Phase 10 P03 | 6min | 1 task | 3 files |
+| Phase 10 P04 | 9min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -189,6 +190,8 @@ Recent decisions affecting current work:
 - [Phase ?]: OverlayRunDoc.started_at is nullable — None (STOP/not-started) preserved through __post_init__ and read_overlay_run, never coerced to 0.0 (D-03)
 - [Phase ?]: overlay_run.json is a SEPARATE console-owned sidecar; runstate.json/RunState untouched so the director never reads the overlay channel (HARD D-03)
 - [Phase 10 / 10-03]: OverlayParams additive extra='forbid' sub-model (config/models.py) with freestyle_duration_s: Annotated[int, Field(gt=0)] = 120 (D-06; orgs override to 90 — resolves the 90s-vs-120s blocker), wired Config.overlay = Field(default_factory=OverlayParams) so a config without an overlay: block still validates under the fail-fast SystemExit(2) loader. freestyle_duration_s is STATIC config — NOT in the /overlay-json payload (D-07); Phase 11 injects it as an entrypoint arg. config.example.yaml documents it; tests/test_config_overlay.py flipped RED→GREEN (xfail markers removed). OVD-03 complete.
+- [Phase 10]: 10-04: GET /overlay-json serves the 6-key contract + Cache-Control no-store, assembled from never-raise readers + time.time() (D-04/D-08)
+- [Phase 10]: 10-04: overlay_run.json side-write strictly after the byte-for-byte-unchanged write_runstate; gen seeds from disk, bumps on /run + /score (/score preserves run state)
 
 ### Pending Todos
 
@@ -228,7 +231,7 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-14T14:19:14.549Z
+Last session: 2026-06-14T14:37:10.479Z
 Stopped at: Completed 10-03-PLAN.md
 Resume file: None
 

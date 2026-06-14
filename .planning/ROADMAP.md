@@ -61,7 +61,7 @@
 
 - [x] 10-01-PLAN.md — Wave 0: test scaffolds (opcomm/route/config) + `file_channel` overlay_run fixture key
 - [x] 10-02-PLAN.md — Wave 1: `OverlayRunDoc` record + `write_overlay_run`/`read_overlay_run` channel helpers (OVD-01/02)
-- [ ] 10-03-PLAN.md — Wave 1: `OverlayParams` config section (`overlay.freestyle_duration_s=120`) + `config.example.yaml` (OVD-03)
+- [x] 10-03-PLAN.md — Wave 1: `OverlayParams` config section (`overlay.freestyle_duration_s=120`) + `config.example.yaml` (OVD-03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

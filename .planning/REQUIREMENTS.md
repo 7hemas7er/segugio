@@ -97,7 +97,7 @@ Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/
 | TMR-04 | Phase 11 | Pending |
 | OVD-01 | Phase 10 | Complete |
 | OVD-02 | Phase 10 | Complete |
-| OVD-03 | Phase 10 | Pending |
+| OVD-03 | Phase 10 | In Progress (freestyle_duration_s config seeded in 10-03; gen-age freshness contract completes in 10-04) |
 | SCV-02 | Phase 12 | Pending |
 | BRD-01 | Phase 11 | Pending |
 | BRD-02 | Phase 11 | Pending |

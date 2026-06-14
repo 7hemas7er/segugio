@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Phase 10 planned (4 plans, 3 waves)
+stopped_at: Completed 10-03-PLAN.md
 last_updated: "2026-06-14T14:19:40.411Z"
-last_activity: 2026-06-14 -- Phase 10 execution started
+last_activity: 2026-06-14 -- Completed Phase 10 Plan 03 (OverlayParams config)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 ## Current Position
 
 Phase: 10 (overlay-data-contract-run-timestamp-publish) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
-Last activity: 2026-06-14 -- Phase 10 execution started
+Last activity: 2026-06-14 -- Completed Phase 10 Plan 03 (OverlayParams config)
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Last activity: 2026-06-14 -- Phase 10 execution started
 | Phase 09 P04 | 7min | 3 tasks | 2 files |
 | Phase 10 P01 | 8min | 2 tasks | 4 files |
 | Phase 10 P02 | 4min | 2 tasks | 3 files |
+| Phase 10 P03 | 6min | 1 task | 3 files |
 
 ## Accumulated Context
 
@@ -187,6 +188,7 @@ Recent decisions affecting current work:
 - [Phase 10]: [Phase 10 / 10-01]: Wave-0 overlay test contract — 3 RED-by-design scaffolds (test_opcomm_overlay_run/test_config_overlay/test_ui_overlay_json) named 1:1 with 10-VALIDATION.md + file_channel['overlay_run'] key. Pattern: xfail(strict=False) + missing-symbol imports INSIDE test bodies keeps collection green pre-impl; the byte-for-byte runstate.json D-03 invariant test carries NO xfail (stays-true regression guard). 24 xfail + 1 pass, zero XPASS, crash-isolation allowlist preserved (no numpy/cv2/torch).
 - [Phase ?]: OverlayRunDoc.started_at is nullable — None (STOP/not-started) preserved through __post_init__ and read_overlay_run, never coerced to 0.0 (D-03)
 - [Phase ?]: overlay_run.json is a SEPARATE console-owned sidecar; runstate.json/RunState untouched so the director never reads the overlay channel (HARD D-03)
+- [Phase 10 / 10-03]: OverlayParams additive extra='forbid' sub-model (config/models.py) with freestyle_duration_s: Annotated[int, Field(gt=0)] = 120 (D-06; orgs override to 90 — resolves the 90s-vs-120s blocker), wired Config.overlay = Field(default_factory=OverlayParams) so a config without an overlay: block still validates under the fail-fast SystemExit(2) loader. freestyle_duration_s is STATIC config — NOT in the /overlay-json payload (D-07); Phase 11 injects it as an entrypoint arg. config.example.yaml documents it; tests/test_config_overlay.py flipped RED→GREEN (xfail markers removed). OVD-03 complete.
 
 ### Pending Todos
 
@@ -194,7 +196,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- [Milestone v1.2 — surfaced in research, confirm during Phase 10/11 planning]: Two open config/UX questions before implementation — (1) the freestyle round-length config key name (90s vs 120s, org-dependent) to confirm at Phase 10 planning; (2) the T&F/freestyle timer-at-zero visual treatment (freeze at 0:00 + "Tempo"; confirm whether a TEMPO flash is wanted) and the agility over-SCT display treatment, both to confirm before Phase 11 implementation. Also a CEF border-radius-over-transparency gray-edge artifact to verify on the production OBS box (avoid hairline rounded borders if it surfaces).
+- [Milestone v1.2 — (1) RESOLVED 2026-06-14 in 10-03]: The freestyle round-length config key is `overlay.freestyle_duration_s` (int, gt=0, default 120; orgs override to 90) — the 90s-vs-120s question is closed (default 120, org-overridable). Remaining open UX question: (2) the T&F/freestyle timer-at-zero visual treatment (freeze at 0:00 + "Tempo"; confirm whether a TEMPO flash is wanted) and the agility over-SCT display treatment, both to confirm before Phase 11 implementation. Also a CEF border-radius-over-transparency gray-edge artifact to verify on the production OBS box (avoid hairline rounded borders if it surfaces).
 - [Phase 1]: Framing-scorer math (Phase 2) is dense/novel — flagged for `--research-phase` during planning (lead-room, motion-adaptive alpha, conf-norm, size band, zone multiplier)
 - [Phase 4 — RESOLVED 2026-06-10 GPU UAT]: Native-ReID engagement on yolo26s VERIFIED on RTX 4000 Ada (assert_native_reid_engaged does not raise with end2end=False → no silent yolo26n-cls.pt fallback). COCO dog recall MEASURED on the 6 hard slices: strong on close/clear (handler_close cam_c 0.89, dusk_distant 0.76, sprint_blur 0.69), weak on distant/small + crowd (distant 0.04, crowd_distractor 0.16) — candidate for dog-detector fine-tuning later. NOTE: GPU UAT also found+fixed a real bug — the tracker yaml was passed as a bare name and never resolved, so TRK-01/TRK-02 were dead on the real path (silent coast every frame); fixed in detector.py with fail-loud abs-path resolution + CPU regression test.
 - [Phase 6 / 06-01 — RESOLVED 2026-06-13]: The py3.12 cu12x-torch + tensorrt GPU env (venv312: Python 3.12.10, torch 2.12.0+cu126, ultralytics 8.4.62, tensorrt-cu12 10.16.1.11, RTX 4000 Ada driver 596.36) is LIVE — torch.cuda.is_available()=True and the gpu latency test collects+runs. 06-02 RAN the gpu gate on it (p95 ~210ms). All Wave-1/Wave-2 latency work unblocked.
@@ -227,8 +229,8 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 ## Session Continuity
 
 Last session: 2026-06-14T14:19:14.549Z
-Stopped at: Phase 10 planned (4 plans, 3 waves)
-Resume file: .planning/phases/10-overlay-data-contract-run-timestamp-publish/10-01-PLAN.md
+Stopped at: Completed 10-03-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

@@ -19,9 +19,19 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 
 **Known carry-forwards (all hardware/field-gated, none a code gap):** on-rig PRV-01 p95-no-regression confirmation; real-YOLO/clip recall on the CUDA box (P04); NDI/OBS field validation (P05); preview-bandwidth false-death validation with real phones; 2 environmental NDI-loopback CI failures; thermal variance on the laptop GPU → prefer a desktop deploy GPU for sustained live. See STATE.md → Deferred Items and `milestones/v1.1-MILESTONE-AUDIT.md`.
 
-## Next Milestone
+## Current Milestone: v1.2 Overlay Grafico Broadcast
 
-Not yet defined — start with `/gsd-new-milestone`. The remaining v1 deliverable (project README polish) plus the deferred v2 ideas (PRED-01..04: predictive framing, disc detection, obstacle-aware anticipation, replay markers) and the hardware/field milestone (real phones, NDI HX3, WiFi 6, on-field validation) are the natural candidates.
+**Goal:** Sostituire la sovrapposizione punteggi testo-su-file con un overlay grafico broadcast animato — renderizzato via OBS *browser-source* alimentata dalla console crash-isolated — e impacchettare un scene-collection OBS curato, senza mai toccare il director.
+
+**Target features:**
+- **Overlay grafico HTML/CSS** (lower-third per disciplina: disc T&F prese/zona/totale · freestyle nome/timer · agility tempo/SCT/faults) servito come **OBS browser-source** dalla console — nuove route `GET /overlay` (HTML) + `GET /overlay-json` (dati), sfondo trasparente per il compositing
+- **Timer di run che conta da solo**, client-side, da `run_started_at` + `running` (dal `RunState` esistente) — zero compute sul tick del director
+- **Animazioni**: ingresso/uscita del lower-third + pulse sul cambio punteggio; reazione agli edge run start/stop
+- **Fallback degradato**: `overlay.txt` resta come fallback robusto (SCR-01)
+- **SCV-01 semplificato**: console-preview e OBS-overlay condividono lo stesso renderer HTML (sparisce il mirror JS byte-exact di Python)
+- **Scene OBS curate**: nuovo `obs/segugio-scene-collection.json` con la browser-source cablata in ogni scena CAM + layout/transizioni + `docs/obs-setup.md` aggiornato
+
+**Nodo di design / vincolo HARD:** la console resta crash-isolata (importa solo `Flask + segugio.opcomm`); l'orchestrator/director non viene mai toccato. È *publish-and-render* sopra il canale `opcomm` già esistente (i dati `ScoreDoc`/`RunState` ci sono già), non compute — stesso pattern del canale preview di v1.1. Numerazione fasi continua dalla v1.1 (parte da Phase 10).
 
 ## Requirements
 
@@ -44,9 +54,15 @@ Not yet defined — start with `/gsd-new-milestone`. The remaining v1 deliverabl
 
 ### Active
 
-<!-- Milestone v1 software-complete (Fasi 1-6, 6/6). Tutti i requisiti funzionali validati; resta solo il deliverable meta di packaging/README. -->
+<!-- Milestone v1.2 "Overlay Grafico Broadcast" in corso (Fasi da Phase 10). Requisiti dettagliati con REQ-ID in REQUIREMENTS.md. -->
 
-- [ ] Deliverable: struttura progetto, codice Python, istruzioni setup OBS (scene, sorgenti NDI, websocket), requirements, README — *largamente presente (src-layout, requirements.txt/pyproject, docs/obs-setup.md, docs/run.md, entry point `python -m segugio`); resta da rifinire il README di progetto.*
+- [ ] **Overlay grafico broadcast** servito come OBS browser-source dalla console crash-isolated (route `/overlay` + `/overlay-json`), lower-third per disciplina, sfondo trasparente — *v1.2*
+- [ ] **Timer di run client-side** che conta da solo (da `run_started_at` + `running` del `RunState`), zero compute sul director — *v1.2*
+- [ ] **Animazioni** ingresso/uscita lower-third + pulse sul cambio punteggio, reazione agli edge run start/stop — *v1.2*
+- [ ] **`overlay.txt` come fallback degradato** mantenuto (SCR-01) — *v1.2*
+- [ ] **SCV-01 unificato** — console-preview e OBS-overlay sullo stesso renderer HTML — *v1.2*
+- [ ] **Scene OBS curate** — nuovo `obs/segugio-scene-collection.json` con browser-source cablata + `docs/obs-setup.md` aggiornato — *v1.2*
+- [ ] Deliverable meta (carry-over v1): rifinire il README di progetto — *largamente presente (src-layout, requirements.txt/pyproject, docs/obs-setup.md, docs/run.md, entry point `python -m segugio`).*
 
 ### Out of Scope
 
@@ -118,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-14 after the **v1.1 "Console Regia" milestone** (Phases 7–9: PRV-01/02/03, MVW-01..05, WHY-01..04, SCV-01, UXT-01/02/03). Milestone audit `tech_debt` / `gaps: []`, 16/16 requirements satisfied in code, tagged `v1.1`. v1.0 MVP (Phases 1–6, software-complete on synthetic data) recorded retroactively at this close. Carry-forwards (all hardware/field-gated, tracked in STATE.md → Deferred Items): on-rig PRV-01 p95, real-YOLO/clip recall (P04), NDI/OBS field (P05), preview-bandwidth false-death with real phones, desktop deploy GPU for sustained live, 2 environmental NDI-loopback CI failures, 6 advisory Phase-9 code-review warnings. Next: `/gsd-new-milestone`.*
+*Last updated: 2026-06-14 — **milestone v1.2 "Overlay Grafico Broadcast" avviata** (overlay grafico via OBS browser-source dalla console crash-isolated, timer client-side, scene OBS curate; numerazione fasi continua da Phase 10). Stato precedente: after the **v1.1 "Console Regia" milestone** (Phases 7–9: PRV-01/02/03, MVW-01..05, WHY-01..04, SCV-01, UXT-01/02/03). Milestone audit `tech_debt` / `gaps: []`, 16/16 requirements satisfied in code, tagged `v1.1`. v1.0 MVP (Phases 1–6, software-complete on synthetic data) recorded retroactively at this close. Carry-forwards (all hardware/field-gated, tracked in STATE.md → Deferred Items): on-rig PRV-01 p95, real-YOLO/clip recall (P04), NDI/OBS field (P05), preview-bandwidth false-death with real phones, desktop deploy GPU for sustained live, 2 environmental NDI-loopback CI failures, 6 advisory Phase-9 code-review warnings. Next: `/gsd-new-milestone`.*

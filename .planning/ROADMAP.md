@@ -88,7 +88,7 @@
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 11-02-PLAN.md — Transparent FOUC-free `overlay.html`: left accent-bar lower-third skeleton (DOM/CSS-var contract), title-safe band, logo bug, identity line, event-only animation keyframes (OVL-01/02/03/04, BRD-01/02)
+- [x] 11-02-PLAN.md — Transparent FOUC-free `overlay.html`: left accent-bar lower-third skeleton (DOM/CSS-var contract), title-safe band, logo bug, identity line, event-only animation keyframes (OVL-01/02/03/04, BRD-01/02) — completed 2026-06-14
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -154,7 +154,7 @@
 | 8. Console Serving, Live Multiview & Safety Hardening | v1.1 | 3/3 | Complete | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete    | 2026-06-14 |
-| 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 1/3 | In progress | - |
+| 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 2/3 | In progress | - |
 | 12. SCV-01 Unification | v1.2 | 0/TBD | Not started | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

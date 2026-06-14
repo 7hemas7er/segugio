@@ -9,9 +9,9 @@
 
 ### Overlay Rendering (OVL)
 
-- [ ] **OVL-01**: La console crash-isolated serve un overlay **browser-source trasparente** via due route — `GET /overlay` (pagina HTML/CSS/JS) + `GET /overlay-json` (dati) — importando solo `Flask + segugio.opcomm` (nessuna nuova dipendenza runtime)
+- [x] **OVL-01**: La console crash-isolated serve un overlay **browser-source trasparente** via due route — `GET /overlay` (pagina HTML/CSS/JS) + `GET /overlay-json` (dati) — importando solo `Flask + segugio.opcomm` (nessuna nuova dipendenza runtime)
 - [ ] **OVL-02**: L'overlay rende un **lower-third per disciplina** (disc T&F: prese/zona/totale · freestyle: nome+timer · agility: tempo/SCT/faults) riusando la mappatura campi/disciplina esistente; valori mostrati **verbatim** (SCR-04), sanitizzati + length-bounded
-- [ ] **OVL-03**: **Compositing leggibile** su video live — plate semi-opaco, contrasto, banda **title-safe** in basso (mai sopra l'area d'azione del campo), `<body>` trasparente per il compositing OBS
+- [x] **OVL-03**: **Compositing leggibile** su video live — plate semi-opaco, contrasto, banda **title-safe** in basso (mai sopra l'area d'azione del campo), `<body>` trasparente per il compositing OBS
 - [ ] **OVL-04**: **Animazioni sobrie** — enter/exit legato a run start/stop + un *pulse* breve sul cambio di un valore punteggio (niente over-animation, niente movimento costante)
 
 ### Run Timer (TMR)
@@ -33,7 +33,7 @@
 
 ### Branding & Identity (BRD)
 
-- [ ] **BRD-01**: **Logo + tema colori configurabili** (CSS variables + path logo da config); il logo sta nell'angolo/plate, mai sopra l'azione
+- [x] **BRD-01**: **Logo + tema colori configurabili** (CSS variables + path logo da config); il logo sta nell'angolo/plate, mai sopra l'azione
 - [ ] **BRD-02**: **Riga identità persistente** (nome cane/handler + nome evento) — freestyle usa `nome`; T&F/agility la prendono da config o da un campo opzionale (nessun cambio al modello dati)
 
 ### OBS Scene Collection & Setup (SCN)
@@ -87,10 +87,10 @@ Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OVL-01 | Phase 11 | Pending |
-| OVL-02 | Phase 11 | Pending |
-| OVL-03 | Phase 11 | Pending |
-| OVL-04 | Phase 11 | Pending |
+| OVL-01 | Phase 11 | Complete (11-01 routes + 11-02 transparent page) |
+| OVL-02 | Phase 11 | In Progress (11-02 per-discipline #cells skeleton; 11-03 renderer fills the cells) |
+| OVL-03 | Phase 11 | Complete (11-02 title-safe transparent compositing page) |
+| OVL-04 | Phase 11 | In Progress (11-02 event-only enter/exit/pulse keyframes; 11-03 wires the triggers) |
 | TMR-01 | Phase 11 | Pending |
 | TMR-02 | Phase 11 | Pending |
 | TMR-03 | Phase 11 | Pending |
@@ -99,8 +99,8 @@ Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/
 | OVD-02 | Phase 10 | Complete |
 | OVD-03 | Phase 10 | In Progress (freestyle_duration_s config seeded in 10-03; gen-age freshness contract completes in 10-04) |
 | SCV-02 | Phase 12 | Pending |
-| BRD-01 | Phase 11 | Pending |
-| BRD-02 | Phase 11 | Pending |
+| BRD-01 | Phase 11 | Complete (11-01 config + 11-02 CSS-var theme + logo bug rendered) |
+| BRD-02 | Phase 11 | In Progress (11-02 identity line + event half rendered; 11-03 fills the competitor `nome`) |
 | SCN-01 | Phase 13 | Pending |
 | SCN-02 | Phase 13 | Pending |
 | RBT-06 | Phase 13, Phase 14 | Pending |

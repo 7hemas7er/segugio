@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-06-14T19:30:00.000Z"
-last_activity: 2026-06-14 -- Completed Phase 11 Plan 01 (overlay backend + branding)
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-06-14T19:22:00.000Z"
+last_activity: 2026-06-14 -- Completed Phase 11 Plan 02 (transparent /overlay host page + DOM contract)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
-  percent: 25
+  completed_plans: 6
+  percent: 29
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 ## Current Position
 
 Phase: 11 (shared-graphical-renderer-overlay-page-branding) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 11 (11-01 complete)
-Last activity: 2026-06-14 -- Completed Phase 11 Plan 01 (overlay backend + branding)
+Plan: 3 of 3
+Status: Executing Phase 11 (11-01, 11-02 complete)
+Last activity: 2026-06-14 -- Completed Phase 11 Plan 02 (transparent /overlay host page + DOM contract)
 
 ## Performance Metrics
 
@@ -101,6 +101,7 @@ Last activity: 2026-06-14 -- Completed Phase 11 Plan 01 (overlay backend + brand
 | Phase 10 P03 | 6min | 1 task | 3 files |
 | Phase 10 P04 | 9min | 2 tasks | 3 files |
 | Phase 11 P01 | 9min | 2 tasks | 5 files |
+| Phase 11 P02 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -195,6 +196,7 @@ Recent decisions affecting current work:
 - [Phase 10]: 10-04: GET /overlay-json serves the 6-key contract + Cache-Control no-store, assembled from never-raise readers + time.time() (D-04/D-08)
 - [Phase 10]: 10-04: overlay_run.json side-write strictly after the byte-for-byte-unchanged write_runstate; gen seeds from disk, bumps on /run + /score (/score preserves run state)
 - [Phase 11 / 11-01]: OverlayParams grown additively with the branding config (BRD-01/BRD-02) — event_name (D-08, "" → identity line hides), logo_path (D-07, "" → no logo), and three FLAT str CSS-var theme colors (D-06) defaulting to the console palette #34D399/#14161a/#E6E9EF. Plain str (NOT hex-validated) so any CSS color token is accepted; all defaulted so a config without overlay keys still validates under the fail-fast SystemExit(2) loader. `nome` stays a verbatim ScoreDoc.fields key → BRD-02 with zero data-model change. STATIC config: NOT in /overlay-json (D-07). GET /overlay added inside create_app — a thin host page that render_templates overlay.html (ships 11-02) with overlay_cfg as plain render args + Cache-Control: no-store. create_app signature grew to create_app(channel_dir, cam_ids=(), overlay_cfg=None); a partial overlay_cfg folds over _OVERLAY_CFG_DEFAULTS (a plain console-palette dict in app.py, NOT imported from config). Entrypoint resolves overlay_cfg lazily from cfg.overlay.* (SEGUGIO_CONFIG) with per-field env overrides SEGUGIO_OVERLAY_EVENT/LOGO/ACCENT/PLATE/TEXT — no config import at module top (crash-isolation held). RBT-07 gate extended: test_console_resolves_with_heavy_stack_and_numpy_absent asserts /overlay registered + create_app builds under the heavy-absent block; the full 200+no-store assertion is GATED to once templates/overlay.html exists (11-02 owns it). /overlay-json payload shape unchanged. OVL-01/BRD-01/BRD-02 backend complete.
+- [Phase 11 / 11-02]: Transparent /overlay HOST PAGE + DOM/CSS contract shipped (templates/overlay.html, the front half of OVL-01..04 + BRD-01/02). Single self-contained <!DOCTYPE html>, ALL critical CSS inlined (mirrors console.html, FOUC-free P5). Transparency contract first: html,body { background: transparent !important } + .lower-third { opacity: 0 } start-hidden (a delayed first paint shows NOTHING, never a white box). CSS-var theme --accent/--plate/--text injected via Jinja default(x, true) (console palette fallback). Title-safe lower-third (D-01/D-02/OVL-03): position:fixed bottom-left, left accent-bar + color-mix-scrim dark plate, max-height:18vh (band capped, action area clear). DOM CONTRACT (11-03 fills via textContent, Phase 12 iframes the same page): #lower-third (theme vars + anim state classes), #identity ({competitor}·{event}, event half Jinja-seeded), #timer (big leading clock, tabular-nums min-width 4.5ch for SS.hh/M:SS, rAF textContent), #cells (per-discipline .cell container the renderer rebuilds), #logo-bug (conditional {% if logo_path %}, bottom-right, autoescaped src). Event-only @keyframes enter/exit/pulse — transform/opacity ONLY, every animation runs once (zero loops, OVL-04); ONE pulse primitive for score-change AND end-of-countdown (D-04); .is-stale degrade hook for 11-03's OVD-03 client-half. <script src=/static/overlay-render.js> + window.OVERLAY_CFG.freestyleDurationS bootstrap — NO score/run data baked in (polls /overlay-json, never reloads on a score change). FONT = system stack (system-ui, -apple-system, sans-serif), same as console.html → no woff2, no FOUC, no fonts.ready reveal gate needed (Phase 12 iframe matches by construction). tests/test_ui_overlay_page.py = 12 served-HTML assertions (transparency, opacity:0 start-hidden, INJECTED theme colors not defaults, DOM ids, logo present-with-path/absent-without, script src, no-store, title-safe band-cap + no top/full-width strip, events-only keyframes no infinite, no innerHTML config sink, event_name autoescaped). Rule-1 fix: reworded template comments (banner/infinite) so the natural substring-grep invariant asserts stay robust. The 11-01 gated /overlay 200+no-store assertion auto-activated (template now exists) and stays green. OVL-01..04 + BRD-01/02 front-half complete; 11-03 wires the renderer.
 
 ### Pending Todos
 
@@ -234,9 +236,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-14T19:30:00.000Z
-Stopped at: Completed 11-01-PLAN.md (overlay backend + branding)
-Resume file: .planning/phases/11-shared-graphical-renderer-overlay-page-branding/11-02-PLAN.md
+Last session: 2026-06-14T19:22:00.000Z
+Stopped at: Completed 11-02-PLAN.md (transparent /overlay host page + DOM contract)
+Resume file: .planning/phases/11-shared-graphical-renderer-overlay-page-branding/11-03-PLAN.md
 
 ## Operator Next Steps
 

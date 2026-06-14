@@ -68,7 +68,6 @@ def test_overlay_run_default_when_malformed(tmp_path, payload):
     assert read_overlay_run(str(bad)) == OverlayRunDoc()
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-02", strict=False)
 def test_overlay_run_doc_is_frozen():
     """OverlayRunDoc is frozen: attribute assignment is rejected (mirrors PreviewDoc)."""
     from segugio.opcomm.records import OverlayRunDoc
@@ -78,7 +77,6 @@ def test_overlay_run_doc_is_frozen():
         doc.gen = 99  # type: ignore[misc]
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-02", strict=False)
 def test_overlay_run_doc_normalizes():
     """__post_init__ coerces scalars (bool/float|None/int) at the frozen boundary."""
     from segugio.opcomm.records import OverlayRunDoc

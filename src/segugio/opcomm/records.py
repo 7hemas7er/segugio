@@ -35,6 +35,7 @@ __all__ = [
     "OperatorCommand",
     "DirectorStatus",
     "PreviewDoc",
+    "OverlayRunDoc",
 ]
 
 
@@ -201,3 +202,37 @@ class PreviewDoc:
         object.__setattr__(self, "cams", {str(k): dict(v) for k, v in cams.items()})
         # Normalize cuts to a tuple of dicts (immutable → the frozen dataclass stays hashable).
         object.__setattr__(self, "cuts", tuple(dict(c) for c in self.cuts))
+
+
+@dataclass(frozen=True)
+class OverlayRunDoc:
+    """Console-owned run-edge sidecar the overlay polls — the carrier of ``{running,
+    started_at, gen}`` (D-01). A frozen, ``==``-comparable record (round-trip equality
+    tests work) with boundary scalar coercion, mirroring :class:`PreviewDoc`/:class:`ScoreDoc`.
+
+    HARD invariant (D-03): this is a SEPARATE, NEW file (``overlay_run.json``) — the director
+    reads ``runstate.json``/:class:`RunState` every tick and NEVER reads this sidecar. The
+    console stamps it on the run start/stop edge so the overlay can anchor its timer to the
+    run-start instant without perturbing a single byte of the safety-critical director channel.
+
+    Fields:
+      * ``running`` — True while a run is active (the overlay shows the live timer).
+      * ``started_at`` — the wall-clock epoch (``time.time()``) of the run-start edge, or
+        ``None`` in the STOP/not-yet-started state (D-03). Nullable: a ``None`` survives
+        ``__post_init__`` un-coerced — it is the absent/stopped state, never ``0.0``.
+      * ``gen`` — a monotonic cache-bust token the console bumps each publish.
+    """
+
+    running: bool = False
+    started_at: float | None = None
+    gen: int = 0
+
+    def __post_init__(self) -> None:
+        # Scalar coercion at the frozen boundary (mirror ScoreDoc/PreviewDoc): a hand-written
+        # or read-back JSON value is normalized once so two equal-content docs compare ==.
+        object.__setattr__(self, "running", bool(self.running))
+        # started_at is NULLABLE — coerce to float ONLY when present; None is the STOP/absent
+        # state and must survive as None (never float(None) → never silently 0.0).
+        if self.started_at is not None:
+            object.__setattr__(self, "started_at", float(self.started_at))
+        object.__setattr__(self, "gen", int(self.gen))

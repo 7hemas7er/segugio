@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Console Regia
-status: completed
+status: Awaiting next milestone
 stopped_at: 09-04 COMPLETE — on-device iPad acceptance approved; all 4 phase-9 plans executed (orchestrator owns phase verification/completion next)
-last_updated: "2026-06-13T23:02:23.241Z"
-last_activity: 2026-06-13
+last_updated: "2026-06-14T07:41:28.247Z"
+last_activity: 2026-06-14 — Milestone v1.1 completed and archived
 progress:
   total_phases: 9
   completed_phases: 9
@@ -18,18 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-13)
+See: .planning/PROJECT.md (updated 2026-06-14)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 09 — explainability-informed-override-tablet-ux
+**Current focus:** Planning next milestone (v1.1 Console Regia shipped 2026-06-14)
 
 ## Current Position
 
-Phase: 09
-Plan: Not started
-Status: 09-04 COMPLETE — Tasks 1-2 committed (250a803, 122557c); Task 3 on-device iPad acceptance APPROVED by operator
-Last activity: 2026-06-13
-Next: phase 9 verification + completion (orchestrator); all 4 plans (09-01..09-04) executed
+Phase: Milestone v1.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-14 — Milestone v1.1 completed and archived
 
 ## Performance Metrics
 
@@ -196,14 +195,24 @@ Recent decisions affecting current work:
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
+Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All are hardware/field-gated carry-forwards — none is a code gap. The v1.1 milestone audit recorded `gaps: []` with 16/16 requirements satisfied in code.
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| uat | Phase 01 — 01-HUMAN-UAT.md (0 pending scenarios) | passed | 2026-06-14 |
+| uat | Phase 04 — 04-HUMAN-UAT.md (0 pending scenarios) | passed | 2026-06-14 |
+| uat | Phase 05 — 05-UAT.md (0 pending scenarios) | partial | 2026-06-14 |
+| verification | Phase 01 — 01-VERIFICATION.md (field/hardware) | human_needed | 2026-06-14 |
+| verification | Phase 05 — 05-VERIFICATION.md (NDI/OBS field) | human_needed | 2026-06-14 |
+| verification | Phase 07 — 07-VERIFICATION.md (on-rig PRV-01 p95) | human_needed | 2026-06-14 |
+| quick_task | 260613-rjz-aggiungi-a-docs-run-md-una-sezione-phase (done per Quick Tasks Completed; checker reads status) | unknown | 2026-06-14 |
 
 ## Session Continuity
 
 Last session: 2026-06-14T00:00:00.000Z
 Stopped at: 09-04 COMPLETE — on-device iPad acceptance approved; all 4 phase-9 plans executed (orchestrator owns phase verification/completion next)
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

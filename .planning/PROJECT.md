@@ -8,18 +8,20 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 
 **La camera giusta al momento giusto, in automatico.** Il sistema deve mantenere il cane ben inquadrato commutando tra le telecamere in modo fluido — senza operatore e senza cut tremolanti. Se tutto il resto fallisce, questo deve funzionare.
 
-## Current Milestone: v1.1 Console Regia — visibilità live
+## Current State
 
-**Goal:** Trasformare la console operatore Flask da pannello "alla cieca" a una vera regia con visibilità live — l'operatore vede le camere, capisce quale è in onda e *perché*, e fa override informato — preservando il contratto di crash-isolation (console = solo Flask + opcomm, mai l'orchestrator).
+**Shipped:** v1.1 "Console Regia" (2026-06-14) — software-complete, hardware/field validation pending on the rig.
 
-**Target features:**
-- Anteprima/**multiview** live delle camere nella console
-- **Camera live + motivo**: score per-camera + stato tracking del cane (estende `status.json`, canale inverso D-11)
-- **Override con thumbnail** (non più alla cieca)
-- **Preview del punteggio** come apparirà sull'overlay OBS
-- **Restyling tablet-friendly** (responsive per tablet operatore su WiFi LAN)
+- **v1.0 MVP** (Phases 1–6, 2026-06-13): operator-less multi-camera auto-director, software-complete on synthetic data (recorded clips as pseudo-cameras + mock NDI). Config contract → pure framing scorer → decision FSM → YOLO+per-camera tracking → end-to-end integration → latency optimization (RBT-05 met <300ms p95). Never separately git-tagged.
+- **v1.1 Console Regia** (Phases 7–9, 2026-06-14): the operator console goes from a blind control panel to a true regia with live visibility — multiview of every camera, the plain-Italian *why* of each cut, a dog-lock bbox overlay, a score leaderboard, switch-history, informed tap-to-force override, a live OBS score preview, and a tablet-first restyle with long-run hygiene — all **without** touching the v1.0 crash-isolation guarantee (console imports only Flask + `segugio.opcomm`, never the orchestrator). Accepted on a real iPad. Tag: `v1.1`.
 
-**Nodo di design chiave:** la console è crash-isolata (D-03/RBT-04, importa solo Flask + `segugio.opcomm`) → serve un nuovo canale di pubblicazione frame/thumbnail dall'orchestrator alla console (opzioni: JPEG nel dir opcomm / endpoint MJPEG o WebSocket / embedding multiview OBS). Parte dopo v1.0 (software-complete, 6/6 fasi); numerazione fasi continua da Phase 7.
+**Codebase:** ~7,900 LOC Python under `src/segugio/` (+ tests), the new `orchestrator/preview.py` publish channel and the `ui/` console (`app.py` + `templates/console.html`) the v1.1 work centered on. Full headless suite green; crash-isolation enforced by an import test with the heavy stack absent.
+
+**Known carry-forwards (all hardware/field-gated, none a code gap):** on-rig PRV-01 p95-no-regression confirmation; real-YOLO/clip recall on the CUDA box (P04); NDI/OBS field validation (P05); preview-bandwidth false-death validation with real phones; 2 environmental NDI-loopback CI failures; thermal variance on the laptop GPU → prefer a desktop deploy GPU for sustained live. See STATE.md → Deferred Items and `milestones/v1.1-MILESTONE-AUDIT.md`.
+
+## Next Milestone
+
+Not yet defined — start with `/gsd-new-milestone`. The remaining v1 deliverable (project README polish) plus the deferred v2 ideas (PRED-01..04: predictive framing, disc detection, obstacle-aware anticipation, replay markers) and the hardware/field milestone (real phones, NDI HX3, WiFi 6, on-field validation) are the natural candidates.
 
 ## Requirements
 
@@ -79,19 +81,24 @@ Sistema di **regia video automatica senza operatore** per gare di **disc dog** e
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Milestone v1 = Fasi 0-4 (software su dati sintetici) | Testabile senza hardware su questo box; sblocca subito il lavoro | — Pending |
-| OBS-as-hub + Python ingest NDI separato per l'AI | Mantiene OBS come hub video richiesto, cross-platform; accetta "decode due volte" | — Pending |
-| Latenza riformulata in due budget separati | <50ms end-to-end è impossibile (cattura smartphone ~57-106ms da sola) | — Pending |
-| Un tracker YOLO per camera (no lista di frame a `track()`) | Una lista di frame costruisce un solo tracker e mescola gli ID tra camere (#13107) | — Pending |
-| Liveness via timestamp ultimo frame, non stato NDI | NDI tiene la sorgente 75min ripetendo l'ultimo frame → falso "vivo" | — Pending |
-| Override manuale + auto-resume nonostante "senza operatore" | Sicurezza live: auto è il default, l'umano può forzare e poi rientra in auto | — Pending |
-| Punteggi via inserimento manuale → file read-from-file | Tiene gli update fuori dal budget websocket; nessun sistema scoring esterno in v1 | — Pending |
-| obsws-python (ReqClient sincrono) come canale di controllo | Semantica bloccante + timeout, EventClient thread-safe; ideale per un controller | — Pending |
-| Output solo preview in v1 | Sufficiente a validare la regia automatica senza requisiti di rete/bitrate | — Pending |
-| ReID nativo BoT-SORT incluso in v1 (no re-ID pesante) | Gratis (feature del detector, zero pesi) e contrasta il problema #1: cane che esce/rientra/occluso | — Pending |
-| Competitor-lock + zone-gating come feature di prima classe | Lo scorer size+centratura aggancia handler/cani spettatori → selezione del cane "in gara" va progettata, non emergente | — Pending |
-| Curated multi-condition clip set assemblato in P0 | De-risk decisivo: clip pulite mascherano ogni pitfall fino al campo | — Pending |
-| Modello YOLO concreto v1 = yolo26s.pt, classe dog=16 | Small (non nano) per soggetto piccolo/distante; COCO dog sufficiente finché l'eval non prova il contrario | — Pending |
+| Milestone v1 = Fasi 0-4 (software su dati sintetici) | Testabile senza hardware su questo box; sblocca subito il lavoro | ✓ Good — v1.0 software-complete su clip + NDI mock, 6/6 fasi |
+| OBS-as-hub + Python ingest NDI separato per l'AI | Mantiene OBS come hub video richiesto, cross-platform; accetta "decode due volte" | ✓ Good — wiring validato in Phase 5 |
+| Latenza riformulata in due budget separati | <50ms end-to-end è impossibile (cattura smartphone ~57-106ms da sola) | ⚠️ Revisit — budget AI rivisto ancora (<150ms → <300ms) dopo la misura Phase 6; RBT-05 met <300ms |
+| Un tracker YOLO per camera (no lista di frame a `track()`) | Una lista di frame costruisce un solo tracker e mescola gli ID tra camere (#13107) | ✓ Good — `PerCameraTracker` + batched-detect adapter #13107-safe |
+| Liveness via timestamp ultimo frame, non stato NDI | NDI tiene la sorgente 75min ripetendo l'ultimo frame → falso "vivo" | ✓ Good — `FeedWatchdog` su last-NEW-frame ts (RBT-01) |
+| Override manuale + auto-resume nonostante "senza operatore" | Sicurezza live: auto è il default, l'umano può forzare e poi rientra in auto | ✓ Good — RBT-03 in Phase 3; reso *informato* (tap-to-force) in v1.1 |
+| Punteggi via inserimento manuale → file read-from-file | Tiene gli update fuori dal budget websocket; nessun sistema scoring esterno in v1 | ✓ Good — SCR-01..04 in Phase 5 |
+| obsws-python (ReqClient sincrono) come canale di controllo | Semantica bloccante + timeout, EventClient thread-safe; ideale per un controller | ✓ Good — OBS-01..05 in Phase 5 |
+| Output solo preview in v1 | Sufficiente a validare la regia automatica senza requisiti di rete/bitrate | ✓ Good — confermato |
+| ReID nativo BoT-SORT incluso in v1 (no re-ID pesante) | Gratis (feature del detector, zero pesi) e contrasta il problema #1: cane che esce/rientra/occluso | ✓ Good — hard gate verifica l'engagement, no fallback silenzioso |
+| Competitor-lock + zone-gating come feature di prima classe | Lo scorer size+centratura aggancia handler/cani spettatori → selezione del cane "in gara" va progettata, non emergente | ✓ Good — `CompetitorLock` + `PlausibilityGate` (TRK-04/05) |
+| Curated multi-condition clip set assemblato in P0 | De-risk decisivo: clip pulite mascherano ogni pitfall fino al campo | ✓ Good — 7×2 condition checklist + cataloguer (TST-01) |
+| Modello YOLO concreto v1 = yolo26s.pt, classe dog=16 | Small (non nano) per soggetto piccolo/distante; COCO dog sufficiente finché l'eval non prova il contrario | ⚠️ Revisit — recall debole su distante/crowd (UAT P04); candidato fine-tune dog detector |
+| [v1.1] Console Regia = problema di *publish-and-render*, non di compute | L'orchestrator già calcola score/bbox/reason ogni tick e tiene i frame decodificati; v1.0 li scartava | ✓ Good — nuovo canale off-tick espone dati già esistenti |
+| [v1.1] Trasporto preview = polling JPEG sul canale file opcomm | MJPEG/WebSocket/OBS-multiview-embed rompono/affaticano la crash-isolation o aggiungono un server di rete sul director (research RESPINTI) | ✓ Good — validato on-device su iPad (memoria flat) |
+| [v1.1] "Why" data in un sidecar `preview.json` separato, non in `status.json` | `status.json` è safety-critical write-on-change; non va gonfiato con dati di preview | ✓ Good — PRV-02; `status.json` byte-stable |
+| [v1.1] `threaded=True`/Waitress è un controllo di SICUREZZA, non polish | L'override POST non deve mai essere bloccato da uno stream preview | ✓ Good — UXT-02; provato con un test di concorrenza |
+| [v1.1] Cap banda preview come garanzia config-time (no throttle runtime) | La preview deve degradare *prima* che i feed NDI sembrino morti; fail-fast è più semplice e onesto | ✓ Good — `max_total_mbps` + `@model_validator` → SystemExit(2) |
 
 ## Evolution
 
@@ -111,4 +118,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-14 — **Phase 9 (Explainability, Informed Override & Tablet UX) COMPLETATA** (MVW-04/05, WHY-01..04, SCV-01, UXT-01/03 validati): la console è ora una vera regia — l'operatore vede le camere, capisce *perché* l'auto-director ha scelto la live (leaderboard score, motivo in italiano, bbox dog-lock, hint "Auto vuole", switch-history) e fa override informato cliccando la tile; anteprima live dell'overlay punteggio (mirror JS byte-exact + drift-guard), restyling tablet-first e igiene long-run (refresh leak-free, watchdog freschezza, resume sleep/wake) — accettata on-device su iPad reale; crash-isolation preservata. **Con Phase 9 la milestone v1.1 "Console Regia" è feature-complete (Fasi 7+8+9 fatte)** → prossimo passo `/gsd-complete-milestone`. Verifica: 13/13 must-have + review adversariale 10-agent che ha corretto un bug WHY-02 (stato leaderboard "coast" morto sui dati live, commit d6e7555); code review 0-critical/6-warning advisory. Stato precedente: Phase 8 (serving + multiview live + safety) e Phase 7 (canale frame off-tick) fatte; Milestone v1.0 software-complete (6/6 fasi); Phase 6 RBT-05 MET <300ms. ⚠ Carry-forward: GPU desktop di deploy per gare prolungate (varianza termica laptop); spot-check recall FP16; 2 test NDI loopback ambientali; validazione cap banda preview con telefoni reali; 6 warning advisory della code review Phase 9 (proprietà stato CSS tile, POST override silenziosi) — opzionali via `/gsd-code-review 9 --fix`; PRED-01..04 (v2) da aggiungere alla tabella di traceability di REQUIREMENTS.md.*
+*Last updated: 2026-06-14 after the **v1.1 "Console Regia" milestone** (Phases 7–9: PRV-01/02/03, MVW-01..05, WHY-01..04, SCV-01, UXT-01/02/03). Milestone audit `tech_debt` / `gaps: []`, 16/16 requirements satisfied in code, tagged `v1.1`. v1.0 MVP (Phases 1–6, software-complete on synthetic data) recorded retroactively at this close. Carry-forwards (all hardware/field-gated, tracked in STATE.md → Deferred Items): on-rig PRV-01 p95, real-YOLO/clip recall (P04), NDI/OBS field (P05), preview-bandwidth false-death with real phones, desktop deploy GPU for sustained live, 2 environmental NDI-loopback CI failures, 6 advisory Phase-9 code-review warnings. Next: `/gsd-new-milestone`.*

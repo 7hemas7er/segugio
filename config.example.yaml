@@ -117,3 +117,17 @@ overlay:
   freestyle_duration_s: 120   # length of a freestyle round, seconds. Default 120
                               # (2-minute routines); orgs running 90-second
                               # freestyle rounds override to 90. Must be > 0.
+  # ---- branding (BRD-01 / BRD-02) ---------------------------------------- #
+  # All STATIC config (NOT in the /overlay-json poll payload, D-07): injected
+  # into the /overlay page as render args at the console entrypoint. Override
+  # them per event with ZERO code change. Omit any key to keep its default.
+  event_name: ""              # D-08 -- the persistent identity line's event half.
+                              # Empty -> the line hides gracefully. `nome` stays a
+                              # verbatim score field (BRD-02, no data-model change).
+  logo_path: ""               # D-07 -- optional path to the org's logo bug.
+                              # Empty/absent -> no logo rendered.
+  # D-06 -- CSS-var theme colors. Default = the console palette. Any CSS color
+  # token is accepted (hex, rgb(...), hsl(...), named) -- NOT validated as hex.
+  theme_accent: "#34D399"     # --accent (console green)
+  theme_plate: "#14161a"      # --plate  (console plate)
+  theme_text: "#E6E9EF"       # --text   (console text)

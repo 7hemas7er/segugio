@@ -189,6 +189,16 @@ class OverlayParams(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     freestyle_duration_s: Annotated[int, Field(gt=0)] = 120  # D-06: 2-min routines; orgs override to 90
+    # BRD-02 (D-08) -- the identity line's event half; empty -> the line hides gracefully.
+    event_name: str = ""
+    # BRD-01 (D-07) -- optional logo bug path; empty/absent -> no logo rendered.
+    logo_path: str = ""
+    # BRD-01 (D-06) -- CSS-var theme colors defaulting to the console palette. Plain str (NOT
+    # hex-validated): an org may pass any CSS color token. The /overlay route maps these to
+    # --accent / --plate / --text render args.
+    theme_accent: str = "#34D399"  # console green
+    theme_plate: str = "#14161a"   # console plate
+    theme_text: str = "#E6E9EF"    # console text
 
 
 # --------------------------------------------------------------------------- #

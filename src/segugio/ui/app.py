@@ -106,7 +106,12 @@ def create_app(channel_dir: str, cam_ids=()):
     # reset to 0. A fresh create_app over a dir with gen=7 on disk continues from 7, so a console
     # restart re-anchors the Phase-11 freestyle timer (the started_at on disk also survives). The
     # read goes through the never-raise read_overlay_run boundary, so an absent/torn file → gen 0.
-    _state = {"gen": read_overlay_run(_path(_OVERLAY_RUN_FILE)).gen}
+    # WR-03: seed running/started_at alongside gen from the persisted doc so /score gen-bumps
+    # re-persist the run state from authoritative IN-MEMORY state, never from a disk re-read that
+    # a momentary torn/absent file could collapse to the default (silently flipping a live run to
+    # running=False/started_at=None). The seed read still goes through the never-raise boundary.
+    _seed = read_overlay_run(_path(_OVERLAY_RUN_FILE))
+    _state = {"gen": _seed.gen, "running": _seed.running, "started_at": _seed.started_at}
     # The console serves multi-threaded (entrypoint: threaded=True / waitress) — guard the
     # read-modify-write gen bump with a Lock (the PreviewPublisher gen-bump precedent).
     _gen_lock = threading.Lock()
@@ -117,6 +122,10 @@ def create_app(channel_dir: str, cam_ids=()):
         # to the client's Date.now(), Pitfall 3) and None on STOP.
         with _gen_lock:
             _state["gen"] += 1
+            # WR-03: this run edge is the source of truth for running/started_at — cache it in
+            # memory so a subsequent /score gen-bump preserves it without a disk re-read.
+            _state["running"] = running
+            _state["started_at"] = started_at
             write_overlay_run(
                 _path(_OVERLAY_RUN_FILE),
                 OverlayRunDoc(running=running, started_at=started_at, gen=_state["gen"]),
@@ -124,15 +133,16 @@ def create_app(channel_dir: str, cam_ids=()):
 
     def _bump_score_gen() -> None:
         # /score is NOT a run edge (Open Q1): advance gen only, PRESERVING the current
-        # running/started_at. Read the current doc, re-persist it with gen+1 untouched otherwise.
+        # running/started_at from authoritative in-memory state (WR-03). A disk re-read here could
+        # momentarily default a live run to running=False/started_at=None on a torn/absent file —
+        # a wrong, data-losing flip — so only the gen field changes; the run state comes from memory.
         with _gen_lock:
             _state["gen"] += 1
-            current = read_overlay_run(_path(_OVERLAY_RUN_FILE))
             write_overlay_run(
                 _path(_OVERLAY_RUN_FILE),
                 OverlayRunDoc(
-                    running=current.running,
-                    started_at=current.started_at,
+                    running=_state["running"],
+                    started_at=_state["started_at"],
                     gen=_state["gen"],
                 ),
             )

@@ -52,7 +52,7 @@ _RUN_ACTIONS = ("start", "stop")
 
 # Director-status reasons (D-11) — why the live camera is what it is. Advisory strings the
 # panel renders; not validated against an enum so a future reason never breaks an old reader.
-_STATUS_REASONS = ("auto", "override", "subject-lost", "feed-dead", "shutdown", "none")
+_STATUS_REASONS = ("auto", "override", "subject-lost", "feed-dead", "fault", "shutdown", "none")
 
 
 @dataclass(frozen=True)

@@ -119,6 +119,7 @@ def test_reason_strings_italian(client):
         "override": "Override operatore",
         "subject-lost": "Soggetto perso → SAFE",
         "feed-dead": "Feed morto → fallback",
+        "fault": "Errore sistema → SAFE",
         "shutdown": "Arresto → SAFE",
         "none": "In attesa…",
         "some-future-reason": "In attesa…",  # unknown falls back to the idle copy
@@ -126,6 +127,52 @@ def test_reason_strings_italian(client):
     reasons = list(expected.keys())
     got = _run_node(defs, "[" + ",".join(json.dumps(r) for r in reasons) + "].map(reasonToItalian)")
     assert got == [expected[r] for r in reasons]
+
+
+@requires_node
+def test_reason_it_covers_status_reasons_source_of_truth(client):
+    """REASON_IT must render a NON-PLACEHOLDER diagnostic for EVERY canonical ``_STATUS_REASONS``.
+
+    Pins the served console copy-map to the Python source of truth: ``loop.py`` may emit any
+    reason in ``_STATUS_REASONS`` (e.g. WR-09's ``"fault"``); the WHY-01 sidebar must never fall
+    through to the idle ``"In attesa…"`` placeholder for one of them. Only ``"none"`` (the idle
+    state) is allowed to equal that placeholder. This test FAILS if a future reason is added to
+    ``_STATUS_REASONS`` without console copy, or if ``"fault"`` is dropped from REASON_IT.
+    """
+    from segugio.opcomm.records import _STATUS_REASONS
+
+    IDLE = "In attesa…"
+    html = _html(client)
+    defs = _extract_block(html, "why-mirror")
+
+    reasons = list(_STATUS_REASONS)
+    # Run the served reasonToItalian over every canonical reason.
+    got = _run_node(
+        defs, "[" + ",".join(json.dumps(r) for r in reasons) + "].map(reasonToItalian)"
+    )
+    mapped = dict(zip(reasons, got))
+
+    # Every documented reason except the idle "none" must map to a distinct diagnostic string
+    # that is NOT the idle placeholder.
+    for reason, text in mapped.items():
+        if reason == "none":
+            assert text == IDLE, f'"none" must render the idle placeholder, got {text!r}'
+        else:
+            assert text != IDLE, (
+                f'reason {reason!r} falls through to the idle placeholder {IDLE!r} — '
+                f"add a diagnostic to REASON_IT in console.html"
+            )
+
+    # Non-idle diagnostics must be mutually distinct (no two reasons collapse to one copy).
+    diagnostics = [t for r, t in mapped.items() if r != "none"]
+    assert len(set(diagnostics)) == len(diagnostics), (
+        f"duplicate diagnostic copy across reasons: {diagnostics}"
+    )
+
+    # Specifically guard the gap this fix closes: "fault" → diagnostic, never the idle copy.
+    assert "fault" in mapped, '"fault" missing from _STATUS_REASONS coverage'
+    assert mapped["fault"] != IDLE, '"fault" must render a diagnostic, not the idle placeholder'
+    assert mapped["fault"] == "Errore sistema → SAFE"
 
 
 def test_reason_wired_into_pollstatus(client):

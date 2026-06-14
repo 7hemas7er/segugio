@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
-status: Roadmap created (5 phases, 10–14), ready for `/gsd-plan-phase 10`
-stopped_at: Phase 10 context gathered
-last_updated: "2026-06-14T13:53:05.222Z"
-last_activity: 2026-06-14 — v1.2 roadmap created (Phases 10–14, 18/18 reqs mapped)
+status: Phase 10 planned (4 plans, 3 waves) — ready for `/gsd-execute-phase 10`
+stopped_at: Phase 10 planned
+last_updated: "2026-06-14"
+last_activity: 2026-06-14 — Phase 10 planned (4 plans in 3 waves)
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
   percent: 0
 ---
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 
 ## Current Position
 
-Phase: 10 — Overlay Data Contract & Run-Timestamp Publish (Not started)
-Plan: —
-Status: Roadmap created (5 phases, 10–14), ready for `/gsd-plan-phase 10`
-Last activity: 2026-06-14 — v1.2 roadmap created (Phases 10–14, 18/18 reqs mapped)
+Phase: 10 — Overlay Data Contract & Run-Timestamp Publish (Planned — ready to execute)
+Plan: 4 plans in 3 waves (10-01 … 10-04)
+Status: Phase 10 planned (4 plans, 3 waves) — ready for `/gsd-execute-phase 10`
+Last activity: 2026-06-14 — Phase 10 planned (4 plans in 3 waves)
 
 ## Performance Metrics
 
@@ -185,7 +185,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- *(none — v1.2 roadmap created 2026-06-14; next is `/gsd-plan-phase 10`)*
+- *(none — Phase 10 planned 2026-06-14; next is `/gsd-execute-phase 10`)*
 
 ### Blockers/Concerns
 
@@ -222,9 +222,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 ## Session Continuity
 
 Last session: 2026-06-14T13:01:59.313Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-overlay-data-contract-run-timestamp-publish/10-CONTEXT.md
+Stopped at: Phase 10 planned (4 plans, 3 waves)
+Resume file: .planning/phases/10-overlay-data-contract-run-timestamp-publish/10-01-PLAN.md
 
 ## Operator Next Steps
 
-- Plan the first v1.2 phase with `/gsd-plan-phase 10`
+- Execute the planned phase with `/gsd-execute-phase 10`

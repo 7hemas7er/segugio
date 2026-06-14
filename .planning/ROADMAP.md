@@ -59,7 +59,7 @@
 
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Wave 0: test scaffolds (opcomm/route/config) + `file_channel` overlay_run fixture key
+- [x] 10-01-PLAN.md — Wave 0: test scaffolds (opcomm/route/config) + `file_channel` overlay_run fixture key
 - [ ] 10-02-PLAN.md — Wave 1: `OverlayRunDoc` record + `write_overlay_run`/`read_overlay_run` channel helpers (OVD-01/02)
 - [ ] 10-03-PLAN.md — Wave 1: `OverlayParams` config section (`overlay.freestyle_duration_s=120`) + `config.example.yaml` (OVD-03)
 
@@ -140,7 +140,7 @@
 | 7. Off-tick Frame-Publishing Channel | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 8. Console Serving, Live Multiview & Safety Hardening | v1.1 | 3/3 | Complete | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
-| 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 0/4 | Planned | - |
+| 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 1/4 | In Progress|  |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 0/TBD | Not started | - |
 | 12. SCV-01 Unification | v1.2 | 0/TBD | Not started | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |

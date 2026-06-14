@@ -421,11 +421,16 @@ def injected_clock() -> Callable[..., float]:
 
 @pytest.fixture
 def file_channel(tmp_path: Path) -> dict:
-    """A tmp_path-backed bundle of the four operator↔system file paths.
+    """A tmp_path-backed bundle of the operator↔system file paths.
 
-    Returns ``{"dir", "score", "runstate", "command", "status", "overlay"}`` Paths under
-    pytest's ``tmp_path`` (same volume → ``os.replace`` is atomic). The atomic-file channel
-    (05-01 Task 2) and the Flask UI (05-05) write/read exactly these files.
+    Returns ``{"dir", "score", "runstate", "command", "status", "overlay", "overlay_run"}``
+    Paths under pytest's ``tmp_path`` (same volume → ``os.replace`` is atomic). The
+    atomic-file channel (05-01 Task 2) and the Flask UI (05-05) write/read these files.
+
+    The ``overlay_run`` key (Phase 10) points at the NEW console-owned ``overlay_run.json``
+    that stamps ``running``/``started_at``/``gen`` on the run start/stop edge — kept separate
+    from ``runstate.json`` (the director reads runstate every tick; overlay_run is never read
+    by the director).
     """
     d = tmp_path / "opcomm"
     d.mkdir()
@@ -436,6 +441,7 @@ def file_channel(tmp_path: Path) -> dict:
         "command": d / "command.json",
         "status": d / "status.json",
         "overlay": d / "overlay.txt",
+        "overlay_run": d / "overlay_run.json",
     }
 
 

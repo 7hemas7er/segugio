@@ -54,7 +54,11 @@
   2. `GET /overlay-json` returns `{discipline, fields (verbatim), running, started_at, server_now, gen}` with `Cache-Control: no-store`, and never raises when a source file is absent/torn/malformed (safe-default payload)
   3. `server_now` (the console's `time.time()` at response) and a monotonic `gen` (bumped on every `/run` and `/score` write, seeded from disk across restart) are present in every response
   4. The crash-isolation import test is green with the heavy stack absent (`torch`/`cv2`/`ultralytics`/`numpy`/`cyndilib`/`obsws`) — the overlay route module imports only Flask + `segugio.opcomm`
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+- [ ] 10-01-PLAN.md — Wave 0: test scaffolds (opcomm/route/config) + `file_channel` overlay_run fixture key
+- [ ] 10-02-PLAN.md — Wave 1: `OverlayRunDoc` record + `write_overlay_run`/`read_overlay_run` channel helpers (OVD-01/02)
+- [ ] 10-03-PLAN.md — Wave 1: `OverlayParams` config section (`overlay.freestyle_duration_s=120`) + `config.example.yaml` (OVD-03)
+- [ ] 10-04-PLAN.md — Wave 2: `GET /overlay-json` route + `/run`+`/score` gen wiring + crash-isolation gate (OVD-01/02/03, RBT-07)
 
 ### Phase 11: Shared Graphical Renderer, /overlay Page & Branding
 **Goal**: A single shared HTML/CSS/JS renderer serves a transparent, broadcast-quality per-discipline lower-third with a self-counting run timer that is correct across machine clock skew, degrades when data goes stale, animates only on events, and carries configurable branding — all client-side, zero director compute, zero new Python dependency.
@@ -117,7 +121,7 @@
 | 7. Off-tick Frame-Publishing Channel | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 8. Console Serving, Live Multiview & Safety Hardening | v1.1 | 3/3 | Complete | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
-| 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 0/TBD | Not started | - |
+| 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 0/4 | Planned | - |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 0/TBD | Not started | - |
 | 12. SCV-01 Unification | v1.2 | 0/TBD | Not started | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |

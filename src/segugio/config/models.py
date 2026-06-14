@@ -158,7 +158,7 @@ class PreviewParams(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
-    enabled: bool = True  # D-06: ON by default
+    enabled: bool = True  # D-06: ON by default (preview)
     fps: Annotated[float, Field(gt=0.0, le=30.0)] = 5.0  # ~5 fps publish cadence
     max_width: Annotated[int, Field(ge=64, le=1920)] = 384  # downscale target width (px)
     jpeg_quality: Annotated[int, Field(ge=1, le=100)] = 55  # cv2 IMWRITE_JPEG_QUALITY
@@ -169,6 +169,26 @@ class PreviewParams(BaseModel):
     # runtime throttle (anti-pattern, declined; a feedback loop overlaps Phase-9 UXT-03). This
     # is the tunable knob: raising it admits a higher-fidelity preview (T-08-05).
     max_total_mbps: Annotated[float, Field(gt=0.0)] = 8.0
+
+
+class OverlayParams(BaseModel):
+    """Overlay-page config (D-05/D-06) — defined NOW, ``freestyle_duration_s`` consumed in Phase 11.
+
+    ``freestyle_duration_s`` is the configurable length of a freestyle round: the Phase-11
+    overlay freestyle timer counts down from it. Default 120 (D-06: 2-minute routines); orgs
+    running 90-second freestyle rounds override it. It is STATIC config — it does NOT enter the
+    ``/overlay-json`` poll payload (D-07); Phase 11 injects it into the ``/overlay`` page via an
+    entrypoint arg (like ``cam_ids``).
+
+    Additive sub-model: an existing ``extra="forbid"`` config WITHOUT an ``overlay:`` block still
+    validates (defaults in via ``Field(default_factory=OverlayParams)``), exactly like
+    ``scoring``/``tracking``/``action_hold``/``preview``. The loader is fail-fast ``SystemExit(2)``
+    on any ValidationError, so this optionality is mandatory. This is the future home of the
+    BRD-01 logo path + CSS-var theme + identity line (Phase 11) — the model grows in one place (D-05).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    freestyle_duration_s: Annotated[int, Field(gt=0)] = 120  # D-06: 2-min routines; orgs override to 90
 
 
 # --------------------------------------------------------------------------- #
@@ -225,6 +245,7 @@ class Config(BaseModel):
     tracking: TrackingParams = Field(default_factory=TrackingParams)
     action_hold: ActionHoldParams = Field(default_factory=ActionHoldParams)
     preview: PreviewParams = Field(default_factory=PreviewParams)
+    overlay: OverlayParams = Field(default_factory=OverlayParams)
 
     @model_validator(mode="after")
     def _zones_are_weighted(self) -> "Config":

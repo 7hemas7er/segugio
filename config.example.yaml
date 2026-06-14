@@ -24,7 +24,7 @@ cameras:
     role: main_wide          # the SAFE fallback — always neutral weights
     obs_scene: "CAM Wide"
     is_safe: true            # at least one camera must be is_safe (SAFE fallback)
-    ndi_source: "PHONE-WIDE (NDI HX3)"
+    ndi_source: "LOCALHOST (iPhone Camera for OBS Studio App)"
     zones:                   # depth bands: near (close) -> far (downfield)
       - { name: near, rect: [0.0, 0.55, 1.0, 1.0] }
       - { name: mid,  rect: [0.0, 0.30, 1.0, 0.55] }
@@ -107,3 +107,13 @@ model:
   class_index: 16
   use_fp16: true          # canonical RBT-05 path: eager FP16 + batched detect (~256ms p95, ReID nativa). Spot-check dog recall on hard/distant clips (RESEARCH A5).
   # engine_path: yolo26s.engine   # OPTIONAL higher-margin lever (~197ms p95): build per-rig via `python tools/build_engine.py` (GPU-specific, loses native ReID → cls fallback). Graceful eager fallback if absent/incompatible (RBT-04).
+
+# ---- overlay page (D-05 / D-06) -------------------------------------------- #
+# Config for the browser overlay page. Additive block: omit it entirely and the
+# defaults below apply (an existing config without `overlay:` still validates).
+# `freestyle_duration_s` is STATIC config (it is NOT in the /overlay-json poll
+# payload, D-07) — the Phase-11 freestyle timer counts down from it.
+overlay:
+  freestyle_duration_s: 120   # length of a freestyle round, seconds. Default 120
+                              # (2-minute routines); orgs running 90-second
+                              # freestyle rounds override to 90. Must be > 0.

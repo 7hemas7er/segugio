@@ -44,7 +44,6 @@ def client(file_channel):
 # --- run-edge overlay_run stamping (OVD-02) ---------------------------------- #
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_run_start_stamps_overlay_run(client):
     """POST /run start → overlay_run.running True + started_at a Unix-epoch float (Pitfall 3)."""
     from segugio.opcomm.channel import read_overlay_run
@@ -59,7 +58,6 @@ def test_run_start_stamps_overlay_run(client):
     assert ovr.started_at > 1_000_000_000
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_run_stop_nulls_overlay_run(client):
     """POST start then stop → overlay_run.running False + started_at None."""
     from segugio.opcomm.channel import read_overlay_run
@@ -186,7 +184,6 @@ def test_server_now_and_gen_present(client):
 # --- gen monotonicity + restart re-anchor (OVD-02 / D-02) -------------------- #
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_gen_bumps_on_run_and_score(client):
     """gen strictly increases on each /run and /score (the no-store ?t=<gen> nonce source)."""
     c, _ = client
@@ -199,7 +196,6 @@ def test_gen_bumps_on_run_and_score(client):
     assert gen2 > gen1
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_gen_seeds_from_disk_on_restart(client):
     """A FRESH create_app seeds gen from the persisted overlay_run.json — never resets to 0 (D-02, Pitfall 2)."""
     from segugio.opcomm.channel import write_overlay_run
@@ -219,7 +215,6 @@ def test_gen_seeds_from_disk_on_restart(client):
     assert gen >= 8  # seeded from gen=7, bumped by the /run start — never reset to 0/1
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_started_at_persists_across_restart(client):
     """started_at survives a console restart — a FRESH create_app re-anchors from disk (D-02)."""
     from segugio.ui.app import create_app

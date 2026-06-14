@@ -30,15 +30,26 @@ Security at the input boundary:
 from __future__ import annotations
 
 import os
+import threading
+import time
 
 from ..opcomm.channel import (
+    read_overlay_run,
     read_preview,
+    read_score,
     read_status,
     write_command,
+    write_overlay_run,
     write_runstate,
     write_score,
 )
-from ..opcomm.records import Discipline, OperatorCommand, RunState, ScoreDoc
+from ..opcomm.records import (
+    Discipline,
+    OperatorCommand,
+    OverlayRunDoc,
+    RunState,
+    ScoreDoc,
+)
 from .score_render import render_overlay_text
 
 # The opcomm submodule's atomic text writer for the OBS read-from-file overlay (OBS-05).
@@ -53,6 +64,11 @@ _OVERLAY_FILE = "overlay.txt"
 _RUNSTATE_FILE = "runstate.json"
 _COMMAND_FILE = "command.json"
 _STATUS_FILE = "status.json"
+
+# The Phase-10 console-owned overlay run-state sidecar (running/started_at/gen). A SEPARATE
+# file from runstate.json — the director reads runstate.json every tick and NEVER this sidecar
+# (the HARD D-03 byte-for-byte invariant). /run + /score side-write it; /overlay-json reads it.
+_OVERLAY_RUN_FILE = "overlay_run.json"
 
 # The Phase-7 publishing channel the console SERVES (runtime.py: preview_dir = <channel_dir>/preview).
 # The per-camera JPEG filename is f"cam_{cam_id}.jpg" (preview.py) — for id "cam_wide" the on-disk
@@ -86,6 +102,41 @@ def create_app(channel_dir: str, cam_ids=()):
     def _path(name: str) -> str:
         return os.path.join(channel_dir, name)
 
+    # D-02: seed the monotonic gen from the persisted overlay_run.json at build time — NEVER
+    # reset to 0. A fresh create_app over a dir with gen=7 on disk continues from 7, so a console
+    # restart re-anchors the Phase-11 freestyle timer (the started_at on disk also survives). The
+    # read goes through the never-raise read_overlay_run boundary, so an absent/torn file → gen 0.
+    _state = {"gen": read_overlay_run(_path(_OVERLAY_RUN_FILE)).gen}
+    # The console serves multi-threaded (entrypoint: threaded=True / waitress) — guard the
+    # read-modify-write gen bump with a Lock (the PreviewPublisher gen-bump precedent).
+    _gen_lock = threading.Lock()
+
+    def _bump_overlay_run(running: bool, started_at) -> None:
+        # Run edge (start/stop): bump gen and persist the new running/started_at. started_at is
+        # a wall-clock time.time() epoch on START (never time.monotonic() — it must be comparable
+        # to the client's Date.now(), Pitfall 3) and None on STOP.
+        with _gen_lock:
+            _state["gen"] += 1
+            write_overlay_run(
+                _path(_OVERLAY_RUN_FILE),
+                OverlayRunDoc(running=running, started_at=started_at, gen=_state["gen"]),
+            )
+
+    def _bump_score_gen() -> None:
+        # /score is NOT a run edge (Open Q1): advance gen only, PRESERVING the current
+        # running/started_at. Read the current doc, re-persist it with gen+1 untouched otherwise.
+        with _gen_lock:
+            _state["gen"] += 1
+            current = read_overlay_run(_path(_OVERLAY_RUN_FILE))
+            write_overlay_run(
+                _path(_OVERLAY_RUN_FILE),
+                OverlayRunDoc(
+                    running=current.running,
+                    started_at=current.started_at,
+                    gen=_state["gen"],
+                ),
+            )
+
     app = Flask(__name__)
 
     @app.get("/")
@@ -114,6 +165,9 @@ def create_app(channel_dir: str, cam_ids=()):
         # Write BOTH: score.json (structured, for the UI) AND overlay.txt (rendered, for OBS).
         write_score(_path(_SCORE_FILE), doc)
         atomic_write_text(_path(_OVERLAY_FILE), render_overlay_text(doc))
+        # NEW (D-02): a /score write advances gen so the overlay's ?t=<gen> nonce refreshes; it is
+        # NOT a run edge, so running/started_at are preserved (Open Q1).
+        _bump_score_gen()
         return ("", 204)
 
     @app.post("/score/preview")
@@ -154,6 +208,13 @@ def create_app(channel_dir: str, cam_ids=()):
         except ValueError:
             return ("azione non valida", 400)
         write_runstate(_path(_RUNSTATE_FILE), run)
+        # NEW (D-03): the overlay_run side-write lands STRICTLY AFTER the byte-for-byte-unchanged
+        # write_runstate above (the director reads runstate.json every tick — never reordered or
+        # consolidated). started_at uses the wall clock so Phase 11 can offset-cancel skew.
+        if action == "start":
+            _bump_overlay_run(running=True, started_at=time.time())
+        else:  # action == "stop"
+            _bump_overlay_run(running=False, started_at=None)
         return ("", 204)
 
     @app.post("/command")

@@ -83,30 +83,34 @@ Esplicitamente esclusi da v1.2. Documentati per prevenire scope creep.
 
 ## Traceability
 
-Ogni requisito v1.2 → esattamente una fase (coverage da validare dal roadmap). La numerazione delle fasi continua dalla v1.1 (parte da Phase 10).
+Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/18 mappati (Phase 10–14, continuazione dalla v1.1). Nessun orfano, nessun duplicato.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OVL-01 | — | Pending |
-| OVL-02 | — | Pending |
-| OVL-03 | — | Pending |
-| OVL-04 | — | Pending |
-| TMR-01 | — | Pending |
-| TMR-02 | — | Pending |
-| TMR-03 | — | Pending |
-| TMR-04 | — | Pending |
-| OVD-01 | — | Pending |
-| OVD-02 | — | Pending |
-| OVD-03 | — | Pending |
-| SCV-02 | — | Pending |
-| BRD-01 | — | Pending |
-| BRD-02 | — | Pending |
-| SCN-01 | — | Pending |
-| SCN-02 | — | Pending |
-| RBT-06 | — | Pending |
-| RBT-07 | — | Pending |
+| OVL-01 | Phase 11 | Pending |
+| OVL-02 | Phase 11 | Pending |
+| OVL-03 | Phase 11 | Pending |
+| OVL-04 | Phase 11 | Pending |
+| TMR-01 | Phase 11 | Pending |
+| TMR-02 | Phase 11 | Pending |
+| TMR-03 | Phase 11 | Pending |
+| TMR-04 | Phase 11 | Pending |
+| OVD-01 | Phase 10 | Pending |
+| OVD-02 | Phase 10 | Pending |
+| OVD-03 | Phase 10 | Pending |
+| SCV-02 | Phase 12 | Pending |
+| BRD-01 | Phase 11 | Pending |
+| BRD-02 | Phase 11 | Pending |
+| SCN-01 | Phase 13 | Pending |
+| SCN-02 | Phase 13 | Pending |
+| RBT-06 | Phase 13, Phase 14 | Pending |
+| RBT-07 | Phase 10 | Pending |
 
-**Coverage:** v1.2 requirements: 18 total — da mappare dal roadmap (0/18 mapped finora).
+**Note RBT-06:** the `overlay.txt` fallback is *wired* in Phase 13 (scene-collection text source retained) and *verified end-to-end under failure* in Phase 14 (the live-robustness degrade gate). The requirement is delivered by Phase 13; Phase 14 is its acceptance validation.
+
+**Note RBT-07:** crash-isolation is the HARD invariant gated at Phase 10 and re-asserted as a success criterion of every subsequent v1.2 phase that touches `segugio.ui` (11, 12, 14).
+
+**Coverage:** v1.2 requirements: 18 total — **18/18 mapped** (each to exactly one delivering phase). No orphans.
 
 ---
-*Requirements defined: 2026-06-14 for milestone v1.2 "Overlay Grafico Broadcast" (continues phase numbering from v1.1; fresh REQUIREMENTS.md after the v1.1 close archived its requirements to milestones/v1.1-REQUIREMENTS.md)*
+*Requirements defined: 2026-06-14 for milestone v1.2 "Overlay Grafico Broadcast" (continues phase numbering from v1.1; fresh REQUIREMENTS.md after the v1.1 close archived its requirements to milestones/v1.1-REQUIREMENTS.md). Traceability mapped to Phases 10–14 by the roadmapper 2026-06-14.*

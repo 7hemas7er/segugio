@@ -4,6 +4,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1–6 (shipped 2026-06-13) — operator-less multi-camera auto-director, software-complete on synthetic data
 - ✅ **v1.1 Console Regia** — Phases 7–9 (shipped 2026-06-14) — live-visibility operator console: see the cameras, understand *why*, override informed
+- 🚧 **v1.2 Overlay Grafico Broadcast** — Phases 10–14 (in progress) — animated graphical OBS browser-source score overlay served by the crash-isolated console, client-side run timer, curated OBS scene collection — director never touched
 
 > Full phase detail for shipped milestones is archived in `.planning/milestones/v1.1-ROADMAP.md` (the v1.1 close snapshot captures the complete Phase 1–9 history).
 
@@ -30,9 +31,80 @@
 
 </details>
 
+### 🚧 v1.2 Overlay Grafico Broadcast (In Progress)
+
+**Milestone Goal:** Replace the text-on-file score overlay with an animated graphical broadcast lower-third — rendered as an OBS browser-source served by the crash-isolated console — plus a curated OBS scene-collection. The console still imports ONLY `Flask + segugio.opcomm`; the director/orchestrator is never imported or modified; transport is fetch-polling (no WebSocket/MJPEG/SSE); the overlay is display-only (SCR-04, shows operator-typed values verbatim, never adjudicates). This is *publish-and-render* over the existing opcomm-over-files channel — the same shape proven by the v1.1 preview channel.
+
+**Build order is dependency-forced:** data contract → renderer → SCV-01 unification → OBS wiring → live-robustness hardening. `server_now` (clock-skew anchor) must be in the contract from the first commit; the renderer can only be repointed/wired once it serves a live URL; cross-component degrade behavior can only be validated after the whole path is assembled.
+
+- [ ] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified
+- [ ] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
+- [ ] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
+- [ ] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated
+- [ ] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped
+
+## Phase Details
+
+### Phase 10: Overlay Data Contract & Run-Timestamp Publish
+**Goal**: The console publishes everything the overlay needs as a boundary-safe JSON contract, with the run-start instant stamped into a NEW console-owned file — without touching the director or any director-read file. No HTML yet; pure channel + route.
+**Depends on**: Phase 9 (v1.1 console + opcomm channel)
+**Requirements**: OVD-01, OVD-02, OVD-03, RBT-07
+**Success Criteria** (what must be TRUE):
+  1. Starting a run stamps `run_started_at` + `running: true` into a NEW console-owned `overlay_run.json` (mirroring the PreviewDoc record contract); stopping a run nulls it — and `runstate.json`, read by the director every tick, is byte-for-byte unchanged
+  2. `GET /overlay-json` returns `{discipline, fields (verbatim), running, started_at, server_now, gen}` with `Cache-Control: no-store`, and never raises when a source file is absent/torn/malformed (safe-default payload)
+  3. `server_now` (the console's `time.time()` at response) and a monotonic `gen` (bumped on every `/run` and `/score` write, seeded from disk across restart) are present in every response
+  4. The crash-isolation import test is green with the heavy stack absent (`torch`/`cv2`/`ultralytics`/`numpy`/`cyndilib`/`obsws`) — the overlay route module imports only Flask + `segugio.opcomm`
+**Plans**: TBD
+
+### Phase 11: Shared Graphical Renderer, /overlay Page & Branding
+**Goal**: A single shared HTML/CSS/JS renderer serves a transparent, broadcast-quality per-discipline lower-third with a self-counting run timer that is correct across machine clock skew, degrades when data goes stale, animates only on events, and carries configurable branding — all client-side, zero director compute, zero new Python dependency.
+**Depends on**: Phase 10
+**Requirements**: OVL-01, OVL-02, OVL-03, OVL-04, TMR-01, TMR-02, TMR-03, TMR-04, BRD-01, BRD-02
+**Success Criteria** (what must be TRUE):
+  1. `GET /overlay` serves a transparent (`html, body` transparent, critical CSS inlined) page that renders the correct per-discipline lower-third (disc T&F: Prese/Zona/Totale · freestyle: Nome+Timer · agility: Tempo/SCT/Faults) with operator-typed values shown verbatim and HTML-escaped — no white flash on load over bright or dark video, title-safe lower band only
+  2. The run timer counts by itself client-side and reads ~0 error when the console and OBS machine clocks are deliberately set ~30s apart (offset-cancellation via `server_now`, never raw `Date.now() − started_at`); it counts down for T&F (60s) and freestyle (config-driven duration), counts up vs the typed SCT for agility, freezes at 0 showing "Tempo" for T&F/freestyle, and continues into overtime past SCT for agility
+  3. When the data source goes stale (gen stops advancing past the staleness window, or the fetch fails), the timer STOPS and the overlay visibly degrades — a frozen run is never shown as live
+  4. The lower-third animates only on events — enter on run start, exit on run stop, a brief pulse on a score-value change — with no perpetual motion, and a configurable logo + CSS-variable color theme plus a persistent identity line (cane/handler + event) render in the plate without ever covering the action area
+  5. The crash-isolation import test stays green with the heavy stack absent (all timer/animation/branding logic is client-side; no new Python runtime dependency)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 12: SCV-01 Unification
+**Goal**: The console's live score preview renders through the exact same `/overlay` route that OBS loads, making console↔OBS drift structurally impossible and retiring the hand-maintained byte-exact Python↔JS mirror and its drift-guard.
+**Depends on**: Phase 11 (the shared renderer/URL must exist first)
+**Requirements**: SCV-02
+**Success Criteria** (what must be TRUE):
+  1. The console live preview loads `/overlay?preview=1` (iframe reuse) instead of the byte-exact JS mirror — both the console preview and the OBS overlay resolve to one renderer at one URL
+  2. The byte-exact `render_overlay_text` JS mirror block and the `POST /score/preview` drift-guard are retired (or `/score/preview` downgraded to a parity check for `overlay.txt` only); `render_overlay_text` (Python) survives unchanged as the `overlay.txt` fallback renderer
+  3. A parity check confirms the console preview and the OBS-served overlay share the same template + `/overlay-json` shape, and the crash-isolation import test stays green
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 13: OBS Scene Collection & Setup Docs
+**Goal**: Package the transparent overlay browser-source into a curated OBS scene-collection wired into every scene with the correct CEF settings, keep the `overlay.txt` text source as the always-wired fallback, and document the operator setup including the cross-machine LAN URL and CEF cache procedure.
+**Depends on**: Phase 11 (the browser-source URL must serve a live page)
+**Requirements**: SCN-01, SCN-02, RBT-06
+**Success Criteria** (what must be TRUE):
+  1. `obs/segugio-scene-collection.json` wires a transparent "Score Overlay" browser-source (http console-LAN-IP URL, `shutdown_source_when_not_visible: false`, `refresh_when_scene_is_active: false`) into every CAM/SAFE/MULTIVIEW/PIP scene, layered above the NDI source — so the overlay never re-flashes or loses timer state on a cut
+  2. The `overlay.txt` "read from file" text source remains wired in every scene as the degraded fallback (RBT-06/SCR-01), and `tests/test_scene_template.py` asserts both the browser source (URL + transparency + shutdown=false) and the text source are present in lockstep with the scene names
+  3. `docs/obs-setup.md` documents the http browser-source URL, the cross-machine LAN-IP note, the real CEF cache-clear procedure, and the Browser-primary / Text-fallback coexistence policy; a one-paragraph threat re-evaluation is appended to `docs/security.md`
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 14: Fallback Coexistence & Degrade Hardening
+**Goal**: Validate the whole assembled live path under failure — the live-robustness gate before field acceptance — proving the broadcast never goes scoreless, never shows a stale timer as live, and the safety-critical override path is never starved.
+**Depends on**: Phase 11 + Phase 13
+**Requirements**: RBT-06
+**Success Criteria** (what must be TRUE):
+  1. Killing the console freezes the overlay timer within the staleness window and degrades the overlay visually, while the `overlay.txt` text source keeps airing the last score (Browser-primary / Text-fallback coexistence proven end-to-end)
+  2. A LAN drop stops the timer (never a stale "live"), and a console restart re-anchors the timer via `gen` without a phantom jump
+  3. An `/overlay-json` poll storm does not starve the safety-critical `/command` POST (the UXT-02 concurrency test extended to the new route)
+  4. Operator-entered score values are HTML-escaped at the overlay HTML sink (Jinja autoescape on or `textContent` not `innerHTML`) — no injection into the broadcast overlay; the crash-isolation import test stays green
+**Plans**: TBD
+
 ## Progress
 
-**Execution Order:** Phases executed in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+**Execution Order:** Phases executed in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -45,3 +117,8 @@
 | 7. Off-tick Frame-Publishing Channel | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 8. Console Serving, Live Multiview & Safety Hardening | v1.1 | 3/3 | Complete | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
+| 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 0/TBD | Not started | - |
+| 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 0/TBD | Not started | - |
+| 12. SCV-01 Unification | v1.2 | 0/TBD | Not started | - |
+| 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |
+| 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

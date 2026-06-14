@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: planning
-last_updated: "2026-06-14T09:29:39.409Z"
+last_updated: "2026-06-14T10:00:00.000Z"
 last_activity: 2026-06-14
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Milestone v1.2 — Overlay Grafico Broadcast (defining requirements)
+**Current focus:** Milestone v1.2 — Overlay Grafico Broadcast (roadmap created: Phases 10–14)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 10 — Overlay Data Contract & Run-Timestamp Publish (Not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-14 — Milestone v1.2 started
+Status: Roadmap created (5 phases, 10–14), ready for `/gsd-plan-phase 10`
+Last activity: 2026-06-14 — v1.2 roadmap created (Phases 10–14, 18/18 reqs mapped)
 
 ## Performance Metrics
 
@@ -99,6 +99,12 @@ Last activity: 2026-06-14 — Milestone v1.2 started
 
 ### Roadmap Evolution
 
+- Milestone v1.2 "Overlay Grafico Broadcast" roadmap created (2026-06-14): 5 phases appended after the v1.1 Phases 7–9 (numbering continues at Phase 10, no reset). 18/18 v1.2 requirements mapped, no orphans. The shape is dependency-forced (data contract → renderer → SCV-01 unification → OBS wiring → robustness hardening) and is a *publish-and-render* extension of the v1.1 preview channel — the console still imports ONLY `Flask + segugio.opcomm`, the director is never touched, transport is fetch-polling:
+  - **Phase 10 — Overlay Data Contract & Run-Timestamp Publish** (OVD-01/02/03, RBT-07): the gating data foundation. NEW console-owned `overlay_run.json` (mirrors PreviewDoc) stamps `run_started_at`+`running` on the run start/stop edge — `runstate.json` (director-read every tick) is NEVER touched. `GET /overlay-json` returns boundary-safe `{discipline, fields verbatim, running, started_at, server_now, gen}` with `Cache-Control: no-store`. `server_now` (the clock-skew anchor, the milestone's one genuinely new behavior) and a monotonic `gen` are in the contract from the first commit. Crash-isolation import test green = a success criterion here, re-asserted every later phase. Zero HTML.
+  - **Phase 11 — Shared Graphical Renderer, /overlay Page & Branding** (OVL-01..04, TMR-01..04, BRD-01/02): the core deliverable. ONE shared `overlay-render.js` + transparent `overlay.html` (critical CSS inlined, FOUC-free, title-safe lower band). Self-counting client timer with offset-cancellation (`skew = server_now − Date.now()/1000`, never raw subtraction across machines) — T&F/freestyle count down + freeze-at-0 "Tempo", agility counts up into SCT overtime. gen-age freshness watchdog STOPS the timer + degrades on stale (a frozen run is never "live"). Animations only on events (enter/exit/score-pulse). Config logo + CSS-var theme + identity line folded in (renderer concern). All client-side, no director compute, no new Python dep.
+  - **Phase 12 — SCV-01 Unification** (SCV-02): console preview becomes an iframe of `/overlay?preview=1` — drift structurally impossible. The byte-exact Python↔JS mirror + `/score/preview` drift-guard retired; `render_overlay_text` survives ONLY as the `overlay.txt` fallback renderer.
+  - **Phase 13 — OBS Scene Collection & Setup Docs** (SCN-01/02, RBT-06): `obs/segugio-scene-collection.json` wires a transparent browser-source (http console-LAN-IP URL, `shutdown_source_when_not_visible: false`, `refresh_when_scene_is_active: false`) into every scene above the NDI source; the `overlay.txt` text source stays wired as the always-on fallback. `test_scene_template.py` extended; `docs/obs-setup.md` (URL, cross-machine note, CEF cache-clear) + a one-paragraph `docs/security.md` threat re-eval.
+  - **Phase 14 — Fallback Coexistence & Degrade Hardening** (RBT-06 acceptance): the live-robustness gate. Console-down → overlay degrades AND text source keeps last score; LAN-drop → timer stops; restart → re-anchors via `gen`. UXT-02 concurrency test extended to `/overlay-json` (poll storm never starves `/command`). Score values HTML-escaped at the HTML sink (autoescape / `textContent`, NOT the plain-text `_clean`).
 - Milestone v1.1 "Console Regia — visibilità live" roadmap created (2026-06-13): 3 phases appended after the v1.0 Phases 1–6 (numbering continues at Phase 7, no reset). 16/16 v1.1 requirements mapped. The shape is dependency-forced — the off-tick frame-publishing channel gates everything:
   - **Phase 7 — Off-tick Frame-Publishing Channel** (PRV-01/02/03): the gating foundation. `PreviewPublisher` daemon thread + `atomic_write_bytes` + `preview.json` sidecar publish per-camera JPEG thumbnails + the "why" data off the critical tick. Two HARD gates: (a) RBT-05 p95 unchanged with preview ON; (b) console crash-isolation proven by an import test with the heavy stack (ultralytics/torch/cv2/cyndilib) absent.
   - **Phase 8 — Console Serving, Live Multiview & Safety Hardening** (MVW-01/02/03, UXT-02): multiview grid + LIVE/tally + dead-feed marking, plus the `threaded=True`/Waitress server fix folded in as a SAFETY item (override POSTs never blocked, not cosmetic), a preview-bandwidth cap (preview degrades before NDI feeds), and a written threat re-eval (live video behind 0.0.0.0).
@@ -110,6 +116,11 @@ Last activity: 2026-06-14 — Milestone v1.2 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Milestone v1.2]: Overlay Grafico Broadcast is *publish-and-render*, not compute — the same v1.1 preview-channel precedent. The console serves `/overlay` + `/overlay-json` over the existing opcomm-over-files channel; the run timer counts client-side from a published `run_started_at`+`server_now`+`running`; zero per-frame director work, zero new Python runtime dep, director never imported/modified.
+- [Milestone v1.2]: The run-start timestamp lives in a NEW console-owned `overlay_run.json` (mirroring PreviewDoc), NEVER in `runstate.json` (the director reads it every tick) — keeps "director never touched" literally true.
+- [Milestone v1.2]: Clock-skew is solved by offset-cancellation from day one — `/overlay-json` publishes `server_now` alongside `started_at` (both the console clock); the client computes `skew = server_now − Date.now()/1000` each poll and counts locally. NEVER a naive `Date.now() − started_at` across two machines. This is the milestone's single highest-risk new behavior, solved at Phase 10/11.
+- [Milestone v1.2]: SCV-01 unification = iframe reuse of the one `/overlay` route (drift structurally impossible), retiring the byte-exact Python↔JS mirror + `/score/preview` drift-guard. `render_overlay_text` survives only for `overlay.txt`.
+- [Milestone v1.2]: Transport stays fetch-polling of `/overlay-json` (no-store + `?t=<gen>` nonce). WebSocket/MJPEG/SSE REJECTED (long-lived worker thread → UXT-02 starvation, the v1.1 rejection re-applied).
 - [Milestone v1.1]: Console Regia is a publish-and-render problem, not compute — the orchestrator already computes per-camera scores, dog bbox, FSM reason every tick and holds the decoded frames; v1.0 discards them. v1.1 exposes them over a new off-tick file channel.
 - [Milestone v1.1]: Transport = polling per-camera JPEG thumbnails over the existing atomic-file opcomm channel (separate `opcomm/preview/` dir). MJPEG / WebSocket / OBS-multiview-embed REJECTED by research (break/strain crash-isolation or add a network server on the director).
 - [Milestone v1.1]: Per-camera "why" data travels in a NEW `preview.json` sidecar, NOT bloated into the safety-critical write-on-change `status.json`.
@@ -173,10 +184,11 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- *(none — 09-04 blocking on-device checkpoint cleared 2026-06-14: operator approved on iPadOS 26.x — memory flat, 200ms deferral confirmed, sleep/wake + frozen-feed-never-live verified)*
+- *(none — v1.2 roadmap created 2026-06-14; next is `/gsd-plan-phase 10`)*
 
 ### Blockers/Concerns
 
+- [Milestone v1.2 — surfaced in research, confirm during Phase 10/11 planning]: Two open config/UX questions before implementation — (1) the freestyle round-length config key name (90s vs 120s, org-dependent) to confirm at Phase 10 planning; (2) the T&F/freestyle timer-at-zero visual treatment (freeze at 0:00 + "Tempo"; confirm whether a TEMPO flash is wanted) and the agility over-SCT display treatment, both to confirm before Phase 11 implementation. Also a CEF border-radius-over-transparency gray-edge artifact to verify on the production OBS box (avoid hairline rounded borders if it surfaces).
 - [Phase 1]: Framing-scorer math (Phase 2) is dense/novel — flagged for `--research-phase` during planning (lead-room, motion-adaptive alpha, conf-norm, size band, zone multiplier)
 - [Phase 4 — RESOLVED 2026-06-10 GPU UAT]: Native-ReID engagement on yolo26s VERIFIED on RTX 4000 Ada (assert_native_reid_engaged does not raise with end2end=False → no silent yolo26n-cls.pt fallback). COCO dog recall MEASURED on the 6 hard slices: strong on close/clear (handler_close cam_c 0.89, dusk_distant 0.76, sprint_blur 0.69), weak on distant/small + crowd (distant 0.04, crowd_distractor 0.16) — candidate for dog-detector fine-tuning later. NOTE: GPU UAT also found+fixed a real bug — the tracker yaml was passed as a bare name and never resolved, so TRK-01/TRK-02 were dead on the real path (silent coast every frame); fixed in detector.py with fail-loud abs-path resolution + CPU regression test.
 - [Phase 6 / 06-01 — RESOLVED 2026-06-13]: The py3.12 cu12x-torch + tensorrt GPU env (venv312: Python 3.12.10, torch 2.12.0+cu126, ultralytics 8.4.62, tensorrt-cu12 10.16.1.11, RTX 4000 Ada driver 596.36) is LIVE — torch.cuda.is_available()=True and the gpu latency test collects+runs. 06-02 RAN the gpu gate on it (p95 ~210ms). All Wave-1/Wave-2 latency work unblocked.
@@ -208,10 +220,10 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-14T00:00:00.000Z
-Stopped at: 09-04 COMPLETE — on-device iPad acceptance approved; all 4 phase-9 plans executed (orchestrator owns phase verification/completion next)
+Last session: 2026-06-14T10:00:00.000Z
+Stopped at: v1.2 roadmap created (Phases 10–14, 18/18 reqs mapped); ready to plan Phase 10
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Plan the first v1.2 phase with `/gsd-plan-phase 10`

@@ -4,13 +4,13 @@ milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
 stopped_at: Phase 10 planned (4 plans, 3 waves)
-last_updated: "2026-06-14T14:11:27.738Z"
+last_updated: "2026-06-14T14:19:40.411Z"
 last_activity: 2026-06-14 -- Phase 10 execution started
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 ## Current Position
 
 Phase: 10 (overlay-data-contract-run-timestamp-publish) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-14 -- Phase 10 execution started
 
@@ -96,6 +96,7 @@ Last activity: 2026-06-14 -- Phase 10 execution started
 | Phase 09 P03 | 25min | 2 tasks | 2 files |
 | Phase 09 P04 | 7min | 3 tasks | 2 files |
 | Phase 10 P01 | 8min | 2 tasks | 4 files |
+| Phase 10 P02 | 4min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,8 @@ Recent decisions affecting current work:
 - [Phase 09 / 09-04]: switch-history strip (MVW-05) + UXT-03 long-run tablet hygiene — buildSwitchHistory renders the preview.json cuts ring newest-first (HIST_SHOW=6) with the shared reasonToItalian map; leak-free refresh = ONE persistent off-DOM Image() preloader per tile + await decode() BEFORE the visible swap (no per-frame new Image()), hidden/off tiles get a 1x1 data-URI src (deterministic bitmap free, not display:none); gen-age-vs-local-clock FOREGROUND staleness watchdog (PRIMARY) + freshnessStamp "agg. {n}s fa"/"frame non aggiornato"; sleep/wake resume on visibilitychange + pageshow/pagehide ONLY (focus/blur/unload NOT lifecycle-registered) — onResume records resumeAt, marks all tiles stale, restarts named intervals, defers first fetch RESUME_DEFER_MS=200ms; a tile renders LIVE only once a frame arriving after resumeAt lands (frozen feed NEVER shown live). tests/test_ui_freshness.py (10 served-HTML/JS assertions, all green). ON-DEVICE iPad acceptance (Task 3, blocking-human) APPROVED on iPadOS 26.x: memory FLAT (no monotonic growth, no hard ceiling needed), 200ms deferral confirmed (no Load-failed storm), both device-lock + app-switch wake paths recover fresh, frozen-feed flips STALE never live, tap-to-force + reachable undo + zero-flash decode confirmed. MVW-05 + UXT-03 COMPLETE. Crash-isolation allowlist preserved (app.py untouched).
 - [Phase ?]: [Phase 09 / 09-03]: explainability sidebar FILLED + SCV-01 mirror. WHY-01 reasonToItalian map → renderReason writes plain-Italian copy into #reason (the separate #live-reason keeps the raw advisory tag); WHY-02 buildLeaderboard one .lb-row/cam sorted highest-first by score(→ema), fill by state tracking(solid ● green)/coast(hatched ◐)/lost(empty ·· + LABEL #E6E9EF, never the dim-gray hue as text), empty→"Nessun dato di framing", all cams (D-05); WHY-04 renderAutoWants "Auto vuole: {cam}" + dashed-blue auto-wants tile marker during override only; WHY-03 pollPreview drives updateBbox(cam, cams[cam].box), draws nothing on null (native-ReID lock drop), hidden on STALE/MORTO. SCV-01 (TDD RED 2bb53de→GREEN cdd8218): cleanField mirrors Python _clean (Unicode-property regex drops Cc/Cf/Cs/Co/Cn/Zl/Zp/Zs, keeps U+0020, trim, cap 64); mirrorOverlayText mirrors the 3 render_overlay_text f-strings char-exact (double spaces + sct/SCT alias via scvGet); updateScorePreview debounced 200ms NO per-keystroke fetch NEVER orchestrator; driftCheck POSTs Flask /score/preview ONCE on blur+submit → "⚠ Anteprima non allineata — verifica" on mismatch. Byte-parity PROVEN by EXECUTING the served JS in node vs the imported Python renderer across all 3 disciplines (Wave-0 CI parity; delimited gsd:why-mirror/gsd:scv01-mirror blocks extracted from served HTML, node stdout captured as raw UTF-8 via temp .mjs to survive the cp1252 host). 39 UI tests green; full suite 421 passed/8 skipped (2 pre-existing env NDI loopback failures only). Crash-isolation allowlist preserved. WHY-01/02/03/04 + SCV-01 COMPLETE.
 - [Phase 10]: [Phase 10 / 10-01]: Wave-0 overlay test contract — 3 RED-by-design scaffolds (test_opcomm_overlay_run/test_config_overlay/test_ui_overlay_json) named 1:1 with 10-VALIDATION.md + file_channel['overlay_run'] key. Pattern: xfail(strict=False) + missing-symbol imports INSIDE test bodies keeps collection green pre-impl; the byte-for-byte runstate.json D-03 invariant test carries NO xfail (stays-true regression guard). 24 xfail + 1 pass, zero XPASS, crash-isolation allowlist preserved (no numpy/cv2/torch).
+- [Phase ?]: OverlayRunDoc.started_at is nullable — None (STOP/not-started) preserved through __post_init__ and read_overlay_run, never coerced to 0.0 (D-03)
+- [Phase ?]: overlay_run.json is a SEPARATE console-owned sidecar; runstate.json/RunState untouched so the director never reads the overlay channel (HARD D-03)
 
 ### Pending Todos
 
@@ -223,7 +226,7 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-14T14:10:06.119Z
+Last session: 2026-06-14T14:19:14.549Z
 Stopped at: Phase 10 planned (4 plans, 3 waves)
 Resume file: .planning/phases/10-overlay-data-contract-run-timestamp-publish/10-01-PLAN.md
 

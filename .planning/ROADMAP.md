@@ -80,7 +80,20 @@
   4. The lower-third animates only on events — enter on run start, exit on run stop, a brief pulse on a score-value change — with no perpetual motion, and a configurable logo + CSS-variable color theme plus a persistent identity line (cane/handler + event) render in the plate without ever covering the action area
   5. The crash-isolation import test stays green with the heavy stack absent (all timer/animation/branding logic is client-side; no new Python runtime dependency)
 
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — Backend: grow `OverlayParams` (logo/theme/event) + `GET /overlay` route + entrypoint branding injection + RBT-07 crash-isolation gate extended (OVL-01, BRD-01, BRD-02)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 11-02-PLAN.md — Transparent FOUC-free `overlay.html`: left accent-bar lower-third skeleton (DOM/CSS-var contract), title-safe band, logo bug, identity line, event-only animation keyframes (OVL-01/02/03/04, BRD-01/02)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 11-03-PLAN.md — Shared `overlay-render.js`: sanitize mirror + per-discipline render (textContent sink), offset-cancellation timer (down/up + freeze-at-0/Tempo + agility overtime), gen-age freshness watchdog + degrade (OVL-02/04, TMR-01/02/03/04, BRD-02)
+
 **UI hint**: yes
 
 ### Phase 12: SCV-01 Unification
@@ -141,7 +154,7 @@
 | 8. Console Serving, Live Multiview & Safety Hardening | v1.1 | 3/3 | Complete | 2026-06-13 |
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete    | 2026-06-14 |
-| 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 0/TBD | Not started | - |
+| 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 0/3 | Planned | - |
 | 12. SCV-01 Unification | v1.2 | 0/TBD | Not started | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

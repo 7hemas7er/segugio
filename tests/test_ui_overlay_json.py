@@ -110,7 +110,6 @@ def test_runstate_byte_for_byte_unchanged(client, tmp_path):
 # --- GET /overlay-json contract (OVD-01) ------------------------------------- #
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_overlay_json_payload_shape(client):
     """GET /overlay-json → 200, exact 6 keys, Cache-Control: no-store."""
     c, _ = client
@@ -128,7 +127,6 @@ def test_overlay_json_payload_shape(client):
     assert resp.headers["Cache-Control"] == "no-store"
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_overlay_json_safe_default_when_absent(client):
     """Fresh channel (no files) → 200 + the safe-default payload (D-04)."""
     c, _ = client
@@ -142,7 +140,6 @@ def test_overlay_json_safe_default_when_absent(client):
     assert data["gen"] is not None
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_overlay_json_safe_default_on_corrupt(client):
     """Torn score.json AND overlay_run.json → still 200, blank fields/running:false, server_now+gen present (D-04)."""
     c, ch = client
@@ -157,7 +154,6 @@ def test_overlay_json_safe_default_on_corrupt(client):
     assert data["gen"] is not None
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_overlay_json_fields_verbatim(client):
     """fields echoes operator-typed keys+values with NO server-side alias resolution (D-08)."""
     c, _ = client
@@ -171,7 +167,6 @@ def test_overlay_json_fields_verbatim(client):
     assert fields.get("faults") == "5"
 
 
-@pytest.mark.xfail(reason="impl lands in Plan 10-04", strict=False)
 def test_server_now_and_gen_present(client):
     """server_now is a float and gen is an int on every GET (the always-set clock + monotonic counter)."""
     c, _ = client

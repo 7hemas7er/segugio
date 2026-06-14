@@ -240,6 +240,30 @@ def create_app(channel_dir: str, cam_ids=()):
             {"live_cam": status.live_cam, "reason": status.reason, "alive": status.alive}
         )
 
+    @app.get("/overlay-json")
+    def get_overlay_json():
+        # OVD-01 — the overlay's whole data contract over the existing publish-and-render channel.
+        # Assemble EXCLUSIVELY from the two never-raise readers + time.time(): NEVER json.load/open
+        # in the route (Pitfall 5 — read_score/read_overlay_run are the safe-default boundary, so a
+        # torn/absent source → safe-default payload, never a 500, D-04). server_now + gen are ALWAYS
+        # set regardless of source state. fields are echoed VERBATIM (operator-typed keys+values, no
+        # server-side alias resolution — D-08; the Phase-11 JS renderer owns layout/aliases).
+        s = read_score(_path(_SCORE_FILE))
+        ovr = read_overlay_run(_path(_OVERLAY_RUN_FILE))
+        resp = jsonify(
+            {
+                "discipline": s.discipline.value,  # default ScoreDoc() → disc_tf when absent
+                "fields": s.fields,  # raw verbatim dict (D-08 / SCR-04)
+                "running": ovr.running,
+                "started_at": ovr.started_at,
+                "server_now": time.time(),  # console wall clock — the skew anchor, ALWAYS set
+                "gen": ovr.gen,  # monotonic — ALWAYS set
+            }
+        )
+        # Never cache a live fetch (the get_preview_jpg no-store precedent).
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
     @app.get("/preview/<cam>.jpg")
     def get_preview_jpg(cam: str):
         # T-05-05-01 path-traversal mitigation: <cam> is whitelisted against the configured ids

@@ -106,6 +106,15 @@ def test_console_resolves_with_heavy_stack_and_numpy_absent(
         app = create_app(tmp, cam_ids=["cam_wide"])
         assert app is not None
 
+        # RBT-07: serve GET /overlay-json under the SAME heavy-absent block — proves the route
+        # imports ONLY Flask (in-factory) + segugio.opcomm + stdlib (time/threading), never numpy/
+        # cv2/torch/cyndilib/obsws. A heavy import sneaking into the route would raise here.
+        client = app.test_client()
+        resp = client.get("/overlay-json")
+        assert resp.status_code == 200
+        payload = resp.get_json()
+        assert "gen" in payload and "server_now" in payload
+
 
 def test_configure_logging_is_idempotent() -> None:
     """Calling configure_logging() twice does not raise and leaves exactly one sink."""

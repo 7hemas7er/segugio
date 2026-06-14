@@ -25,7 +25,7 @@
 
 - [x] **OVD-01**: `GET /overlay-json` assembla il payload (`discipline`, `fields` verbatim, `running`, `started_at`, `server_now`, `gen`) in modo **boundary-safe** (sorgente assente/malformata → default, non solleva mai nel server)
 - [x] **OVD-02**: Un **NUOVO record overlay-run di proprietà della console** (es. `overlay_run.json`) stampa `run_started_at` + `running` sull'edge run start/stop; il `runstate.json` letto dal director ogni tick **non viene mai toccato** (director invariato)
-- [ ] **OVD-03**: **Freschezza** — una sorgente dati stale/disconnessa è rilevata (gen-age) e l'overlay **degrada** (il timer si ferma, una run congelata non è MAI mostrata "live"), riusando il pattern `gen`/nonce/`no-store` di v1.1
+- [x] **OVD-03**: **Freschezza** — una sorgente dati stale/disconnessa è rilevata (gen-age) e l'overlay **degrada** (il timer si ferma, una run congelata non è MAI mostrata "live"), riusando il pattern `gen`/nonce/`no-store` di v1.1
 
 ### Score Preview Unification (SCV)
 

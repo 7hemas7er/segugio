@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <!-- Browser-source host page for OBS/CEF. NO viewport-fit / touch contract (this is a
+       compositing surface, not a tablet UI). All critical CSS is inlined below — never an
+       external stylesheet that loads a frame late and white-flashes over live video (P5). -->
+  <title>Segugio — Overlay</title>
+  <style>
+    /* ============================================================================
+       TRANSPARENCY CONTRACT (Pitfall 5 — white-flash over live video).
+       html+body MUST be transparent so the page composits as pure alpha over the
+       program feed in CEF. The lower-third starts fully hidden (opacity:0): the
+       entrance animation reveals it on a run-start event, so a delayed/partial first
+       paint shows NOTHING — never a white box over bright grass or a dark dog.
+       ============================================================================ */
+    html, body { background: transparent !important; margin: 0; padding: 0; }
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+
+    /* Font: SYSTEM STACK (system-ui, -apple-system, sans-serif) — same as console.html
+       (line 18). No self-hosted .woff2, so there is NO font-load FOUC and NO
+       document.fonts.ready reveal gate needed: a system font is available on first paint.
+       This choice MUST match Phase 12's console-preview iframe (it renders the same page).
+       Recorded as a decision in the SUMMARY. */
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      /* color-scheme + a transparent body; text color comes from the --text CSS var on the plate. */
+    }
+
+    /* ============================================================================
+       CSS-VARIABLE THEME (D-06 / BRD-01). Injected from config via Jinja render args
+       (overlay_cfg). Console-palette defaults are baked in with the Jinja `default`
+       filter so an absent/empty var never breaks the cascade. An org overrides per event.
+       ============================================================================ */
+    .lower-third {
+      --accent: {{ theme_accent | default('#34D399', true) }};   /* console green */
+      --plate:  {{ theme_plate  | default('#14161a', true) }};   /* dark plate */
+      --text:   {{ theme_text   | default('#E6E9EF', true) }};   /* legible text */
+    }
+
+    /* ============================================================================
+       TITLE-SAFE LOWER-THIRD (D-01/D-02/OVL-03). A left vertical accent bar + a compact
+       semi-opaque dark plate, anchored BOTTOM-LEFT in a title-safe band capped at ~18%
+       of frame height (max-height: 18vh; the plate top never rises past ~20vh). The rest
+       of the frame is kept clear for the dog — NEVER a full-width or top-anchored banner.
+       Starts hidden (opacity:0) — see transparency contract above.
+       ============================================================================ */
+    .lower-third {
+      position: fixed;
+      left: 4.5vw;                 /* title-safe inset from the left edge */
+      bottom: 6vh;                 /* title-safe inset from the bottom edge */
+      max-width: 60vw;             /* never spans the frame — leaves the action area clear */
+      max-height: 18vh;            /* OVL-03 hard line: the band is capped at ~18% frame height */
+      display: flex;
+      align-items: stretch;
+      opacity: 0;                  /* START HIDDEN — entrance animation reveals it (P5) */
+      will-change: transform, opacity;   /* hint the compositor; animations touch only these props */
+    }
+
+    /* Left colored accent bar — the theme color lives here (D-01). */
+    #accent-bar {
+      flex: 0 0 auto;
+      width: 0.7vw;
+      min-width: 8px;
+      background: var(--accent);
+      border-radius: 2px 0 0 2px;
+    }
+
+    /* Compact semi-opaque dark plate. An alpha scrim over var(--plate) keeps the white text
+       legible over bright outdoor grass; a text-shadow backs the text per the PITFALLS UX note.
+       color-mix gives the scrim without hardcoding a second color (var-driven, falls back to
+       the solid plate where unsupported). */
+    #plate {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 1.1vh 1.4vw;
+      background: color-mix(in srgb, var(--plate) 86%, transparent);
+      color: var(--text);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);   /* legibility backing (P5 UX note) */
+      border-radius: 0 6px 6px 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.4vh;
+      overflow: hidden;
+    }
+
+    /* Identity line (D-08): "{competitor} · {event}". The event half is injected by Jinja
+       (autoescaped); the competitor half is filled client-side from the verbatim `nome` field
+       by the renderer (11-03) via textContent — never innerHTML. */
+    #identity {
+      font-size: 1.7vh;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0.92;
+    }
+    #identity .sep { opacity: 0.55; padding: 0 0.4ch; }
+    /* When neither competitor nor event is present the renderer hides the line gracefully. */
+    #identity:empty { display: none; }
+
+    /* The score row: a BIG leading timer cell then per-discipline score cells (D-02). */
+    #score-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 1.2vw;
+    }
+
+    /* The big leading clock — the visual hero across all disciplines (D-02). For agility
+       Tempo IS this timer and renders SS.hh, so it is sized to hold the wider string; it is
+       updated via textContent in place by the renderer (never node-rebuilt). tabular-nums
+       keeps the digits from jittering as they change. */
+    #timer {
+      font-size: 5.2vh;
+      font-weight: 700;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      min-width: 4.5ch;            /* holds "SS.hh" / "M:SS" without reflow */
+      white-space: nowrap;
+    }
+
+    /* Per-discipline score cells container — the renderer (11-03) REBUILDS its children per
+       discipline (disc_tf → prese/zona/totale; disc_freestyle → its fields; agility → SCT/faults).
+       Each cell is two-row: a label over a value (D-01). The template ships the container empty;
+       the .cell skeleton below documents the shape the renderer fills with textContent. */
+    #cells {
+      display: flex;
+      align-items: flex-end;
+      gap: 1.2vw;
+    }
+    #cells .cell {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.2vh;
+    }
+    #cells .cell .cell-label {
+      font-size: 1.3vh;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    #cells .cell .cell-value {
+      font-size: 2.6vh;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    /* ============================================================================
+       LOGO BUG (D-07). A small optional config logo in the BOTTOM-RIGHT title-safe
+       corner — the classic TV channel-logo placement, separate from the bottom-left plate.
+       Conditionally rendered by Jinja only when logo_path is non-empty (absent → no element
+       in the DOM at all). NEVER over the action area. Visible whenever the overlay is shown.
+       ============================================================================ */
+    #logo-bug {
+      position: fixed;
+      right: 4.5vw;
+      bottom: 6vh;
+      max-height: 9vh;             /* small bug — stays within the title-safe corner */
+      max-width: 18vw;
+      opacity: 0.95;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+    }
+
+    /* ============================================================================
+       EVENT-ONLY ANIMATIONS (OVL-04 / D-04). enter (run start), exit (run stop), and ONE
+       reusable pulse primitive (score-change AND end-of-countdown share it). Every keyframe
+       touches ONLY transform/opacity — compositor-only, no layout/paint thrash. There is NO
+       perpetual/looping animation anywhere (zero looped keyframes). The renderer (11-03) adds/removes
+       these state classes on events; the run timer is a textContent update, not an animation.
+       ============================================================================ */
+    @keyframes enter {
+      from { opacity: 0; transform: translateX(-2.5vw); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes exit {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(-2.5vw); }
+    }
+    /* ONE pulse primitive, two triggers (score change + end-of-countdown, D-04). A single
+       sober scale bump on the compositor — runs once per event, never loops. */
+    @keyframes pulse {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    /* State classes the renderer toggles on events (every animation runs once — no loops). */
+    .lower-third.is-entering { animation: enter 320ms ease-out forwards; }
+    .lower-third.is-live     { opacity: 1; }                                  /* steady shown state */
+    .lower-third.is-exiting  { animation: exit 260ms ease-in forwards; }
+    .pulse-once              { animation: pulse 380ms ease-out 1; }           /* explicit single run */
+
+    /* Degraded state on stale data (OVD-03 client half — the renderer sets this when isStale()).
+       A subtle dim so a frozen overlay reads as "not live" rather than a confident lie. No motion. */
+    .lower-third.is-stale { opacity: 0.55; filter: grayscale(0.4); }
+  </style>
+</head>
+<body>
+  <!-- ============================================================================
+       DOM CONTRACT (consumed by /static/overlay-render.js in plan 11-03 and by Phase 12's
+       console-preview iframe). Stable ids/classes — the renderer fills these via textContent:
+         #lower-third   the host element (theme vars, animation state classes live here)
+         #identity      the "{competitor} · {event}" line (event half pre-filled by Jinja)
+         #timer         the big leading clock (M:SS countdown / SS.hh agility, rAF textContent)
+         #cells         per-discipline score-cell container (renderer rebuilds .cell children)
+         #logo-bug      bottom-right logo (present only when logo_path is configured)
+       NO score/run/timer DATA is baked into this page — it polls /overlay-json and never reloads
+       on a score change.
+       ============================================================================ -->
+  <div id="lower-third" class="lower-third">
+    <div id="accent-bar"></div>
+    <div id="plate">
+      <!-- Identity line: the EVENT half is injected by Jinja (autoescaped — config is trusted but
+           still escaped, T-11-02-01). The competitor half + separator are added client-side from
+           the verbatim `nome` field via textContent. Pre-seeding only the event keeps the line
+           from being empty before the first poll when an event_name is configured. -->
+      <div id="identity"
+           data-event="{{ event_name | default('', true) }}">{{ event_name | default('', true) }}</div>
+      <div id="score-row">
+        <div id="timer">--</div>
+        <div id="cells"><!-- renderer rebuilds .cell children per discipline --></div>
+      </div>
+    </div>
+  </div>
+
+  {% if logo_path %}
+  <!-- Logo bug (D-07): rendered ONLY when logo_path is non-empty. src is autoescaped by Jinja
+       (T-11-02-01). Absent/empty path → this element is not in the DOM at all → no bug. -->
+  <img id="logo-bug" src="{{ logo_path }}" alt="">
+  {% endif %}
+
+  <!-- The shared renderer (11-03) — external static file, NOT inlined, so it is cached once and
+       the template stays a thin host page. It polls /overlay-json (?t=<gen> nonce + no-store),
+       drives the offset-cancellation timer, fills the DOM contract above via textContent, and
+       toggles the event-only animation state classes. The freestyle_duration_s is exposed for the
+       renderer's countdown without baking any run data into the page. -->
+  <script>
+    /* Thin inline bootstrap — exposes static config to the renderer's entry function WITHOUT
+       baking score/run data in. The renderer (11-03) reads window.OVERLAY_CFG on load. These are
+       config NUMBERS only (autoescaped via Jinja into a numeric context); no operator value here. */
+    window.OVERLAY_CFG = {
+      freestyleDurationS: {{ freestyle_duration_s | default(120, true) }}
+    };
+  </script>
+  <script src="/static/overlay-render.js"></script>
+</body>
+</html>

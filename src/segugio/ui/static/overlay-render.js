@@ -212,6 +212,220 @@
     return { scoreChanged, lowerThird };
   }
 
+  // =========================================================================
+  // TASK 2 — offset-cancellation timer + per-discipline direction/format +
+  // freeze-at-0/overtime + gen-age freshness watchdog + degrade + poll loop
+  // (TMR-01/02/03/04, OVD-03 client half). All client-side; zero director compute.
+  // =========================================================================
+
+  // Freshness constants — copied VERBATIM from console.html (lines 619-624). The
+  // gen-age watchdog + cold-start guard are PORTS of the v1.1 freshness watchdog.
+  const PUBLISH_MS = 200; // ~5 fps publish cadence
+  const STALE_MS = PUBLISH_MS * 3; // gen not advancing within ~2-3x → stale (OVD-03)
+
+  // The freeze-at-0 literal shown when a countdown reaches 0 (TMR-03 / D-04).
+  const TEMPO_LITERAL = "Tempo";
+  // Toss & Fetch counts DOWN from 60s (TMR-02). Freestyle counts down from the
+  // injected static freestyle_duration_s (window.OVERLAY_CFG.freestyleDurationS).
+  const DISC_TF_COUNTDOWN_S = 60;
+
+  // --- per-discipline timer formatting (D-03) ---
+  // Countdown disciplines (disc_tf / disc_freestyle) render remaining as M:SS whole
+  // seconds and FREEZE at 0 showing the literal "Tempo" — never going negative.
+  function formatCountdown(remainingS) {
+    if (!(remainingS > 0)) return TEMPO_LITERAL; // clamp at 0 → freeze on Tempo (also NaN-safe)
+    const total = Math.ceil(remainingS); // show whole seconds remaining
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return m + ":" + String(s).padStart(2, "0");
+  }
+  // Agility counts UP in SS.hh hundredths and CONTINUES past the operator-typed SCT
+  // into overtime (D-05 / TMR-03) — plain count-up, no color/verdict interpretation.
+  function formatAgility(elapsedS) {
+    const e = elapsedS > 0 ? elapsedS : 0;
+    const whole = Math.floor(e);
+    const hundredths = Math.floor((e - whole) * 100);
+    return whole + "." + String(hundredths).padStart(2, "0");
+  }
+
+  // -------------------------------------------------------------------------
+  // The renderer instance: owns the timer state, the watchdog, and the poll loop.
+  // mount(root) wires it to the live DOM + bootstraps polling; the pure pieces above
+  // are reused so tests can drive them in isolation (node behavior test).
+  // -------------------------------------------------------------------------
+  function createRenderer(root, cfg) {
+    cfg = cfg || {};
+    const freestyleDurationS = Number(cfg.freestyleDurationS) || 120;
+
+    const lowerThird = root.querySelector("#lower-third");
+    const timerEl = root.querySelector("#timer");
+
+    // Freshness watchdog state — WR-02 cold-start: lastGen<0 is NOT stale.
+    let lastGen = -1;
+    let lastGenAt = Date.now();
+
+    // Latest payload-derived timer inputs (re-measured each poll).
+    let skew = 0; // server_now - Date.now()/1000, re-measured every poll (Pitfall 1)
+    let startedAt = null; // run start on the console wall clock
+    let running = false;
+    let discipline = "disc_tf";
+    let wasRunning = false;
+    let rafId = null;
+    let countdownPulsed = false; // ensure the end-of-countdown pulse fires exactly once
+
+    // isStale() — VERBATIM from console.html (lines 738-740). PRIMARY gen-age signal:
+    // TRUE once a gen WAS advancing and then stalled past STALE_MS; a COLD load
+    // (lastGen < 0) is NOT stale (never degrade the first paint).
+    function isStale() {
+      return lastGen >= 0 && Date.now() - lastGenAt > STALE_MS;
+    }
+
+    // Offset-cancellation elapsed (ARCHITECTURE (c) / Pitfall 1): count LOCALLY
+    // between polls, re-measuring skew each poll — NEVER raw Date.now()-started_at.
+    function currentElapsed() {
+      if (startedAt === null || startedAt === undefined) return 0;
+      return Date.now() / 1000 + skew - startedAt;
+    }
+
+    // Write the live timer cell IN PLACE (never node-rebuild — FOUC/flicker).
+    function paintTimer() {
+      if (!timerEl) return;
+      const elapsed = currentElapsed();
+      let text;
+      if (discipline === "agility") {
+        // count UP, continue past SCT into overtime (no freeze, no verdict).
+        text = formatAgility(elapsed);
+      } else {
+        // disc_tf / disc_freestyle count DOWN and freeze at 0 on "Tempo".
+        const total = discipline === "disc_freestyle" ? freestyleDurationS : DISC_TF_COUNTDOWN_S;
+        const remaining = total - elapsed;
+        text = formatCountdown(remaining);
+        // ONE pulse at the 0 crossing (D-04 trigger #2), then freeze.
+        if (remaining <= 0 && !countdownPulsed) {
+          countdownPulsed = true;
+          pulseOnce(lowerThird);
+        }
+      }
+      if (timerEl.textContent !== text) timerEl.textContent = text; // textContent in place
+    }
+
+    // The rAF clock — advances the displayed elapsed locally between polls so it
+    // never SNAPS. STOPPED on run-stop and on stale (a frozen-but-ticking timer is
+    // the worst broadcast failure — Pitfall 4). Re-anchored cleanly on a fresh gen.
+    function tick() {
+      // Stop conditions: not running, or stale data (degrade). Freeze the displayed
+      // value — do NOT free-run forever past a dead source.
+      if (!running || isStale()) {
+        applyStale(isStale());
+        rafId = null; // stop the loop; restarted by startTimer() on a fresh running gen
+        return;
+      }
+      paintTimer();
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function startTimer() {
+      if (rafId === null) rafId = requestAnimationFrame(tick);
+    }
+    function stopTimer() {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    // OVD-03 degrade: a stale source dims the lower-third via the 11-02 .is-stale
+    // class so a frozen overlay reads as "not live" rather than a confident lie.
+    function applyStale(stale) {
+      if (!lowerThird) return;
+      if (stale) lowerThird.classList.add("is-stale");
+      else lowerThird.classList.remove("is-stale");
+    }
+
+    // Consume one /overlay-json payload: re-measure skew, render the DOM cells +
+    // identity, fire the score-change pulse, drive the run-edge animation, and
+    // (re)anchor the rAF timer.
+    function applyPayload(p) {
+      // Re-measure skew EVERY poll (offset-cancellation — Pitfall 1).
+      if (typeof p.server_now === "number") {
+        skew = p.server_now - Date.now() / 1000;
+      }
+      startedAt = p.started_at;
+      discipline = p.discipline || "disc_tf";
+      const nextRunning = !!p.running;
+
+      // DOM render (Task 1 pieces) — returns whether a score value changed.
+      const res = renderOverlay(root, p);
+
+      // Run-edge animation (enter/exit). Reset the once-per-run countdown pulse on a
+      // fresh run start so the next end-of-countdown pulses again.
+      if (nextRunning && !wasRunning) countdownPulsed = false;
+      animateRunEdge(lowerThird, wasRunning, nextRunning);
+
+      // Single pulse on a score-VALUE change (D-04 trigger #1) — only while shown.
+      if (res.scoreChanged && nextRunning) pulseOnce(lowerThird);
+
+      running = nextRunning;
+      wasRunning = nextRunning;
+
+      applyStale(false); // a fresh gen clears any prior degrade
+      if (running) startTimer();
+      else {
+        stopTimer();
+        paintTimer(); // freeze the displayed value at the stop point
+      }
+    }
+
+    // Poll /overlay-json with a ?t=<lastGen> nonce (load-bearing in CEF — Pitfall 2)
+    // and re-render ONLY on a gen advance (p.gen > lastGen). A fetch error COASTS —
+    // never throws out of the loop; the watchdog will degrade on its own once stale.
+    async function poll() {
+      try {
+        const r = await fetch("/overlay-json?t=" + lastGen, { cache: "no-store" });
+        const p = await r.json();
+        if (p.gen > lastGen) {
+          // gen-strictly-advances gate
+          lastGen = p.gen;
+          lastGenAt = Date.now();
+          applyPayload(p);
+        }
+      } catch (e) {
+        /* coast — a poll error never breaks the page; the watchdog handles stale */
+      }
+      // Even with no gen advance, keep the timer honest: stop + degrade if stale.
+      if (isStale()) {
+        stopTimer();
+        applyStale(true);
+      }
+    }
+
+    let pollHandle = null;
+    function start() {
+      poll(); // immediate first paint attempt
+      pollHandle = setInterval(poll, PUBLISH_MS); // publish cadence — NOT 60fps (DoS guard)
+    }
+    function stop() {
+      if (pollHandle !== null) {
+        clearInterval(pollHandle);
+        pollHandle = null;
+      }
+      stopTimer();
+    }
+
+    return { start, stop, applyPayload, isStale, currentElapsed, paintTimer, _state: () => ({ lastGen, lastGenAt, skew, running }) };
+  }
+
+  // Auto-mount on the document when loaded as a page script (the 11-02 bootstrap
+  // references window.OVERLAY_CFG). Guarded so the node behavior test (which imports
+  // the module without a DOM) does not try to touch document.
+  function autoMount() {
+    if (typeof document === "undefined") return null;
+    const cfg = (typeof window !== "undefined" && window.OVERLAY_CFG) || {};
+    const renderer = createRenderer(document, cfg);
+    renderer.start();
+    return renderer;
+  }
+
   // Export the pure render primitives for the timer/poll layer and for tests
   // (node executes this file and reads SEGUGIO_OVERLAY). No global leakage beyond
   // this single namespace object.
@@ -223,9 +437,24 @@
     renderIdentity,
     animateRunEdge,
     pulseOnce,
+    formatCountdown,
+    formatAgility,
+    createRenderer,
+    PUBLISH_MS,
+    STALE_MS,
     SCV_MAX_FIELD_LEN,
     DISCIPLINE_CELLS,
   };
   if (typeof window !== "undefined") window.SEGUGIO_OVERLAY = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
+
+  // Boot the live renderer when loaded as a page script (skipped under node/tests:
+  // autoMount no-ops without a document). Defer until the DOM contract exists.
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", autoMount);
+    } else {
+      autoMount();
+    }
+  }
 })();

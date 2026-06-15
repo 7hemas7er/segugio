@@ -199,9 +199,29 @@
     /* Degraded state on stale data (OVD-03 client half — the renderer sets this when isStale()).
        A subtle dim so a frozen overlay reads as "not live" rather than a confident lie. No motion. */
     .lower-third.is-stale { opacity: 0.55; filter: grayscale(0.4); }
+
+    /* ============================================================================
+       PREVIEW FORK (SCV-02 / D-03/D-04). PURELY COSMETIC — keyed on the `body.preview`
+       class the server threads via `/overlay?preview=1`. Bare `/overlay` (no class) is
+       byte-identical to the OBS browser-source page; this is the SAME renderer at the SAME
+       URL, differing only by these three rules. The console preview iframe sets the flag so
+       the operator can judge the lower-third against a neutral backdrop without a run edge.
+       ============================================================================ */
+    /* (1) Neutral mid-gray backdrop (between the plate #14161a and white) so the operator can
+       judge plate transparency. Overrides the default transparent contract ONLY under preview;
+       higher specificity (class > type) beats `html, body { background: transparent }`. */
+    body.preview { background: #6b6f76 !important; }
+    /* (2) Force-visible at rest: the lower-third is opacity:0 by default (entrance reveals it on a
+       run edge). Under preview there is no run, so force it shown so the operator always sees it. */
+    body.preview #lower-third { opacity: 1 !important; }
+    /* (3) Suppress ONLY the run-edge slide animations so the plate sits still for inspection.
+       Scoped to .is-entering/.is-exiting ONLY — NOT the whole #lower-third — so .pulse-once still
+       fires (on-air-faithful score-change feedback) and .is-stale degrade logic is untouched (D-04). */
+    body.preview #lower-third.is-entering,
+    body.preview #lower-third.is-exiting { animation: none !important; }
   </style>
 </head>
-<body>
+<body class="{{ 'preview' if preview else '' }}">
   <!-- ============================================================================
        DOM CONTRACT (consumed by /static/overlay-render.js in plan 11-03 and by Phase 12's
        console-preview iframe). Stable ids/classes — the renderer fills these via textContent:

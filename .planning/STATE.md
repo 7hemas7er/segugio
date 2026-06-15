@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-06-15T22:42:00Z"
-last_activity: 2026-06-15 -- Completed Phase 12 plan 03 (console iframe rewrite + gsd:scv01-mirror deletion) — Phase 12 complete
+stopped_at: Phase 12 implemented (3/3 plans) — verification human_needed, awaiting UAT
+last_updated: "2026-06-16T00:00:00Z"
+last_activity: 2026-06-16 -- Phase 12 executed (3/3 plans), verified 3/3 automated must-haves; VERIFICATION.md=human_needed, UAT created — awaiting /gsd-verify-work
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 2
   total_plans: 10
   completed_plans: 10
-  percent: 59
+  percent: 40
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 
 ## Current Position
 
-Phase: 12 (scv-01-unification) — COMPLETE (all 3 plans done)
+Phase: 12 (scv-01-unification) — IMPLEMENTED (3/3 plans), awaiting human UAT
 Plan: 3 of 3 (complete)
-Status: Phase 12 complete (12-01, 12-02, 12-03 done) — SCV-02 closed; ready for verify-work, then Phase 13
-Last activity: 2026-06-15 -- Completed Phase 12 plan 03 (console iframe rewrite + gsd:scv01-mirror deletion)
+Status: Phase 12 implemented & auto-verified (3/3 must-haves); VERIFICATION.md=human_needed (2 visual UAT items) — run /gsd-verify-work 12 to sign off SCV-02, then Phase 13
+Last activity: 2026-06-16 -- Phase 12 executed + verified (automated 3/3); UAT pending
 
 ## Performance Metrics
 

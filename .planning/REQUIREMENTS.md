@@ -29,7 +29,7 @@
 
 ### Score Preview Unification (SCV)
 
-- [x] **SCV-02**: La **preview punteggio della console riusa lo stesso renderer `/overlay`** (iframe), ritirando il mirror JS byte-exact di Python + il drift-guard `POST /score/preview` — il drift console↔OBS diventa strutturalmente impossibile
+- [ ] **SCV-02**: La **preview punteggio della console riusa lo stesso renderer `/overlay`** (iframe), ritirando il mirror JS byte-exact di Python + il drift-guard `POST /score/preview` — il drift console↔OBS diventa strutturalmente impossibile
 
 ### Branding & Identity (BRD)
 
@@ -98,7 +98,7 @@ Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/
 | OVD-01 | Phase 10 | Complete |
 | OVD-02 | Phase 10 | Complete |
 | OVD-03 | Phase 11 | Complete (10-03/10-04 server contract; 11-03 client half — gen-age watchdog stops timer + .is-stale degrade) |
-| SCV-02 | Phase 12 | Complete |
+| SCV-02 | Phase 12 | Awaiting UAT (12-VERIFICATION.md human_needed; 3/3 automated must-haves verified) |
 | BRD-01 | Phase 11 | Complete (11-01 config + 11-02 CSS-var theme + logo bug rendered) |
 | BRD-02 | Phase 11 | Complete (11-03 identity competitor from verbatim nome across all disciplines + static event) |
 | SCN-01 | Phase 13 | Pending |

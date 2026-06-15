@@ -40,7 +40,7 @@
 - [x] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified (completed 2026-06-14)
 - [x] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
  (completed 2026-06-15)
-- [x] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
+- [ ] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
 - [ ] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated
 - [ ] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped
 

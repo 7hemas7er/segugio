@@ -40,7 +40,7 @@
 - [x] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified (completed 2026-06-14)
 - [x] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
  (completed 2026-06-15)
-- [ ] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
+- [x] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
 - [ ] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated
 - [ ] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped
 
@@ -117,7 +117,7 @@
 **Wave 2** *(blocked on Wave 1)*
 
 - [x] 12-02-PLAN.md — Server `preview=1` flag (get_overlay body-class) + overlay.html force-visible/backdrop CSS + DELETE POST /score/preview (D-03/D-04/D-05, RBT-07)
-- [ ] 12-03-PLAN.md — console.html: replace preview div with `<iframe src="/overlay?preview=1">` + on-air label; delete the gsd:scv01-mirror block + all wiring (D-01/D-02/D-05)
+- [x] 12-03-PLAN.md — console.html: replace preview div with `<iframe src="/overlay?preview=1">` + on-air label; delete the gsd:scv01-mirror block + all wiring (D-01/D-02/D-05)
 
 **UI hint**: yes
 

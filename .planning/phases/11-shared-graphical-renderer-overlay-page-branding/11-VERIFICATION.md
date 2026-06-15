@@ -1,8 +1,9 @@
 ---
 phase: 11-shared-graphical-renderer-overlay-page-branding
 verified: 2026-06-14T00:00:00Z
-status: human_needed
-score: 5/5 must-haves verified (4 fully confirmed; 1 confirmed with a known config-boundary injection gap per code review)
+status: passed
+resolved: 2026-06-15 — all 4 human-verification items passed in 11-UAT.md (UAT 4/4); CR-01 accepted as a config-boundary risk and recorded in 11-SECURITY.md (threats_open 0)
+score: 5/5 must-haves verified (human items confirmed via UAT 2026-06-15)
 overrides_applied: 0
 gaps: []
 human_verification:

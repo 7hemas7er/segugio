@@ -116,7 +116,7 @@
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 12-02-PLAN.md — Server `preview=1` flag (get_overlay body-class) + overlay.html force-visible/backdrop CSS + DELETE POST /score/preview (D-03/D-04/D-05, RBT-07)
+- [x] 12-02-PLAN.md — Server `preview=1` flag (get_overlay body-class) + overlay.html force-visible/backdrop CSS + DELETE POST /score/preview (D-03/D-04/D-05, RBT-07)
 - [ ] 12-03-PLAN.md — console.html: replace preview div with `<iframe src="/overlay?preview=1">` + on-air label; delete the gsd:scv01-mirror block + all wiring (D-01/D-02/D-05)
 
 **UI hint**: yes
@@ -166,6 +166,6 @@
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete    | 2026-06-14 |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
-| 12. SCV-01 Unification | v1.2 | 1/3 | In Progress | - |
+| 12. SCV-01 Unification | v1.2 | 2/3 | In Progress | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-06-15T22:27:30Z"
-last_activity: 2026-06-15 -- Completed Phase 12 plan 01 (SCV-01 unification test contract)
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-06-15T22:34:28Z"
+last_activity: 2026-06-15 -- Completed Phase 12 plan 02 (server overlay preview flag + /score/preview removal)
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
-  percent: 47
+  completed_plans: 9
+  percent: 53
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 ## Current Position
 
 Phase: 12 (scv-01-unification) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 12 (12-01 complete)
-Last activity: 2026-06-15 -- Completed Phase 12 plan 01 (SCV-01 unification test contract)
+Plan: 3 of 3
+Status: Executing Phase 12 (12-01, 12-02 complete)
+Last activity: 2026-06-15 -- Completed Phase 12 plan 02 (server overlay preview flag + /score/preview removal)
 
 ## Performance Metrics
 
@@ -105,6 +105,7 @@ Last activity: 2026-06-15 -- Completed Phase 12 plan 01 (SCV-01 unification test
 | Phase 11 P02 | 3min | 2 tasks | 2 files |
 | Phase 11 P03 | 4min | 2 tasks | 2 files |
 | Phase 12 P01 | 3min | 2 tasks | 4 files |
+| Phase 12 P02 | 6min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -201,6 +202,7 @@ Recent decisions affecting current work:
 - [Phase 11 / 11-01]: OverlayParams grown additively with the branding config (BRD-01/BRD-02) — event_name (D-08, "" → identity line hides), logo_path (D-07, "" → no logo), and three FLAT str CSS-var theme colors (D-06) defaulting to the console palette #34D399/#14161a/#E6E9EF. Plain str (NOT hex-validated) so any CSS color token is accepted; all defaulted so a config without overlay keys still validates under the fail-fast SystemExit(2) loader. `nome` stays a verbatim ScoreDoc.fields key → BRD-02 with zero data-model change. STATIC config: NOT in /overlay-json (D-07). GET /overlay added inside create_app — a thin host page that render_templates overlay.html (ships 11-02) with overlay_cfg as plain render args + Cache-Control: no-store. create_app signature grew to create_app(channel_dir, cam_ids=(), overlay_cfg=None); a partial overlay_cfg folds over _OVERLAY_CFG_DEFAULTS (a plain console-palette dict in app.py, NOT imported from config). Entrypoint resolves overlay_cfg lazily from cfg.overlay.* (SEGUGIO_CONFIG) with per-field env overrides SEGUGIO_OVERLAY_EVENT/LOGO/ACCENT/PLATE/TEXT — no config import at module top (crash-isolation held). RBT-07 gate extended: test_console_resolves_with_heavy_stack_and_numpy_absent asserts /overlay registered + create_app builds under the heavy-absent block; the full 200+no-store assertion is GATED to once templates/overlay.html exists (11-02 owns it). /overlay-json payload shape unchanged. OVL-01/BRD-01/BRD-02 backend complete.
 - [Phase 11 / 11-02]: Transparent /overlay HOST PAGE + DOM/CSS contract shipped (templates/overlay.html, the front half of OVL-01..04 + BRD-01/02). Single self-contained <!DOCTYPE html>, ALL critical CSS inlined (mirrors console.html, FOUC-free P5). Transparency contract first: html,body { background: transparent !important } + .lower-third { opacity: 0 } start-hidden (a delayed first paint shows NOTHING, never a white box). CSS-var theme --accent/--plate/--text injected via Jinja default(x, true) (console palette fallback). Title-safe lower-third (D-01/D-02/OVL-03): position:fixed bottom-left, left accent-bar + color-mix-scrim dark plate, max-height:18vh (band capped, action area clear). DOM CONTRACT (11-03 fills via textContent, Phase 12 iframes the same page): #lower-third (theme vars + anim state classes), #identity ({competitor}·{event}, event half Jinja-seeded), #timer (big leading clock, tabular-nums min-width 4.5ch for SS.hh/M:SS, rAF textContent), #cells (per-discipline .cell container the renderer rebuilds), #logo-bug (conditional {% if logo_path %}, bottom-right, autoescaped src). Event-only @keyframes enter/exit/pulse — transform/opacity ONLY, every animation runs once (zero loops, OVL-04); ONE pulse primitive for score-change AND end-of-countdown (D-04); .is-stale degrade hook for 11-03's OVD-03 client-half. <script src=/static/overlay-render.js> + window.OVERLAY_CFG.freestyleDurationS bootstrap — NO score/run data baked in (polls /overlay-json, never reloads on a score change). FONT = system stack (system-ui, -apple-system, sans-serif), same as console.html → no woff2, no FOUC, no fonts.ready reveal gate needed (Phase 12 iframe matches by construction). tests/test_ui_overlay_page.py = 12 served-HTML assertions (transparency, opacity:0 start-hidden, INJECTED theme colors not defaults, DOM ids, logo present-with-path/absent-without, script src, no-store, title-safe band-cap + no top/full-width strip, events-only keyframes no infinite, no innerHTML config sink, event_name autoescaped). Rule-1 fix: reworded template comments (banner/infinite) so the natural substring-grep invariant asserts stay robust. The 11-01 gated /overlay 200+no-store assertion auto-activated (template now exists) and stays green. OVL-01..04 + BRD-01/02 front-half complete; 11-03 wires the renderer.
 - [Phase 12 / 12-01]: Wave-0 SCV-01 unification test contract — NEW tests/test_ui_scv_unification.py with 4 structural assertions (served console embeds `<iframe src="/overlay?preview=1">` + D-02 "come va in onda"/"ON AIR" copy; every deleted mirror identifier ABSENT via a single _MIRROR_SYMBOLS_GONE tuple — mirrorOverlayText/updateScorePreview/scheduleScorePreview/scvCurrentFields/driftCheck/setDrift/gsd:scv01-mirror/#drift-warning/#overlay-preview//score/preview, Pitfall 1; surviving post("/score")+run-buttons+showFields intact; POST /score/preview → 404/405), all xfail(strict=False) RED-by-design until 12-02/12-03. test_value_crosscheck (D-07, NOT xfail) runs the served FROZEN renderer's scvGet in node vs Python score_render._get per discipline — control-char dropped ("7\x00"→"7"), 64-cap ("x"*80→"x"*64), UTF-8 café preserved (the _run_node UTF-8 decode is load-bearing), agility sct/SCT first-present alias resolved ("45") — PASSES immediately (Phase-11 byte-parity holds). _serve_preview() + 4 preview=1 page tests (body.preview class, shared 4 DOM ids+renderer script, body.preview #lower-third{opacity:1} force-visible, 200+no-store) xfail until 12-02. DELETED tests/test_score_preview.py (route removed in 12-02, D-05; byte-refs subsumed by the cross-check). Three tests XPASS today (surviving-wiring + shared-DOM + no-store already hold) — strict=False keeps the run green (no XPASS-fail mid-wave, the plan's explicit guidance). Phase-12 quick run + full collection exit 0; test-only, zero runtime surface, crash-isolation untouched. SCV-02 stays Pending (implementation lands 12-02/12-03).
+- [Phase 12 / 12-02]: SCV-02 server-side fork landed — get_overlay() reads a CLOSED boolean `preview = request.args.get("preview") == "1"` (no new import; RBT-07 crash-isolation green) threaded as a SEPARATE render_template kwarg (NOT folded into overlay_cfg — presentational state vs static branding), turning into `<body class="{{ 'preview' if preview else '' }}">` so bare /overlay is byte-identical to the OBS page. Three preview-only CSS rules keyed on body.preview: neutral #6b6f76 backdrop (between plate #14161a and white, so the operator judges plate transparency; class>type specificity beats the html,body transparent !important contract under preview only), `body.preview #lower-third { opacity: 1 }` force-visible, and `animation: none` scoped to `.is-entering`/`.is-exiting` ONLY so `.pulse-once` (score-change feedback) still fires and `.is-stale` degrade is untouched (D-04 achieved in CSS — overlay-render.js byte-unchanged). DELETED the now-callerless `POST /score/preview` drift-guard route (D-05; one fewer LAN POST surface — caller `driftCheck` removed in 12-03); `render_overlay_text`/score_render.py untouched (D-06). No preview placeholder content (resting timer/fields are correct-by-construction — a content fork would defeat SCV-02). The 12-01 RED preview=1 page tests + test_score_preview_route_removed flipped to PASS; Phase-12 graded suites exit 0. Pre-existing ultralytics-absent fan_out test failures (CPU-only venv) logged to deferred-items.md, out of scope. SCV-02 implementation half done; 12-03 (console iframe embed + mirror-block delete) closes it.
 - [Phase 11 / 11-03]: The ONE shared renderer shipped — src/segugio/ui/static/overlay-render.js (auto-served at /static/overlay-render.js by Flask's default static folder), the back half of OVL-02/04 + TMR-01..04 + BRD-02 + OVD-03 client-half. Sanitize mirror cleanField/scvGet ported VERBATIM from console.html gsd:scv01-mirror (SCV_MAX_FIELD_LEN 64, SCV_NONPRINT Unicode-property regex, sct/SCT first-present alias) → byte-exact with Python score_render._clean/_get. Per-discipline DOM via DISCIPLINE_CELLS (disc_tf prese/zona/totale; freestyle Timer; agility SCT(alias)/faults — SCT a STATIC reference cell, no verdict/color D-05); EVERY operator value written el.textContent = cleanField(v), NEVER innerHTML (T-11-03-01 HIGH sink closed), updated IN PLACE (FOUC). Identity (D-08/BRD-02): competitor = verbatim scvGet(fields,'nome') for ALL disciplines + static event from #identity[data-event] (NOT /overlay-json); empty halves hide via :empty. Event-only animations (OVL-04): animateRunEdge enter/exit on run edges, pulseOnce single pulse on score-value change AND end-of-countdown (one-shot via remove→reflow→re-add); no perpetual motion. OFFSET-CANCELLATION TIMER (TMR-04, the one genuinely new behavior): skew = server_now - Date.now()/1000 re-measured each poll, elapsed = Date.now()/1000 + skew - started_at advanced LOCALLY on requestAnimationFrame between polls (never snaps, never raw cross-machine subtraction). Per-discipline direction (TMR-02/03): disc_tf down from 60s, freestyle down from window.OVERLAY_CFG.freestyleDurationS, both M:SS freezing at 0 on the literal "Tempo" (formatCountdown); agility up in SS.hh continuing past SCT into overtime (formatAgility, no freeze/verdict). gen-age FRESHNESS WATCHDOG (OVD-03 client / Pitfall 4): PUBLISH_MS 200, STALE_MS x3, lastGen -1 cold-start guard, isStale() ported verbatim → on stale (or fetch reject) the rAF timer STOPS and .is-stale degrade applies (frozen-but-ticking is the worst broadcast failure); fresh gen re-anchors. Poll /overlay-json?t=<gen> nonce (load-bearing CEF) at PUBLISH_MS cadence gated on p.gen>lastGen; fetch errors coast. Pure client-side ES2020, no build/imports/package install, zero director compute, zero new Python dep; dual-export window.SEGUGIO_OVERLAY + module.exports, auto-mounts on DOMContentLoaded (no-op under node). tests/test_ui_overlay_render.py = 11 served-JS + node-executed behavior assertions (cleanField byte-parity vs _clean; ~30s skew near-0 error; freeze-at-0/Tempo; agility overtime; no innerHTML sink). Rule-3 fix: decode node subprocess stdout as UTF-8 (Windows cp1252 mangled café in byte-parity). OVL-02/04 + TMR-01..04 + BRD-02 + OVD-03 client-half COMPLETE — Phase 11 done.
 
 ### Pending Todos
@@ -243,10 +245,10 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-15T22:27:30Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-06-15T22:34:28Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
 
-- Phase 12 plan 01 (Wave-0 test contract) complete — execute 12-02 (server: thread ?preview=1 body.preview flag + force-visible CSS, remove POST /score/preview) then 12-03 (console: embed the /overlay?preview=1 iframe, delete the gsd:scv01-mirror block + every mirror/drift symbol); each lands flips the xfail structural/page tests to PASS
+- Phase 12 plans 01 (Wave-0 test contract) + 02 (server: ?preview=1 body.preview flag + force-visible CSS, POST /score/preview removed) complete — execute 12-03 (console: embed the `<iframe src="/overlay?preview=1">`, delete the gsd:scv01-mirror block + every mirror/drift symbol: mirrorOverlayText/updateScorePreview/scheduleScorePreview/scvCurrentFields/driftCheck/setDrift/#drift-warning/#overlay-preview) to flip the remaining xfail structural tests in test_ui_scv_unification.py to PASS and close SCV-02

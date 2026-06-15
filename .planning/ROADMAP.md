@@ -112,7 +112,7 @@
 
 **Wave 1**
 
-- [ ] 12-01-PLAN.md — Wave 0: structural unification test + value cross-check (node JS vs render_overlay_text) + delete test_score_preview.py (D-05/D-07)
+- [x] 12-01-PLAN.md — Wave 0: structural unification test + value cross-check (node JS vs render_overlay_text) + delete test_score_preview.py (D-05/D-07)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -166,6 +166,6 @@
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete    | 2026-06-14 |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
-| 12. SCV-01 Unification | v1.2 | 0/3 | Planned | - |
+| 12. SCV-01 Unification | v1.2 | 1/3 | In Progress | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

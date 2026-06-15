@@ -176,20 +176,14 @@ def _serve_preview(overlay_cfg=None):
     return resp.get_data(as_text=True), resp
 
 
-@pytest.mark.xfail(reason="12-02 threads the ?preview=1 body.preview flag", strict=False)
 def test_preview_flag_threads_body_class() -> None:
     """``?preview=1`` threads a ``body.preview`` class; bare ``/overlay`` does NOT (D-02)."""
     preview_html, _ = _serve_preview()
     bare_html, _ = _serve(_CFG)
-    assert "preview" in preview_html
-    assert "body.preview" in preview_html or 'class="preview"' in preview_html
-    # The broadcast page must NOT carry the preview class (it animates on run edges).
-    assert "body.preview" not in bare_html and 'class="preview"' not in bare_html
+    assert 'class="preview"' in preview_html      # preview fork carries the body class
+    assert 'class="preview"' not in bare_html      # broadcast page does NOT (it animates on run edges)
 
 
-@pytest.mark.xfail(
-    reason="12-02 serves the preview flavour of the same /overlay page", strict=False
-)
 def test_preview_shares_dom_and_script() -> None:
     """preview=1 and bare /overlay share the four DOM ids + the renderer script.
 
@@ -210,9 +204,6 @@ def test_preview_shares_dom_and_script() -> None:
         assert needle in bare_html, f"broadcast page missing shared contract: {needle}"
 
 
-@pytest.mark.xfail(
-    reason="12-02 adds the body.preview force-visible CSS rule", strict=False
-)
 def test_preview_force_visible_rule_present() -> None:
     """The preview flavour force-shows the lower-third (no run edge needed in the console).
 
@@ -224,9 +215,6 @@ def test_preview_force_visible_rule_present() -> None:
     assert "opacity: 1" in preview_html
 
 
-@pytest.mark.xfail(
-    reason="12-02 keeps the no-store discipline on the preview flavour", strict=False
-)
 def test_preview_no_store() -> None:
     """``GET /overlay?preview=1`` returns 200 with the ``Cache-Control: no-store`` discipline."""
     _, resp = _serve_preview()

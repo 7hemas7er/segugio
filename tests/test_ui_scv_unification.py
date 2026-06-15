@@ -59,9 +59,6 @@ def _serve_console():
     return resp.get_data(as_text=True)
 
 
-@pytest.mark.xfail(
-    reason="12-03 lands the iframe embed + D-02 on-air label copy", strict=False
-)
 def test_console_embeds_overlay_iframe():
     """The console preview is an IFRAME of the one /overlay route (drift impossible).
 
@@ -75,10 +72,6 @@ def test_console_embeds_overlay_iframe():
     assert "ON AIR" in html
 
 
-@pytest.mark.xfail(
-    reason="12-03 deletes the gsd:scv01-mirror block + every mirror/drift symbol",
-    strict=False,
-)
 def test_mirror_symbols_gone():
     """Every byte-exact Python↔JS mirror identifier is ABSENT from the served console.
 
@@ -92,10 +85,6 @@ def test_mirror_symbols_gone():
         assert symbol not in html, f"deleted mirror symbol still present: {symbol!r}"
 
 
-@pytest.mark.xfail(
-    reason="12-03 rewrites console.html — surviving wiring must remain after the deletion",
-    strict=False,
-)
 def test_surviving_console_wiring_intact():
     """Load-bearing console wiring survives the mirror deletion (no over-deletion).
 
@@ -110,9 +99,6 @@ def test_surviving_console_wiring_intact():
     assert "function showFields" in html
 
 
-@pytest.mark.xfail(
-    reason="12-02 removes the POST /score/preview route (D-05)", strict=False
-)
 def test_score_preview_route_removed():
     """``POST /score/preview`` is unregistered → 404 or 405 (D-05).
 

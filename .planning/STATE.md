@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: verifying
-stopped_at: Completed 11-03-PLAN.md (shared overlay-render.js — sanitize mirror + offset-cancellation timer + freshness watchdog). Phase 11 all 3 plans complete.
-last_updated: "2026-06-15T20:04:27.387Z"
+stopped_at: Phase 12 context gathered
+last_updated: "2026-06-15T20:29:21.879Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 5
@@ -241,9 +241,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-14T19:32:00.000Z
-Stopped at: Completed 11-03-PLAN.md (shared overlay-render.js — sanitize mirror + offset-cancellation timer + freshness watchdog). Phase 11 all 3 plans complete.
-Resume file: None — Phase 11 execution complete
+Last session: 2026-06-15T20:29:21.871Z
+Stopped at: Phase 12 context gathered
+Resume file: .planning/phases/12-scv-01-unification/12-CONTEXT.md
 
 ## Operator Next Steps
 

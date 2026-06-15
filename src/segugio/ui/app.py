@@ -213,30 +213,6 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None):
         _bump_score_gen()
         return ("", 204)
 
-    @app.post("/score/preview")
-    def post_score_preview():
-        # SCV-01 server-side drift-guard: return the EXACT render_overlay_text line for the posted
-        # ScoreDoc WITHOUT writing any channel file. The client-side JS overlay mirror asserts
-        # server === client against this endpoint on blur/submit (NEVER per keystroke — the route
-        # is pure, no IO, T-09-01-03). It mirrors post_score's input handling exactly so the
-        # rendered string matches what /score would write, but it touches NOTHING on disk.
-        form = request.form
-        # Same closed-Enum whitelist as /score (T-09-01-01) — unknown discipline → 400, nothing rendered.
-        raw_discipline = form.get("discipline", Discipline.disc_tf.value)
-        try:
-            discipline = Discipline(raw_discipline)
-        except ValueError:
-            return ("disciplina sconosciuta", 400)
-        # Same empty-drop filter as /score (WR-05) so the hidden fieldsets don't leak stray keys.
-        fields = {k: v for k, v in form.items() if k not in _NON_SCORE_KEYS and v.strip()}
-        doc = ScoreDoc(discipline=discipline, fields=fields)
-        # Pure render — NO write_score, NO atomic_write_text. This route never writes a channel file.
-        return (
-            render_overlay_text(doc),
-            200,
-            {"Content-Type": "text/plain; charset=utf-8"},
-        )
-
     @app.post("/run")
     def post_run():
         action = request.form.get("action", "")
@@ -314,7 +290,17 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None):
         # Only the STATIC branding (freestyle duration + event name + logo path + theme colors) is
         # injected as plain render args from overlay_cfg — resolved by the entrypoint like cam_ids,
         # NEVER `import segugio.config` (Pitfall 3 / crash-isolation). overlay.html ships in 11-02.
-        resp = make_response(render_template("overlay.html", **overlay_cfg))
+        #
+        # SCV-02 (D-03): `preview` is a purely COSMETIC flag the console iframe sets via
+        # `/overlay?preview=1`. It is a CLOSED boolean read off request.args (no new import, no heavy
+        # work — RBT-07 crash-isolation stays green) threaded as a SEPARATE render kwarg, NOT folded
+        # into overlay_cfg (presentational state, not static branding). The template turns it into a
+        # `body.preview` class that keys neutral-backdrop + force-visible CSS — the same renderer at
+        # the same URL, differing only by a cosmetic class, so drift is structurally impossible.
+        preview = request.args.get("preview") == "1"
+        resp = make_response(
+            render_template("overlay.html", preview=preview, **overlay_cfg)
+        )
         # Never cache the host page (the get_overlay_json / get_preview_jpg no-store precedent) —
         # a CEF browser-source must always re-fetch on refresh, never serve a stale shell.
         resp.headers["Cache-Control"] = "no-store"

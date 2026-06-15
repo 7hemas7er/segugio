@@ -152,8 +152,12 @@ def test_poll_nonce_and_gen_gate_present():
     js = _read_file_js()
     assert "/overlay-json" in js
     assert "?t=" in js  # the load-bearing CEF nonce (Pitfall 2)
+    # the nonce is PER-REQUEST unique (++reqSeq) so CEF's URL-keyed cache cannot
+    # serve a stale body between gen advances and mask the next gen bump.
+    assert "reqSeq" in js
+    assert '?t=" + (++reqSeq)' in js
     assert "lastGen" in js
-    assert "> lastGen" in js  # gen-strictly-advances gate
+    assert "> lastGen" in js  # gen-strictly-advances gate (unchanged)
 
 
 def test_freshness_watchdog_present():

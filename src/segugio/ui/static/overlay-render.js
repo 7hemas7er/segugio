@@ -272,6 +272,7 @@
     let wasRunning = false;
     let rafId = null;
     let countdownPulsed = false; // ensure the end-of-countdown pulse fires exactly once
+    let reqSeq = 0; // monotonic per-request poll counter — the CEF cache-buster nonce
 
     // isStale() — VERBATIM from console.html (lines 738-740). PRIMARY gen-age signal:
     // TRUE once a gen WAS advancing and then stalled past STALE_MS; a COLD load
@@ -376,12 +377,18 @@
       }
     }
 
-    // Poll /overlay-json with a ?t=<lastGen> nonce (load-bearing in CEF — Pitfall 2)
-    // and re-render ONLY on a gen advance (p.gen > lastGen). A fetch error COASTS —
-    // never throws out of the loop; the watchdog will degrade on its own once stale.
+    // Poll /overlay-json with a ?t=<++reqSeq> nonce that is UNIQUE PER REQUEST
+    // (load-bearing in CEF — Pitfall 2): OBS's embedded Chromium browser source
+    // ignores Cache-Control: no-store and caches by URL, so a per-gen ?t= repeats
+    // the same URL between gen advances and CEF serves a STALE cached body — masking
+    // the next gen bump and stalling the overlay (the live-stall bug). A per-request
+    // counter makes every poll URL distinct so CEF can never hide a gen advance.
+    // The gen-advance gate stays p.gen > lastGen below — ?t= is purely a cache-buster
+    // the server ignores, NOT the render gate. A fetch error COASTS — never throws out
+    // of the loop; the watchdog will degrade on its own once stale.
     async function poll() {
       try {
-        const r = await fetch("/overlay-json?t=" + lastGen, { cache: "no-store" });
+        const r = await fetch("/overlay-json?t=" + (++reqSeq), { cache: "no-store" });
         const p = await r.json();
         if (p.gen > lastGen) {
           // gen-strictly-advances gate

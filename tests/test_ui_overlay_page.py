@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import tempfile
 
+import pytest
+
 from segugio.ui.app import create_app
 
 # A fully-overridden, NON-default branding config so theme injection (not just the baked
@@ -152,3 +154,81 @@ def test_overlay_event_name_is_autoescaped() -> None:
     html, _ = _serve(cfg)
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html
+
+
+# ---------------------------------------------------------------------------
+# Phase-12 preview=1 page contract (plan 12-01, RED-by-design until 12-02)
+# ---------------------------------------------------------------------------
+#
+# SCV-01 unification (Phase 12): the console preview becomes an iframe of the ONE
+# ``/overlay`` route loaded with ``?preview=1``. The preview flavour is COSMETIC, not a
+# second renderer — it threads a ``body.preview`` class and a force-visible CSS rule so the
+# lower-third is always shown in the console (no run edge needed), while sharing the exact
+# same DOM ids + renderer script as the broadcast page. These assertions pin that contract;
+# 12-02 threads the flag + CSS, so they are ``xfail(strict=False)`` until then.
+
+
+def _serve_preview(overlay_cfg=None):
+    """Build an app and return (html, response) for ``GET /overlay?preview=1``."""
+    tmp = tempfile.mkdtemp()
+    app = create_app(tmp, cam_ids=["cam_wide"], overlay_cfg=overlay_cfg or _CFG)
+    resp = app.test_client().get("/overlay?preview=1")
+    return resp.get_data(as_text=True), resp
+
+
+@pytest.mark.xfail(reason="12-02 threads the ?preview=1 body.preview flag", strict=False)
+def test_preview_flag_threads_body_class() -> None:
+    """``?preview=1`` threads a ``body.preview`` class; bare ``/overlay`` does NOT (D-02)."""
+    preview_html, _ = _serve_preview()
+    bare_html, _ = _serve(_CFG)
+    assert "preview" in preview_html
+    assert "body.preview" in preview_html or 'class="preview"' in preview_html
+    # The broadcast page must NOT carry the preview class (it animates on run edges).
+    assert "body.preview" not in bare_html and 'class="preview"' not in bare_html
+
+
+@pytest.mark.xfail(
+    reason="12-02 serves the preview flavour of the same /overlay page", strict=False
+)
+def test_preview_shares_dom_and_script() -> None:
+    """preview=1 and bare /overlay share the four DOM ids + the renderer script.
+
+    Proves the preview fork is COSMETIC, not a second renderer: the console preview and the
+    OBS overlay render through the identical DOM + ``/static/overlay-render.js`` (the whole
+    point of the unification — drift is structurally impossible).
+    """
+    preview_html, _ = _serve_preview()
+    bare_html, _ = _serve(_CFG)
+    for needle in (
+        'id="lower-third"',
+        'id="identity"',
+        'id="timer"',
+        'id="cells"',
+        '<script src="/static/overlay-render.js">',
+    ):
+        assert needle in preview_html, f"preview page missing shared contract: {needle}"
+        assert needle in bare_html, f"broadcast page missing shared contract: {needle}"
+
+
+@pytest.mark.xfail(
+    reason="12-02 adds the body.preview force-visible CSS rule", strict=False
+)
+def test_preview_force_visible_rule_present() -> None:
+    """The preview flavour force-shows the lower-third (no run edge needed in the console).
+
+    ``body.preview #lower-third { opacity: 1 }`` overrides the broadcast start-hidden
+    ``opacity: 0`` so the operator always sees the overlay-as-it-airs in the console.
+    """
+    preview_html, _ = _serve_preview()
+    assert "body.preview #lower-third" in preview_html
+    assert "opacity: 1" in preview_html
+
+
+@pytest.mark.xfail(
+    reason="12-02 keeps the no-store discipline on the preview flavour", strict=False
+)
+def test_preview_no_store() -> None:
+    """``GET /overlay?preview=1`` returns 200 with the ``Cache-Control: no-store`` discipline."""
+    _, resp = _serve_preview()
+    assert resp.status_code == 200
+    assert resp.headers.get("Cache-Control") == "no-store"

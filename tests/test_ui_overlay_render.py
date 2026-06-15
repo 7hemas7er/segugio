@@ -132,6 +132,85 @@ def test_cleanfield_byte_parity_with_python_clean():
     assert js_results == py_results
 
 
+# The per-discipline (discipline → field key lists) the value cross-check compares.
+# These mirror render_overlay_text's _get key lists EXACTLY (incl. the sct/SCT alias),
+# expressed as the JS-side scvGet calls via DISCIPLINE_CELLS[discipline]. The cross-check
+# compares the sanitized VALUES the two renderers compute for these keys — NOT the
+# f-string layout (JS fills DOM cells, Python builds a line); the value is the shared
+# contract the Phase-12 iframe reuse depends on (D-07).
+_CROSSCHECK_PAYLOAD = [
+    # disc_tf: a control char (dropped), an over-64-char value (capped identically), plain.
+    {
+        "discipline": "disc_tf",
+        "fields": {"prese": "12", "zona": "x" * 80, "totale": "7\x00"},
+        "keys": {"prese": ["prese"], "zona": ["zona"], "totale": ["totale"]},
+    },
+    # disc_freestyle: a UTF-8 value (café preserved — the _run_node UTF-8 decode is load-bearing).
+    {
+        "discipline": "disc_freestyle",
+        "fields": {"nome": "café", "timer": "2:00"},
+        "keys": {"nome": ["nome"], "timer": ["timer"]},
+    },
+    # agility: the sct/SCT first-present alias resolves identically on both sides.
+    {
+        "discipline": "agility",
+        "fields": {"tempo": "31.4", "SCT": "45", "faults": "5"},
+        "keys": {"tempo": ["tempo"], "sct": ["sct", "SCT"], "faults": ["faults"]},
+    },
+]
+
+
+@_requires_node
+def test_value_crosscheck():
+    """D-07 VALUE cross-check: served scvGet == Python score_render._get per discipline.
+
+    The Phase-12 SCV-01 unification reuses the ONE ``/overlay`` renderer in the console
+    preview iframe, retiring the byte-exact Python↔JS mirror. This test is the safety
+    proof the reuse rests on: the served (FROZEN) renderer's ``scvGet`` and the UNCHANGED
+    Python ``render_overlay_text``'s ``_get`` must agree on the SANITIZED VALUE for every
+    field, across all three disciplines — incl. the agility ``sct``/``SCT`` first-present
+    alias, a control-char value (dropped), and an over-64-char value (capped). It compares
+    the value, NOT the f-string layout (JS fills DOM cells; Python builds a line).
+
+    It runs the frozen renderer against the unchanged Python renderer, so it PASSES
+    immediately (the Phase-11 byte-parity already holds) — it is NOT xfail.
+    """
+    js = _read_file_js()
+    # Node side: for each payload entry, compute scvGet(fields, *keys) for every key set.
+    driver = (
+        js
+        + "\nconst _m = module.exports;\n"
+        + "const _payload = " + json.dumps(_CROSSCHECK_PAYLOAD) + ";\n"
+        + """
+        const out = _payload.map(entry => {
+          const vals = {};
+          for (const [name, keys] of Object.entries(entry.keys)) {
+            vals[name] = _m.scvGet(entry.fields, ...keys);
+          }
+          return vals;
+        });
+        process.stdout.write(JSON.stringify(out));
+        """
+    )
+    js_results = json.loads(_run_node(driver))
+
+    # Python side: the SAME key lists through score_render._get over the same fields.
+    py_results = []
+    for entry in _CROSSCHECK_PAYLOAD:
+        vals = {
+            name: score_render._get(entry["fields"], *keys)
+            for name, keys in entry["keys"].items()
+        }
+        py_results.append(vals)
+
+    assert js_results == py_results
+    # Spot-assert the load-bearing cases explicitly so a regression names itself.
+    assert js_results[0]["totale"] == "7"          # control char dropped
+    assert js_results[0]["zona"] == "x" * 64       # capped at 64
+    assert js_results[1]["nome"] == "café"         # UTF-8 preserved
+    assert js_results[2]["sct"] == "45"            # sct/SCT alias resolved
+
+
 # ---------------------------------------------------------------------------
 # Task 2 — offset-cancellation timer + freshness watchdog + poll loop
 # ---------------------------------------------------------------------------

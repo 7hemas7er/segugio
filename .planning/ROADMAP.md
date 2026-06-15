@@ -38,7 +38,8 @@
 **Build order is dependency-forced:** data contract → renderer → SCV-01 unification → OBS wiring → live-robustness hardening. `server_now` (clock-skew anchor) must be in the contract from the first commit; the renderer can only be repointed/wired once it serves a live URL; cross-component degrade behavior can only be validated after the whole path is assembled.
 
 - [x] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified (completed 2026-06-14)
-- [x] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line (completed 2026-06-15)
+- [x] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
+ (completed 2026-06-15)
 - [ ] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
 - [ ] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated
 - [ ] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped
@@ -107,7 +108,17 @@
   2. The byte-exact `render_overlay_text` JS mirror block and the `POST /score/preview` drift-guard are retired (or `/score/preview` downgraded to a parity check for `overlay.txt` only); `render_overlay_text` (Python) survives unchanged as the `overlay.txt` fallback renderer
   3. A parity check confirms the console preview and the OBS-served overlay share the same template + `/overlay-json` shape, and the crash-isolation import test stays green
 
-**Plans**: TBD
+**Plans**: 3 plans (2 waves)
+
+**Wave 1**
+
+- [ ] 12-01-PLAN.md — Wave 0: structural unification test + value cross-check (node JS vs render_overlay_text) + delete test_score_preview.py (D-05/D-07)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 12-02-PLAN.md — Server `preview=1` flag (get_overlay body-class) + overlay.html force-visible/backdrop CSS + DELETE POST /score/preview (D-03/D-04/D-05, RBT-07)
+- [ ] 12-03-PLAN.md — console.html: replace preview div with `<iframe src="/overlay?preview=1">` + on-air label; delete the gsd:scv01-mirror block + all wiring (D-01/D-02/D-05)
+
 **UI hint**: yes
 
 ### Phase 13: OBS Scene Collection & Setup Docs
@@ -155,6 +166,6 @@
 | 9. Explainability, Informed Override & Tablet UX | v1.1 | 4/4 | Complete | 2026-06-13 |
 | 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete    | 2026-06-14 |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
-| 12. SCV-01 Unification | v1.2 | 0/TBD | Not started | - |
+| 12. SCV-01 Unification | v1.2 | 0/3 | Planned | - |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

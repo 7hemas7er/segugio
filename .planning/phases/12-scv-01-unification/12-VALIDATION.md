@@ -1,10 +1,11 @@
 ---
 phase: 12
 slug: scv-01-unification
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-15
+planned: 2026-06-15
 ---
 
 # Phase 12 — Validation Strategy
@@ -39,17 +40,17 @@ created: 2026-06-15
 
 ## Per-Task Verification Map
 
-> Task IDs are assigned by the planner; rows below seed the required test coverage per
-> requirement/decision. Each plan task must map to one of these test types.
+> Task IDs assigned by the planner (plan-task). Wave 0 = `12-01`; implementation = `12-02` (server+overlay) and `12-03` (console).
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD (planner) | — | 0 | SCV-02 | RBT-07 | console + `/overlay?preview=1` resolve with heavy stack (`torch`/`cv2`/`ultralytics`/`numpy`/`cyndilib`/`obsws`) absent — no module-top heavy import | import gate | `python -m pytest tests/test_imports.py -x` | ✅ keep green | ⬜ pending |
-| TBD (planner) | — | 0 | SCV-02 | — | `console.html` embeds `<iframe src="/overlay?preview=1">` + on-air label; mirror symbols (`mirrorOverlayText`/`updateScorePreview`/`scheduleScorePreview`/`scvCurrentFields`/`driftCheck`/`setDrift`/`gsd:scv01-mirror`/`#drift-warning`/`#overlay-preview`) and `/score/preview` string GONE | structural | `python -m pytest tests/test_ui_scv_unification.py -x` (new) | ❌ W0 | ⬜ pending |
-| TBD (planner) | — | 0 | D-05 | — | `POST /score/preview` returns 404/405 (route unregistered) | structural | `python -m pytest tests/test_ui_scv_unification.py -x` (new) | ❌ W0 | ⬜ pending |
-| TBD (planner) | — | 1 | SCV-02 | — | `/overlay?preview=1` returns 200 + `Cache-Control: no-store`; carries `body.preview` class; `/overlay` (no arg) does NOT; both share identical DOM ids (`#lower-third`/`#identity`/`#timer`/`#cells`) + `<script src="/static/overlay-render.js">` | structural | `python -m pytest tests/test_ui_overlay_page.py -x` | ✅ extend | ⬜ pending |
-| TBD (planner) | — | 1 | SCV-02 / D-07 | — | served `overlay-render.js` (node) vs Python `render_overlay_text`/`_clean` produce identical sanitized field VALUES per discipline (incl. `sct`/`SCT` alias, control-char + >64-char inputs) | value cross-check | `python -m pytest tests/test_ui_overlay_render.py::test_value_crosscheck -x` (new) | ✅ extend | ⬜ pending |
-| TBD (planner) | — | 1 | D-04 | — | under `preview=1` the lower-third is force-visible at rest (`body.preview #lower-third { opacity: 1 }`) AND the response-recency watchdog (`quick-260615-tsi`) does NOT add `.is-stale` while local poll answers instantly; poll nonce `++reqSeq` (`quick-260615-sod`) preserved | behavior (node fake-DOM, sandbox-first) | `python -m pytest tests/test_ui_overlay_render.py -x` | ✅ extend | ⬜ pending |
+| 12-02-T1 | 12-02 | 2 | SCV-02 | RBT-07 / T-12-02-01 | console + `/overlay?preview=1` resolve with heavy stack (`torch`/`cv2`/`ultralytics`/`numpy`/`cyndilib`/`obsws`) absent — no module-top heavy import; `preview` is a closed boolean | import gate | `python -m pytest tests/test_imports.py -x` | ✅ keep green | ⬜ pending |
+| 12-01-T1 | 12-01 | 0 | SCV-02 | — | `console.html` embeds `<iframe src="/overlay?preview=1">` + on-air label; mirror symbols (`mirrorOverlayText`/`updateScorePreview`/`scheduleScorePreview`/`scvCurrentFields`/`driftCheck`/`setDrift`/`gsd:scv01-mirror`/`#drift-warning`/`#overlay-preview`) and `/score/preview` string GONE | structural | `python -m pytest tests/test_ui_scv_unification.py -x` (new) | ❌ W0 (12-01 creates) | ⬜ pending |
+| 12-01-T1 | 12-01 | 0 | D-05 | T-12-02-03 | `POST /score/preview` returns 404/405 (route unregistered) | structural | `python -m pytest tests/test_ui_scv_unification.py -x` (new) | ❌ W0 (12-01 creates) | ⬜ pending |
+| 12-02-T2 | 12-02 | 2 | SCV-02 / D-03 | — | `/overlay?preview=1` returns 200 + `Cache-Control: no-store`; carries `body.preview` class; `/overlay` (no arg) does NOT; both share identical DOM ids (`#lower-third`/`#identity`/`#timer`/`#cells`) + `<script src="/static/overlay-render.js">` | structural | `python -m pytest tests/test_ui_overlay_page.py -x` | ✅ extend (12-01) | ⬜ pending |
+| 12-01-T2 | 12-01 | 0 | SCV-02 / D-07 | T-12-01 | served `overlay-render.js` (node) vs Python `render_overlay_text`/`_clean` produce identical sanitized field VALUES per discipline (incl. `sct`/`SCT` alias, control-char + >64-char inputs) | value cross-check | `python -m pytest tests/test_ui_overlay_render.py::test_value_crosscheck -x` (new) | ✅ extend (12-01) | ⬜ pending |
+| 12-02-T2 | 12-02 | 2 | D-04 | — | under `preview=1` the lower-third is force-visible at rest (`body.preview #lower-third { opacity: 1 }`) AND the response-recency watchdog (`quick-260615-tsi`) does NOT add `.is-stale` while local poll answers instantly; poll nonce `++reqSeq` (`quick-260615-sod`) preserved | behavior (node fake-DOM, sandbox-first) | `python -m pytest tests/test_ui_overlay_render.py -x` | ✅ extend (12-01) | ⬜ pending |
+| 12-03-T1/T2 | 12-03 | 2 | SCV-02 / D-01 / D-05 | T-12-03-01/03 | iframe embed live; mirror block + wiring deleted; surviving `post("/score")`/run/`showFields` wiring intact (Pitfall 1) | structural | `python -m pytest tests/test_ui_scv_unification.py -x` | ❌ W0 (12-01 creates) | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -57,10 +58,10 @@ created: 2026-06-15
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_ui_scv_unification.py` (new) — structural unification assertions: iframe embed + on-air label, mirror-symbols-gone, `/score/preview` → 404/405, `body.preview` class threading.
-- [ ] `tests/test_ui_overlay_render.py` — new `test_value_crosscheck` (node-executed served JS sanitized values vs `render_overlay_text`), built on the existing `cleanField`↔`_clean` `_run_node`/`module.exports` harness.
-- [ ] `tests/test_ui_overlay_page.py` — extend with `/overlay?preview=1` served-HTML assertions (no-store, preview class present/absent, shared DOM + script src).
-- [ ] DELETE `tests/test_score_preview.py` (route removed — its byte-exact reference strings are subsumed by the value cross-check; optional Python-only `render_overlay_text` layout guard may be added since `score_render.py` is unchanged per D-06).
+- [ ] `tests/test_ui_scv_unification.py` (new, 12-01-T1) — structural unification assertions: iframe embed + on-air label, mirror-symbols-gone, `/score/preview` → 404/405, `body.preview` class threading.
+- [ ] `tests/test_ui_overlay_render.py` (12-01-T2) — new `test_value_crosscheck` (node-executed served JS sanitized values vs `render_overlay_text`), built on the existing `cleanField`↔`_clean` `_run_node`/`module.exports` harness.
+- [ ] `tests/test_ui_overlay_page.py` (12-01-T2) — extend with `/overlay?preview=1` served-HTML assertions (no-store, preview class present/absent, shared DOM + script src, force-visible rule).
+- [ ] DELETE `tests/test_score_preview.py` (12-01-T1; route removed in 12-02 — its byte-exact reference strings are subsumed by the value cross-check; `score_render.py` unchanged per D-06).
 - [ ] No framework install needed (pytest + node already present).
 
 ---
@@ -77,11 +78,11 @@ created: 2026-06-15
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (new structural test + new value cross-check + test_score_preview.py deletion)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (new structural test + new value cross-check + test_score_preview.py deletion)
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** planned (3 plans, 2 waves) — 2026-06-15

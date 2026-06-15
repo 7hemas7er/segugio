@@ -1,8 +1,9 @@
 ---
 phase: 12-scv-01-unification
 verified: 2026-06-16T00:00:00Z
-status: human_needed
+status: passed
 score: 3/3 must-haves verified
+human_verification_result: passed (12-UAT.md — 2/2 passed 2026-06-16: visual 16:9 fidelity ✓, live score-update flow ✓)
 overrides_applied: 0
 human_verification:
   - test: "Open a browser to the console (or use create_app sandbox on an alt port). Confirm the 16:9 preview box renders the lower-third lower-third with the correct neutral backdrop (#6b6f76), the plate is visible, and the title-safe band placement looks correct."
@@ -17,7 +18,7 @@ human_verification:
 
 **Phase Goal:** The console's live score preview renders through the exact same `/overlay` route that OBS loads, making console↔OBS drift structurally impossible and retiring the hand-maintained byte-exact Python↔JS mirror and its `/score/preview` drift-guard.
 **Verified:** 2026-06-16T00:00:00Z
-**Status:** human_needed
+**Status:** passed (automated 3/3 + human UAT 2/2 on 2026-06-16)
 **Re-verification:** No — initial verification
 
 ## Goal Achievement

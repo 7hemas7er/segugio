@@ -32,12 +32,9 @@ from pathlib import Path
 import pytest
 
 from segugio.framing.signals import ScorerStatus
-from segugio.opcomm.records import Discipline, ScoreDoc
-from segugio.ui.score_render import render_overlay_text
 
 __all__ = [
     "test_reason_strings_italian",
-    "test_scv01_mirror_matches_render_overlay_text",
 ]
 
 
@@ -310,115 +307,16 @@ def test_bbox_data_wired_from_preview(client):
     assert ".tile.dead .bbox-overlay" in html or ".tile.stale .bbox-overlay" in html
 
 
-# --- SCV-01 client-side score-overlay mirror (JS-exercised byte parity) ------- #
-
-# (discipline, fields-dict) cases spanning all 3 disciplines + the sct/SCT alias + a value
-# with embedded control chars/over-length (exercises the cleanField/_clean parity).
-_PARITY_CASES = [
-    ("disc_tf", {"prese": "5", "zona": "3", "totale": "12"}),
-    ("disc_tf", {"prese": "7", "zona": "2", "totale": "9"}),
-    ("disc_freestyle", {"nome": "Rex & Anna", "timer": "01:30"}),
-    ("disc_freestyle", {"nome": "Fido", "timer": "02:00"}),
-    ("agility", {"tempo": "34.5", "sct": "40.0", "faults": "5"}),
-    ("agility", {"tempo": "31.2", "SCT": "38.0", "faults": "0"}),  # SCT alias (uppercase)
-    # sanitize parity: embedded CR/LF + control chars + leading/trailing spaces.
-    ("disc_freestyle", {"nome": "  Rex\r\nMalone\t  ", "timer": "01:00"}),
-    # length cap parity: a 100-char name must be capped to 64 on both sides.
-    ("disc_freestyle", {"nome": "x" * 100, "timer": "00:00"}),
-]
-
-
-def _py_render(discipline: str, fields: dict) -> str:
-    """The Python source of truth for one case."""
-    return render_overlay_text(ScoreDoc(discipline=Discipline(discipline), fields=fields))
-
-
-@requires_node
-def test_scv01_mirror_matches_render_overlay_text(client):
-    """The JS ``mirrorOverlayText`` (executed in node) is BYTE-IDENTICAL to Python ``render_overlay_text``.
-
-    The Wave-0 CI parity test: feed identical (discipline, fields) sets to both the imported
-    Python renderer and the JS mirror extracted from the served console.html, and assert the
-    outputs match char-for-char across all 3 disciplines — including the double spaces, the
-    sct/SCT alias, and the _clean/cleanField sanitize (CR/LF strip, trim, 64-char cap).
-    """
-    html = _html(client)
-    defs = _extract_block(html, "scv01-mirror")
-    # Build a JS array of mirrorOverlayText(discipline, fields) over every parity case.
-    calls = ",".join(
-        "mirrorOverlayText(%s, %s)" % (json.dumps(d), json.dumps(f))
-        for (d, f) in _PARITY_CASES
-    )
-    js_out = _run_node(defs, "[" + calls + "]")
-    py_out = [_py_render(d, f) for (d, f) in _PARITY_CASES]
-    assert js_out == py_out
-
-
-@requires_node
-def test_scv01_byte_reference_strings(client):
-    """The JS mirror reproduces the 09-01 canonical byte-reference strings exactly (double spaces)."""
-    html = _html(client)
-    defs = _extract_block(html, "scv01-mirror")
-    cases = [
-        ("disc_tf", {"prese": "7", "zona": "2", "totale": "9"}, "Prese: 7  Zona: 2  Totale: 9"),
-        ("disc_freestyle", {"nome": "Fido", "timer": "02:00"}, "Fido  Timer: 02:00"),
-        ("agility", {"tempo": "31.2", "sct": "38.0", "faults": "0"},
-         "Tempo: 31.2 / SCT: 38.0  Faults: 0"),
-    ]
-    calls = ",".join(
-        "mirrorOverlayText(%s, %s)" % (json.dumps(d), json.dumps(f)) for (d, f, _e) in cases
-    )
-    js_out = _run_node(defs, "[" + calls + "]")
-    assert js_out == [e for (_d, _f, e) in cases]
-
-
-@requires_node
-def test_scv01_cleanfield_mirrors_clean(client):
-    """``cleanField`` (executed in node) matches Python ``_clean``: drop CR/LF/control, trim, cap 64."""
-    html = _html(client)
-    defs = _extract_block(html, "scv01-mirror")
-    from segugio.ui.score_render import _clean
-
-    samples = [
-        "  hello  ",
-        "a\r\nb",
-        "tab\tinside",
-        "x" * 100,
-        "café ☕ é",
-        "\x00\x01control",
-        "",
-    ]
-    js_out = _run_node(
-        defs, "[" + ",".join(json.dumps(s) for s in samples) + "].map(cleanField)"
-    )
-    py_out = [_clean(s) for s in samples]
-    assert js_out == py_out
-
-
-def test_scv01_preview_no_orchestrator_roundtrip(client):
-    """The preview path has NO per-keystroke fetch and the drift endpoint is the Flask /score/preview."""
-    html = _html(client)
-    # The mirror + debounced preview writer exist.
-    assert "mirrorOverlayText" in html
-    assert "cleanField" in html
-    assert "updateScorePreview" in html
-    assert 'id="overlay-preview"' in html
-    assert "Anteprima overlay" in html
-    # Debounce 150-250ms (a setTimeout-based debounce; assert a value in range is referenced).
-    assert "setTimeout" in html
-    # Drift-guard targets the Flask /score/preview route ONCE on blur/submit — never an orchestrator URL.
-    assert "/score/preview" in html
-    assert "driftCheck" in html
-    # The drift warning copy is present.
-    assert "⚠ Anteprima non allineata — verifica" in html
-    # No localhost/orchestrator http(s) URL anywhere in the script (crash-isolation: Flask only).
-    assert "http://" not in html
-    assert "https://" not in html
-    # The `input` listener must update the preview but NOT fetch per keystroke: the only fetch in
-    # the preview path is inside driftCheck (blur/submit), never inside updateScorePreview.
-    m = re.search(r"function updateScorePreview\(\) \{.*?\n    \}\n", html, re.DOTALL)
-    assert m, "updateScorePreview not found"
-    assert "fetch(" not in m.group(0), "updateScorePreview must not fetch per keystroke"
+# --- SCV-02 unification note --------------------------------------------------- #
+# The Phase-9 SCV-01 byte-exact JS mirror (``mirrorOverlayText``/``cleanField`` + the
+# ``POST /score/preview`` drift-guard) was RETIRED in Phase 12 (plan 12-03): the console
+# preview is now an ``<iframe src="/overlay?preview=1">`` of the ONE ``/overlay`` renderer,
+# so console-vs-OBS drift is structurally impossible. The byte-parity that those deleted
+# tests enforced now lives in ``test_ui_overlay_render.py::test_value_crosscheck`` (the
+# frozen ``/static/overlay-render.js`` scvGet vs Python ``score_render._get``), and the
+# iframe-embed / mirror-symbols-gone structural contract lives in
+# ``test_ui_scv_unification.py``. The score-input touch contract below is unrelated to the
+# mirror and is kept.
 
 
 def test_scv01_score_inputs_touch_contract(client):

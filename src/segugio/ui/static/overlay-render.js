@@ -214,14 +214,20 @@
 
   // =========================================================================
   // TASK 2 — offset-cancellation timer + per-discipline direction/format +
-  // freeze-at-0/overtime + gen-age freshness watchdog + degrade + poll loop
-  // (TMR-01/02/03/04, OVD-03 client half). All client-side; zero director compute.
+  // freeze-at-0/overtime + response-recency freshness watchdog + degrade + poll
+  // loop (TMR-01/02/03/04, OVD-03 client half). All client-side; zero director
+  // compute.
   // =========================================================================
 
-  // Freshness constants — copied VERBATIM from console.html (lines 619-624). The
-  // gen-age watchdog + cold-start guard are PORTS of the v1.1 freshness watchdog.
+  // Freshness constants. The watchdog keys on CONSOLE RESPONSE RECENCY (the last
+  // successful /overlay-json poll), NOT on gen-age. `gen` is an edit/score counter
+  // that advances ONLY on /run and /score writes (locked Phase 10 contract — there
+  // is NO gen heartbeat), so it legitimately stays FLAT during a live run with no
+  // new score; it MUST NOT be the liveness signal. A live console answering polls
+  // is never stale even with a flat gen; a dead/unreachable console stops answering,
+  // so the last-response timestamp stops advancing and the overlay goes stale.
   const PUBLISH_MS = 200; // ~5 fps publish cadence
-  const STALE_MS = PUBLISH_MS * 3; // gen not advancing within ~2-3x → stale (OVD-03)
+  const STALE_MS = PUBLISH_MS * 3; // no successful poll within ~2-3x → stale (OVD-03)
 
   // The freeze-at-0 literal shown when a countdown reaches 0 (TMR-03 / D-04).
   const TEMPO_LITERAL = "Tempo";
@@ -260,9 +266,15 @@
     const lowerThird = root.querySelector("#lower-third");
     const timerEl = root.querySelector("#timer");
 
-    // Freshness watchdog state — WR-02 cold-start: lastGen<0 is NOT stale.
+    // Freshness watchdog state — response-recency. `everResponded` is the cold-start
+    // guard: before the first successful poll the overlay is NOT stale (never degrade
+    // the first paint). `lastResponseAt` advances on EVERY successful poll, so a live
+    // console keeps the overlay fresh even when `gen` is flat.
+    let lastResponseAt = Date.now();
+    let everResponded = false;
+    // `lastGen` still feeds the gen-advance RENDER gate (p.gen > lastGen) in poll()
+    // — it gates re-rendering on an actual edit/score change, NOT liveness.
     let lastGen = -1;
-    let lastGenAt = Date.now();
 
     // Latest payload-derived timer inputs (re-measured each poll).
     let skew = 0; // server_now - Date.now()/1000, re-measured every poll (Pitfall 1)
@@ -274,11 +286,14 @@
     let countdownPulsed = false; // ensure the end-of-countdown pulse fires exactly once
     let reqSeq = 0; // monotonic per-request poll counter — the CEF cache-buster nonce
 
-    // isStale() — VERBATIM from console.html (lines 738-740). PRIMARY gen-age signal:
-    // TRUE once a gen WAS advancing and then stalled past STALE_MS; a COLD load
-    // (lastGen < 0) is NOT stale (never degrade the first paint).
+    // isStale() — response-recency liveness. TRUE once the console HAD answered a
+    // poll and then stopped answering for longer than STALE_MS; a COLD load (before
+    // any successful poll, everResponded === false) is NOT stale. A live console
+    // answering polls is never stale even with a flat gen (no new score); a dead or
+    // unreachable console stops answering → lastResponseAt stalls → stale after
+    // STALE_MS (OVD-03 / UAT item 3 degrade preserved).
     function isStale() {
-      return lastGen >= 0 && Date.now() - lastGenAt > STALE_MS;
+      return everResponded && Date.now() - lastResponseAt > STALE_MS;
     }
 
     // Offset-cancellation elapsed (ARCHITECTURE (c) / Pitfall 1): count LOCALLY
@@ -383,21 +398,29 @@
     // the same URL between gen advances and CEF serves a STALE cached body — masking
     // the next gen bump and stalling the overlay (the live-stall bug). A per-request
     // counter makes every poll URL distinct so CEF can never hide a gen advance.
-    // The gen-advance gate stays p.gen > lastGen below — ?t= is purely a cache-buster
-    // the server ignores, NOT the render gate. A fetch error COASTS — never throws out
-    // of the loop; the watchdog will degrade on its own once stale.
+    //
+    // LIVENESS = the console answering this poll (response recency), NOT a gen bump.
+    // EVERY successful response stamps lastResponseAt/everResponded BEFORE the gen
+    // gate, so a live console with a flat `gen` (no new score) is never stale and the
+    // run timer keeps counting. The gen-advance gate p.gen > lastGen only gates the
+    // DOM RE-RENDER (an actual edit/score change) — ?t= is purely a cache-buster the
+    // server ignores. A fetch/json error COASTS — it does NOT update lastResponseAt,
+    // so a real console outage stalls the response clock and the watchdog degrades.
     async function poll() {
       try {
         const r = await fetch("/overlay-json?t=" + (++reqSeq), { cache: "no-store" });
         const p = await r.json();
+        // Console answered → liveness refreshed, regardless of whether gen advanced.
+        lastResponseAt = Date.now();
+        everResponded = true;
         if (p.gen > lastGen) {
-          // gen-strictly-advances gate
+          // gen-strictly-advances gate → re-render on an actual edit/score change.
           lastGen = p.gen;
-          lastGenAt = Date.now();
           applyPayload(p);
         }
       } catch (e) {
-        /* coast — a poll error never breaks the page; the watchdog handles stale */
+        /* coast — a poll error never breaks the page; lastResponseAt is NOT updated,
+           so the watchdog degrades once the console stays unreachable past STALE_MS */
       }
       // Even with no gen advance, keep the timer honest: stop + degrade if stale.
       if (isStale()) {
@@ -419,7 +442,7 @@
       stopTimer();
     }
 
-    return { start, stop, applyPayload, isStale, currentElapsed, paintTimer, _state: () => ({ lastGen, lastGenAt, skew, running }) };
+    return { start, stop, applyPayload, isStale, currentElapsed, paintTimer, _state: () => ({ lastGen, lastResponseAt, everResponded, skew, running }) };
   }
 
   // Auto-mount on the document when loaded as a page script (the 11-02 bootstrap

@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 Phase: 11 (shared-graphical-renderer-overlay-page-branding) — ALL PLANS COMPLETE
 Plan: 3 of 3 (complete)
 Status: Phase 11 complete (11-01, 11-02, 11-03 done) — ready for phase verification
-Last activity: 2026-06-14 -- Completed Phase 11 Plan 03 (shared overlay-render.js — sanitize mirror + offset-cancellation timer + freshness watchdog)
+Last activity: 2026-06-15 -- Quick task 260615-sod: per-request overlay poll nonce (fixes Phase 11 OBS browser-source live-update stall)
 
 ## Performance Metrics
 
@@ -221,6 +221,7 @@ Recent decisions affecting current work:
 |------|------|---------|
 | 2026-06-12 | run-md-ndi-hx-ops-notes | docs/run.md Prerequisites: NDI Tools/HX Driver required on rig (HX decode depends on system 6.3.2 runtime), multi-homed discovery via NDI Access Manager, active camera view, don't-hardcode source names |
 | 2026-06-13 | run-md-phase8-console-multiview | docs/run.md: new "Phase 8 — Console multiview live" section (2-process arch console venv vs orchestratore venv312; console env vars SEGUGIO_OPCOMM_DIR/SEGUGIO_CONFIG/SEGUGIO_CAM_IDS; route GET /preview + /preview/<cam>.jpg; cap config-time max_total_mbps 8 Mbps → SystemExit(2); troubleshooting "OBS vede ma console no" → match esatto ndi_source + tools/verify_ndi_hx_decode.py) — quick 260613-rjz |
+| 2026-06-15 | fix-obs-browser-source-overlay-live-upda | overlay-render.js: per-request poll nonce (`++reqSeq`) replaces the per-gen `?t=lastGen`, so OBS CEF's URL-keyed cache (ignores `no-store`) can no longer serve a stale body and mask a gen advance — fixes the Phase 11 UAT live-update stall in OBS. Gen-gate (`p.gen > lastGen`), freshness watchdog, and offset-cancellation timer untouched; test pins the new nonce — quick 260615-sod (commit 63713d8) |
 
 ## Deferred Items
 

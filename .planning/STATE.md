@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Phase 12 implemented (3/3 plans) — verification human_needed, awaiting UAT
-last_updated: "2026-06-16T00:00:00Z"
-last_activity: 2026-06-16 -- Phase 12 executed (3/3 plans), verified 3/3 automated must-haves; VERIFICATION.md=human_needed, UAT created — awaiting /gsd-verify-work
+stopped_at: Phase 12 verified (automated 3/3 + UAT 2/2) — awaiting /gsd-secure-phase before sign-off
+last_updated: "2026-06-16T00:10:00Z"
+last_activity: 2026-06-16 -- Phase 12 UAT passed 2/2 (visual fidelity + live score flow); VERIFICATION.md=passed — security gate (/gsd-secure-phase 12) required before marking phase complete
 progress:
   total_phases: 5
   completed_phases: 2
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 
 ## Current Position
 
-Phase: 12 (scv-01-unification) — IMPLEMENTED (3/3 plans), awaiting human UAT
+Phase: 12 (scv-01-unification) — VERIFIED (automated 3/3 + UAT 2/2), awaiting security gate
 Plan: 3 of 3 (complete)
-Status: Phase 12 implemented & auto-verified (3/3 must-haves); VERIFICATION.md=human_needed (2 visual UAT items) — run /gsd-verify-work 12 to sign off SCV-02, then Phase 13
-Last activity: 2026-06-16 -- Phase 12 executed + verified (automated 3/3); UAT pending
+Status: Phase 12 fully verified (VERIFICATION.md=passed, UAT 2/2). Security enforcement is ON with no SECURITY.md — run /gsd-secure-phase 12 to clear the gate, then SCV-02/Phase 12 sign-off + Phase 13
+Last activity: 2026-06-16 -- Phase 12 UAT passed 2/2; security gate pending
 
 ## Performance Metrics
 

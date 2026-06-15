@@ -150,14 +150,16 @@
     .lb-state { font-size: 0.75rem; font-weight: 700; color: #b9b9b9; }
     .lb-value { font-size: 0.75rem; font-weight: 700; text-align: right; color: #E6E9EF; }
 
-    /* --- SCV-01 score-overlay preview (Anteprima overlay) + drift warning. --- */
-    #overlay-preview { font-size: 1rem; font-weight: 400; color: #e8e8e8;
-                       background: #1d2026; border: 1px solid #333; border-radius: 6px;
-                       padding: 16px; min-height: 24px; white-space: pre-wrap;
-                       word-break: break-word; }
-    #drift-warning { display: none; margin: 8px 0 0; font-size: 0.875rem; font-weight: 700;
-                     color: #F0B429; }
-    #drift-warning.show { display: block; }
+    /* --- SCV-02 overlay preview: a same-origin iframe of /overlay?preview=1 in a 16:9 framed
+           box over a neutral backdrop (Pattern 4, D-01/D-02/D-03). The console preview is now
+           the SAME page OBS loads — drift structurally impossible. --- */
+    .overlay-preview-frame { width: 100%; aspect-ratio: 16 / 9; border: 1px solid #333;
+                             border-radius: 6px; overflow: hidden; background: #6b6f76; }
+    .overlay-preview-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+    /* D-02 on-air badge: small, color-distinct (the LIVE green from the status palette). */
+    .on-air-tag { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 4px;
+                  font-size: 0.75rem; font-weight: 700; background: #34D399; color: #14161a;
+                  vertical-align: middle; }
 
     /* --- Bottom-trailing thumb-arc cluster (UXT-01 reachability): undo + score form, safe-area
        padded so it clears the home indicator. --- */
@@ -267,11 +269,13 @@
               <div class="hint">usa il punto (.) per i decimali</div>
             </div>
 
-            <!-- SCV-01 live score-overlay preview: a byte-exact client mirror of
-                 render_overlay_text, debounced, drift-guarded against POST /score/preview. -->
-            <label for="overlay-preview">Anteprima overlay</label>
-            <div id="overlay-preview" aria-live="polite"></div>
-            <div id="drift-warning">⚠ Anteprima non allineata — verifica</div>
+            <!-- SCV-02 overlay preview: a same-origin iframe of the ONE /overlay route
+                 (preview=1 cosmetic fork) — the SAME page OBS loads, so the console preview
+                 and the OBS overlay can never drift (the byte-exact JS mirror is retired). -->
+            <label>Anteprima overlay — come va in onda<span class="on-air-tag">● ON AIR</span></label>
+            <div class="overlay-preview-frame">
+              <iframe src="/overlay?preview=1" title="Anteprima overlay live"></iframe>
+            </div>
 
             <button type="submit">Aggiorna punteggio</button>
           </fieldset>

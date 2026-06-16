@@ -124,3 +124,20 @@ LAN-as-trust-boundary + AP-client-isolation posture stands.
 **Revisit only if the deployment context changes** — i.e. if Segugio stops being a dedicated
 single-operator LAN field tool (multi-tenant venue network, internet exposure, shared/untrusted
 WiFi). At that point this re-evaluation must be redone and in-code controls reconsidered.
+
+---
+
+## What changed in v1.2 — browser-source overlay (Phase 13)
+
+The new OBS **browser-source** (`Score Overlay`) is a **same-origin LAN consumer** of the existing
+`GET /overlay` route shipped in Phase 11 — it adds **NO new server route and NO new code path**:
+it is just another client (the obs-browser CEF, on the OBS box) of an already-exposed, already-
+assessed read endpoint. It is **display-only** (SCR-04): it renders operator-typed score values
+**verbatim**, sanitized at the HTML sink via `textContent` (never `innerHTML`), and never
+adjudicates. It reuses the established trust boundary **unchanged** — the dedicated WiFi LAN with
+mandatory AP client isolation (threats **T-05-05-04** / **T-08-03**) — with **NO new
+authentication, NO configurable bind, and NO new exposure** beyond what `0.0.0.0:8080` already
+serves. The documented browser URL (`http://<console-LAN-IP>:8080/overlay`) carries no secret, and
+the obs-websocket :4455 password stays out of the docs. Because the browser source is just another
+reader of an already-exposed, already-assessed endpoint, the v1.1 posture is **reaffirmed, not
+changed**. Revisit only if Segugio stops being a single-operator-LAN field tool.

@@ -43,9 +43,84 @@ publish (the `ndi_source` values in config, e.g. `PHONE-WIDE (NDI HX3)`): select
 *Properties* → pick the discovered NDI source. The template carries placeholder source names so
 the structure imports cleanly.
 
-## Score overlay — read-from-file (primary path, OBS-05)
+## Score overlay — browser-source (primary path)
 
-The score overlay uses an OBS **Text** source named **`Score Text`**, present inside every
+The primary on-air score overlay is an OBS **Browser** source named **`Score Overlay`**, wired
+into **all 7 scenes** (`SAFE`, `CAM Wide`, `CAM Long`, `CAM Low`, `CAM Handler`, `MULTIVIEW`,
+`PIP`) **above** the NDI source (top of the scene's z-order). It loads the console's transparent
+`/overlay` page, which renders the graphical lower-third and runs the run timer client-side. The
+source ships in the committed `obs/segugio-scene-collection.json` and imports cleanly.
+
+### URL — localhost default and the cross-machine edit
+
+- **Default (single-box: OBS + console on the same Windows production PC):** the source ships
+  with the URL exactly `http://localhost:8080/overlay` — the bare `/overlay` path on the
+  console's serving port `:8080` (no `?preview=1`, no `?t=` cache-bust nonce; the page's own
+  `/overlay-json` poll carries the freshness nonce). This imports cleanly and works as-is on the
+  common single-box setup.
+- **OBS and console on DIFFERENT machines:** when OBS runs on a separate box from the console
+  (e.g. the console runs on its own host/tablet), **edit the `Score Overlay` source URL** to
+  `http://<console-LAN-IP>:8080/overlay` — the console binds `0.0.0.0:8080` on the dedicated
+  WiFi LAN, so use its LAN IP address. This is the one edit the cross-machine operator must make.
+
+### Source / transparency settings
+
+- **Resolution / FPS:** `1920×1080 @ 30 fps` (matches a standard OBS canvas and the ~30 Hz tick;
+  light on the shared OBS box).
+- **Transparency is page-owned:** the `/overlay` page sets `html, body { background: transparent }`
+  itself, so do **NOT** inject any custom OBS CSS for transparency. Leave the source's **Custom
+  CSS** at the OBS transparent default / empty (the committed source ships `css: ""`). Putting an
+  opaque `background-color` in the source CSS would render the overlay on a black box over the
+  video.
+- **"Shutdown source when not visible" → OFF** and **"Refresh browser when scene becomes active"
+  → OFF** (both unchecked). These keep the overlay from re-flashing or losing its timer state on a
+  cut between cameras (SCN-01 rationale). In the scene-collection JSON these correspond to the
+  obs-browser keys `shutdown: false` and `restart_when_active: false` respectively (note: the JSON
+  keys differ from the UI labels).
+
+### Re-import on an already-configured OBS box
+
+Importing the collection **copies** the template into OBS's own profile — a later edit to the repo
+`obs/segugio-scene-collection.json` does **NOT** auto-propagate into a running OBS install. On a
+box that already imported an earlier collection, you must either **re-import** the updated
+collection (*Scene Collection → Import*) **or** manually add the `Score Overlay` Browser source
+(*Sources → + → Browser*) with the URL and settings above. Symptom of skipping this: "it works on
+a fresh import but not on my box."
+
+### CEF cache-clear (stale overlay after a renderer change)
+
+The obs-browser (CEF) source can hold a stale copy of `/overlay` after the page is updated.
+
+- **Per-source refresh (first try):** in OBS, right-click the **`Score Overlay`** source →
+  *Properties* → **"Refresh cache of current page"**. (In some builds this behaves more like a
+  reload than a full purge.)
+- **Full cache purge (if a stale overlay persists):**
+  1. Close OBS completely.
+  2. Delete the cache folder under `%APPDATA%\obs-studio\plugin_config\obs-browser\` (the
+     per-source CEF cache directories live here).
+  3. Restart OBS — the browser source re-fetches `/overlay` fresh.
+
+### Coexistence policy — Browser primary / Text fallback (manual toggle, RBT-06)
+
+The browser overlay is the on-air score during normal operation. The `Score Text` read-from-file
+source (see the fallback section below) stays wired in **every** scene but ships **`visible: false`**
+by default — so there is never a double-score on air.
+
+If the browser source **blanks or dies on-air**, the operator **manually toggles** `Score Text`
+**visible** (and, for a clean swap, toggles `Score Overlay` **hidden**). This is a **manual-toggle**
+fallback — there is **no auto-reveal**; the text does not air on its own while the browser source is
+still loaded-but-stale. Phase 14 validates this coexistence policy end-to-end under console-death /
+browser-blank conditions.
+
+## Score overlay — read-from-file (degraded fallback, OBS-05)
+
+> **This is the fallback path, not the primary on-air overlay.** The primary on-air score is
+> the **browser-source** documented above; this `Score Text` read-from-file source is the
+> always-wired **degraded fallback** the operator manually toggles **visible** if the browser
+> source blanks or dies on-air (RBT-06, see the coexistence policy above). It ships
+> `visible: false` in every scene by default.
+
+The fallback overlay uses an OBS **Text** source named **`Score Text`**, present inside every
 `CAM *` / `SAFE` scene, configured with **Read from file** pointing at the orchestrator's
 atomic overlay file (`overlay.txt`).
 

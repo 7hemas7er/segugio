@@ -136,7 +136,7 @@
 
 **Wave 1**
 
-- [ ] 13-01-PLAN.md — Score Overlay browser_source + per-scene wiring (z-order top, text fallback visible:false) + extended lockstep test (SCN-01, RBT-06)
+- [x] 13-01-PLAN.md — Score Overlay browser_source + per-scene wiring (z-order top, text fallback visible:false) + extended lockstep test (SCN-01, RBT-06)
 - [ ] 13-02-PLAN.md — docs/obs-setup.md browser-source section (URL/transparency/CEF cache/coexistence) + docs/security.md threat re-eval (SCN-02, RBT-06)
 
 **UI hint**: yes

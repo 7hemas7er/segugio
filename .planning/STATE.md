@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
-status: executing
-stopped_at: Phase 12 verified (automated 3/3 + UAT 2/2) — awaiting /gsd-secure-phase before sign-off
-last_updated: "2026-06-16T00:10:00Z"
-last_activity: 2026-06-16 -- Phase 12 UAT passed 2/2 (visual fidelity + live score flow); VERIFICATION.md=passed — security gate (/gsd-secure-phase 12) required before marking phase complete
+status: verifying
+stopped_at: Phase 13 context gathered
+last_updated: "2026-06-16T00:10:52.870Z"
+last_activity: 2026-06-16 -- Phase 12 UAT passed 2/2; security gate pending
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
   completed_plans: 10
-  percent: 40
+  percent: 60
 ---
 
 # Project State
@@ -247,9 +247,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-15T22:34:28Z
-Stopped at: Completed 12-02-PLAN.md
-Resume file: None
+Last session: 2026-06-16T00:10:52.862Z
+Stopped at: Phase 13 context gathered
+Resume file: .planning/phases/13-obs-scene-collection-setup-docs/13-CONTEXT.md
 
 ## Operator Next Steps
 

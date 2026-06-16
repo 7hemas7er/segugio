@@ -132,7 +132,13 @@
   2. The `overlay.txt` "read from file" text source remains wired in every scene as the degraded fallback (RBT-06/SCR-01), and `tests/test_scene_template.py` asserts both the browser source (URL + transparency + shutdown=false) and the text source are present in lockstep with the scene names
   3. `docs/obs-setup.md` documents the http browser-source URL, the cross-machine LAN-IP note, the real CEF cache-clear procedure, and the Browser-primary / Text-fallback coexistence policy; a one-paragraph threat re-evaluation is appended to `docs/security.md`
 
-**Plans**: TBD
+**Plans**: 2 plans (1 wave)
+
+**Wave 1**
+
+- [ ] 13-01-PLAN.md — Score Overlay browser_source + per-scene wiring (z-order top, text fallback visible:false) + extended lockstep test (SCN-01, RBT-06)
+- [ ] 13-02-PLAN.md — docs/obs-setup.md browser-source section (URL/transparency/CEF cache/coexistence) + docs/security.md threat re-eval (SCN-02, RBT-06)
+
 **UI hint**: yes
 
 ### Phase 14: Fallback Coexistence & Degrade Hardening
@@ -167,5 +173,5 @@
 | 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete    | 2026-06-14 |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
 | 12. SCV-01 Unification | v1.2 | 2/3 | In Progress | - |
-| 13. OBS Scene Collection & Setup Docs | v1.2 | 0/TBD | Not started | - |
+| 13. OBS Scene Collection & Setup Docs | v1.2 | 0/2 | Planned | - |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

@@ -38,12 +38,12 @@
 
 ### OBS Scene Collection & Setup (SCN)
 
-- [ ] **SCN-01**: Un nuovo `obs/segugio-scene-collection.json` cabla la **browser-source** (URL http della console) in ogni scena CAM/SAFE, con **"shutdown when not visible"/"refresh on activate" OFF** (niente re-flash dell'overlay a ogni cut); la text source `overlay.txt` resta cablata come fallback
-- [ ] **SCN-02**: `docs/obs-setup.md` aggiornato per l'overlay browser-source (URL, trasparenza, impostazioni sorgente, nota deploy console/OBS su macchine diverse)
+- [x] **SCN-01**: Un nuovo `obs/segugio-scene-collection.json` cabla la **browser-source** (URL http della console) in ogni scena CAM/SAFE, con **"shutdown when not visible"/"refresh on activate" OFF** (niente re-flash dell'overlay a ogni cut); la text source `overlay.txt` resta cablata come fallback
+- [x] **SCN-02**: `docs/obs-setup.md` aggiornato per l'overlay browser-source (URL, trasparenza, impostazioni sorgente, nota deploy console/OBS su macchine diverse)
 
 ### Robustness (RBT)
 
-- [ ] **RBT-06**: `overlay.txt` **mantenuto come fallback degradato** (SCR-01) — browser-source primaria, text source "read from file" come fallback sempre-funziona se la browser-source muore/blanka on-air
+- [x] **RBT-06**: `overlay.txt` **mantenuto come fallback degradato** (SCR-01) — browser-source primaria, text source "read from file" come fallback sempre-funziona se la browser-source muore/blanka on-air
 - [x] **RBT-07**: **Crash-isolation della console preservata** — test di import verde con lo stack pesante assente (`torch`/`cv2`/`ultralytics`/`numpy`/`cyndilib`/`obsws`); gate per ogni fase
 
 ## Future Requirements
@@ -101,9 +101,9 @@ Ogni requisito v1.2 → esattamente una fase. Coverage validata dal roadmap: 18/
 | SCV-02 | Phase 12 | Awaiting UAT (12-VERIFICATION.md human_needed; 3/3 automated must-haves verified) |
 | BRD-01 | Phase 11 | Complete (11-01 config + 11-02 CSS-var theme + logo bug rendered) |
 | BRD-02 | Phase 11 | Complete (11-03 identity competitor from verbatim nome across all disciplines + static event) |
-| SCN-01 | Phase 13 | Pending |
-| SCN-02 | Phase 13 | Pending |
-| RBT-06 | Phase 13, Phase 14 | Pending |
+| SCN-01 | Phase 13 | Complete |
+| SCN-02 | Phase 13 | Complete |
+| RBT-06 | Phase 13, Phase 14 | Complete |
 | RBT-07 | Phase 10 | Complete |
 
 **Note RBT-06:** the `overlay.txt` fallback is *wired* in Phase 13 (scene-collection text source retained) and *verified end-to-end under failure* in Phase 14 (the live-robustness degrade gate). The requirement is delivered by Phase 13; Phase 14 is its acceptance validation.

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-06-16T08:40:00Z"
-last_activity: 2026-06-16 -- 13-02 complete (docs/obs-setup.md browser-source section + docs/security.md threat re-eval)
+stopped_at: Phase 13 complete and verified (3/3 must-haves); next: Phase 14
+last_updated: "2026-06-16T08:42:14.255Z"
+last_activity: 2026-06-16
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
   completed_plans: 12
-  percent: 71
+  percent: 80
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 13 — obs-scene-collection-setup-docs
+**Current focus:** Phase 14 — fallback-coexistence-&-degrade-hardening (Phase 13 complete + verified)
 
 ## Current Position
 
-Phase: 13 (obs-scene-collection-setup-docs) — EXECUTING (all plans done; awaiting verify)
-Plan: 2 of 2 (complete)
-Status: Executing Phase 13 (13-01 + 13-02 complete; phase-level sign-off pending /gsd-verify-work)
-Last activity: 2026-06-16 -- 13-02 complete (docs/obs-setup.md browser-source section + docs/security.md threat re-eval)
+Phase: 14
+Plan: Not started
+Status: Phase 13 complete + verified (automated 3/3); Phase 14 not started
+Last activity: 2026-06-16
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 34
+- Total plans completed: 36
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -51,6 +51,7 @@ Last activity: 2026-06-16 -- 13-02 complete (docs/obs-setup.md browser-source se
 | 09 | 4 | - | - |
 | 10 | 4 | - | - |
 | 11 | 3 | - | - |
+| 13 | 2 | - | - |
 
 **Recent Trend:**
 

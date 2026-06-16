@@ -40,8 +40,9 @@
 - [x] **Phase 10: Overlay Data Contract & Run-Timestamp Publish** - New console-owned `overlay_run.json` + `GET /overlay-json` (boundary-safe, `server_now`+`gen`), zero HTML, crash-isolation re-verified (completed 2026-06-14)
 - [x] **Phase 11: Shared Graphical Renderer, /overlay Page & Branding** - Transparent per-discipline lower-third, self-counting clock-skew-safe timer, freshness degrade, sober animations, config logo/theme + identity line
  (completed 2026-06-15)
+
 - [ ] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard
-- [ ] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated
+- [x] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated (completed 2026-06-16)
 - [ ] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped
 
 ## Phase Details
@@ -173,5 +174,5 @@
 | 10. Overlay Data Contract & Run-Timestamp Publish | v1.2 | 4/4 | Complete    | 2026-06-14 |
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
 | 12. SCV-01 Unification | v1.2 | 2/3 | In Progress | - |
-| 13. OBS Scene Collection & Setup Docs | v1.2 | 0/2 | Planned | - |
+| 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete    | 2026-06-16 |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |

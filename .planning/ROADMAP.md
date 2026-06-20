@@ -156,7 +156,7 @@
 **Plans**: 3 plans (Wave 1: 14-01, 14-02 parallel | Wave 2: 14-03)
 **Wave 1**
 
-- [ ] 14-01-PLAN.md — Two-stage degrade hardening (`DEAD_MS`/`isDead()` hide in `overlay-render.js`) + SC#1 two-stage stale->dead and SC#2 gen re-anchor named gate tests (node fake-DOM)
+- [x] 14-01-PLAN.md — Two-stage degrade hardening (`DEAD_MS`/`isDead()` hide in `overlay-render.js`) + SC#1 two-stage stale->dead and SC#2 gen re-anchor named gate tests (node fake-DOM)
 - [ ] 14-02-PLAN.md — SC#1 `overlay.txt` on-disk persistence, SC#3 `/overlay-json` poll-storm vs `/command`, SC#4 HTML-sink named gate tests + `14-HUMAN-UAT.md` checklist
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -182,4 +182,4 @@
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
 | 12. SCV-01 Unification | v1.2 | 3/3 | Complete    | 2026-06-16 |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete    | 2026-06-16 |
-| 14. Fallback Coexistence & Degrade Hardening | v1.2 | 0/TBD | Not started | - |
+| 14. Fallback Coexistence & Degrade Hardening | v1.2 | 1/3 | In progress | - |

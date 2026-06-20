@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Phase 14 context gathered
-last_updated: "2026-06-20T15:13:39.768Z"
-last_activity: 2026-06-20 -- Phase 14 planning complete
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-06-20T15:33:43.000Z"
+last_activity: 2026-06-20 -- Phase 14 plan 01 complete (two-stage degrade)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
-  percent: 80
+  total_plans: 15
+  completed_plans: 13
+  percent: 87
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 14 — fallback-coexistence-&-degrade-hardening (Phase 13 complete + verified)
+**Current focus:** Phase 14 — fallback-coexistence-degrade-hardening
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 14 planning complete
+Phase: 14 (fallback-coexistence-degrade-hardening) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 14 (plan 01 complete)
+Last activity: 2026-06-20 -- Phase 14 plan 01 complete (two-stage degrade)
 
 ## Performance Metrics
 
@@ -110,6 +110,7 @@ Last activity: 2026-06-20 -- Phase 14 planning complete
 | Phase 12 P03 | 4min | 2 tasks | 2 files |
 | Phase 13 P01 | 6min | 2 tasks | 2 files |
 | Phase 13 P02 | 5min | 2 tasks | 2 files |
+| Phase 14 P01 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -211,6 +212,7 @@ Recent decisions affecting current work:
 - [Phase 13 / 13-01]: Score Overlay browser_source wired into the committed OBS scene-collection (SCN-01, RBT-06). ONE shared `browser_source` def (`obs/segugio-scene-collection.json`) named `Score Overlay` — url `http://localhost:8080/overlay` (bare path, D-02), 1920x1080, fps_custom:true/fps:30, and the VERIFIED obs-browser CEF keys `shutdown:false` + `restart_when_active:false` (NOT the UI-label strings `shutdown_source_when_not_visible`/`refresh_when_scene_is_active` which silently no-op — Pitfall 2), css:"" so the page owns transparency (D-06). Appended as the LAST item (z-order top, above NDI — items array is bottom-to-top, Pitfall 1) in ALL 7 scenes (SAFE/CAM Wide/CAM Long/CAM Low/CAM Handler/MULTIVIEW/PIP); `Score Text` flipped to visible:false in every scene as the manual-toggle degraded fallback (D-03, RBT-06); PIP's 3 hidden NDI items preserved verbatim. `tests/test_scene_template.py` extended with 2 helpers (`_source_def`/`_scene_items` parsing the same `_TEMPLATE`) + 4 lockstep tests driven by `_template_scene_names()` (overlay source-def asserts the REAL keys, every-scene overlay+text present, overlay-is-top-layer above NDI, text-fallback-hidden) — the build-time guard for T-13-03. 7 scene-template tests green; existing test_template_exists/test_template_scene_names_match_config unchanged. No runtime code touched (RBT-07 intact). Pre-existing ultralytics-absent test_fan_out_batched failures (CPU-only py3.14 venv; GPU tests run from venv312) stay out of scope (deferred-items.md). 13-02 owns the docs (obs-setup.md browser-source section + security.md threat re-eval).
 - [Phase 13 / 13-02]: Operator + security docs for the browser-source (SCN-02, RBT-06). `docs/obs-setup.md` gained a `## Score overlay — browser-source (primary path)` section: the `http://localhost:8080/overlay` single-box default + the prominent cross-machine `http://<console-LAN-IP>:8080/overlay` edit (D-01); 1920x1080@30 with page-owned transparency / no injected OBS CSS (D-06); "Shutdown source when not visible" OFF + "Refresh browser when scene becomes active" OFF noted as the REAL obs-browser JSON keys `shutdown:false`/`restart_when_active:false` (UI labels differ — Pitfall 2); the re-import-on-existing-box note (the repo JSON edit does not auto-propagate — Pitfall 4); the real CEF cache-clear procedure (per-source "Refresh cache of current page" + full purge at `%APPDATA%\obs-studio\plugin_config\obs-browser\`); and the manual-toggle Browser-primary / Text-fallback coexistence policy (Score Text ships visible:false; operator toggles it visible AND Score Overlay hidden on a browser blank — NO auto-reveal; Phase 14 validates end-to-end, D-03/D-04). The existing read-from-file section was reframed from "(primary path, OBS-05)" to "(degraded fallback, OBS-05)" with a callout; its mechanics bullets + the scene table + obs-websocket prerequisites untouched. `docs/security.md` gained a `## What changed in v1.2 — browser-source overlay (Phase 13)` one-paragraph threat re-eval: the browser-source is a same-origin LAN consumer of the existing `GET /overlay` route (Phase 11) — no new server route/code path, display-only (SCR-04), values sanitized at the HTML sink via `textContent`, reusing the T-05-05-04 / T-08-03 LAN trust boundary unchanged (no new auth/configurable-bind/exposure beyond 0.0.0.0:8080) — v1.1 posture reaffirmed, not changed. Docs-only; no runtime code touched (RBT-07 intact); scene-template lockstep test still 7 green. NOTE: gsd-tools not on PATH in this env — STATE/ROADMAP hand-edited; phase-level [x] + SCN-02/RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha).
 - [Phase 11 / 11-03]: The ONE shared renderer shipped — src/segugio/ui/static/overlay-render.js (auto-served at /static/overlay-render.js by Flask's default static folder), the back half of OVL-02/04 + TMR-01..04 + BRD-02 + OVD-03 client-half. Sanitize mirror cleanField/scvGet ported VERBATIM from console.html gsd:scv01-mirror (SCV_MAX_FIELD_LEN 64, SCV_NONPRINT Unicode-property regex, sct/SCT first-present alias) → byte-exact with Python score_render._clean/_get. Per-discipline DOM via DISCIPLINE_CELLS (disc_tf prese/zona/totale; freestyle Timer; agility SCT(alias)/faults — SCT a STATIC reference cell, no verdict/color D-05); EVERY operator value written el.textContent = cleanField(v), NEVER innerHTML (T-11-03-01 HIGH sink closed), updated IN PLACE (FOUC). Identity (D-08/BRD-02): competitor = verbatim scvGet(fields,'nome') for ALL disciplines + static event from #identity[data-event] (NOT /overlay-json); empty halves hide via :empty. Event-only animations (OVL-04): animateRunEdge enter/exit on run edges, pulseOnce single pulse on score-value change AND end-of-countdown (one-shot via remove→reflow→re-add); no perpetual motion. OFFSET-CANCELLATION TIMER (TMR-04, the one genuinely new behavior): skew = server_now - Date.now()/1000 re-measured each poll, elapsed = Date.now()/1000 + skew - started_at advanced LOCALLY on requestAnimationFrame between polls (never snaps, never raw cross-machine subtraction). Per-discipline direction (TMR-02/03): disc_tf down from 60s, freestyle down from window.OVERLAY_CFG.freestyleDurationS, both M:SS freezing at 0 on the literal "Tempo" (formatCountdown); agility up in SS.hh continuing past SCT into overtime (formatAgility, no freeze/verdict). gen-age FRESHNESS WATCHDOG (OVD-03 client / Pitfall 4): PUBLISH_MS 200, STALE_MS x3, lastGen -1 cold-start guard, isStale() ported verbatim → on stale (or fetch reject) the rAF timer STOPS and .is-stale degrade applies (frozen-but-ticking is the worst broadcast failure); fresh gen re-anchors. Poll /overlay-json?t=<gen> nonce (load-bearing CEF) at PUBLISH_MS cadence gated on p.gen>lastGen; fetch errors coast. Pure client-side ES2020, no build/imports/package install, zero director compute, zero new Python dep; dual-export window.SEGUGIO_OVERLAY + module.exports, auto-mounts on DOMContentLoaded (no-op under node). tests/test_ui_overlay_render.py = 11 served-JS + node-executed behavior assertions (cleanField byte-parity vs _clean; ~30s skew near-0 error; freeze-at-0/Tempo; agility overtime; no innerHTML sink). Rule-3 fix: decode node subprocess stdout as UTF-8 (Windows cp1252 mangled café in byte-parity). OVL-02/04 + TMR-01..04 + BRD-02 + OVD-03 client-half COMPLETE — Phase 11 done.
+- [Phase 14 / 14-01]: Two-stage degrade hardening (RBT-06). overlay-render.js gained a SECOND degrade stage above the Phase-11 dim: `DEAD_MS = 3000` (full-hide threshold, MUST stay > STALE_MS, D-05) + `isDead()` keyed on response-recency (`everResponded && Date.now() - lastResponseAt > DEAD_MS`) — IDENTICAL structure to isStale(), NEVER gen-age (the source still has zero `lastGenAt`; the 260615-tsi anti-pattern stays absent). `applyDead()` fully HIDES the lower-third by removing is-live/is-stale and re-triggering the EXISTING `is-exiting` exit animation (no new keyframe added to overlay.html, D-04). Both degrade sites — poll() post-catch and the tick() stop edge — check isDead() BEFORE applyStale() (isDead implies isStale): a SHORT stale only dims (is-stale, transient WiFi hiccup), a sustained death past DEAD_MS hides (is-exiting) + stops the rAF loop, so NO frozen score airs from the OBS browser source. isDead exported on createRenderer() + DEAD_MS on the api object (node-gate surface). tests/test_overlay_degrade_gate.py = 3 node fake-DOM gates (harness copied verbatim from test_ui_overlay_render.py): SC#1 two-stage stale->dead (dim then hide + rAF stop), Pitfall-1 "live idle run is NOT dead" (flat-gen response-recency regression guard, T-14-falsehide), SC#2 gen re-anchor (currentElapsed continuous with true wall-clock elapsed across a bumped-gen resume, NOT outage-inflated, T-14-phantom). RBT-07 crash-isolation (test_imports.py) green; full regression set (degrade + overlay-render + freshness + imports) green, zero regression. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha). 14-02/14-03 own the fallback/poll-storm/HTML-sink gates + docs.
 
 ### Pending Todos
 
@@ -252,9 +254,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-20T14:41:47.454Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-fallback-coexistence-degrade-hardening/14-CONTEXT.md
+Last session: 2026-06-20T15:33:43.000Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: .planning/phases/14-fallback-coexistence-degrade-hardening/14-02-PLAN.md
 
 ## Operator Next Steps
 

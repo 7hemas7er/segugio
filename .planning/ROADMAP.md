@@ -43,7 +43,7 @@
 
 - [x] **Phase 12: SCV-01 Unification** - Console preview reuses the same `/overlay` renderer (iframe); retire the byte-exact Python↔JS mirror + `/score/preview` drift-guard (completed 2026-06-16)
 - [x] **Phase 13: OBS Scene Collection & Setup Docs** - Browser-source wired into every scene (http URL, shutdown/refresh-on-activate OFF), `overlay.txt` text fallback retained, `docs/obs-setup.md` updated (completed 2026-06-16)
-- [ ] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped
+- [x] **Phase 14: Fallback Coexistence & Degrade Hardening** - End-to-end live-robustness gate: console-down/LAN-drop degrade, text fallback airs a score, poll-storm never starves `/command`, HTML-injection escaped (completed 2026-06-20)
 
 ## Phase Details
 
@@ -182,4 +182,4 @@
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
 | 12. SCV-01 Unification | v1.2 | 3/3 | Complete    | 2026-06-16 |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete    | 2026-06-16 |
-| 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Awaiting verify-work | - |
+| 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete    | 2026-06-20 |

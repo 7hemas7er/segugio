@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
-status: executing
-stopped_at: Phase 13 complete and verified (3/3 must-haves); next: Phase 14
-last_updated: "2026-06-16T08:42:14.255Z"
+status: verifying
+stopped_at: Phase 14 context gathered
+last_updated: "2026-06-20T14:41:47.473Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 5
@@ -252,9 +252,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-16T08:40:00Z
-Stopped at: Completed 13-02-PLAN.md (Phase 13 all plans done; awaiting /gsd-verify-work)
-Resume file: .planning/phases/13-obs-scene-collection-setup-docs/13-02-SUMMARY.md
+Last session: 2026-06-20T14:41:47.454Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-fallback-coexistence-degrade-hardening/14-CONTEXT.md
 
 ## Operator Next Steps
 

@@ -43,6 +43,16 @@ publish (the `ndi_source` values in config, e.g. `PHONE-WIDE (NDI HX3)`): select
 *Properties* → pick the discovered NDI source. The template carries placeholder source names so
 the structure imports cleanly.
 
+> **The NDI name must BYTE-MATCH (D-08).** The OBS `NDI Source` `ndi_source_name`, the phone's
+> published NDI sender name, and the camera's `ndi_source` in `config.example.yaml` /
+> `config.agility.example.yaml` must be the **exact same string** — for example
+> `"PHONE-WIDE (NDI HX3)"` (the canonical name in the committed scene collection and the
+> agility config). A drifted or near-miss string is the recurring **"OBS sees it but the console
+> is blank"** gotcha: OBS resolves and shows the feed, but the orchestrator/console — which
+> matches on the config `ndi_source` — never decodes a frame. `tests/test_scene_template.py`
+> asserts every example-config `ndi_source` byte-matches a scene `ndi_source_name` so this drift
+> can never silently return; keep the live phone's published name aligned to it.
+
 ## Score overlay — browser-source (primary path)
 
 The primary on-air score overlay is an OBS **Browser** source named **`Score Overlay`**, wired
@@ -106,11 +116,20 @@ The browser overlay is the on-air score during normal operation. The `Score Text
 source (see the fallback section below) stays wired in **every** scene but ships **`visible: false`**
 by default — so there is never a double-score on air.
 
-If the browser source **blanks or dies on-air**, the operator **manually toggles** `Score Text`
-**visible** (and, for a clean swap, toggles `Score Overlay` **hidden**). This is a **manual-toggle**
-fallback — there is **no auto-reveal**; the text does not air on its own while the browser source is
-still loaded-but-stale. Phase 14 validates this coexistence policy end-to-end under console-death /
-browser-blank conditions.
+If the browser source **blanks or dies on-air**, the operator's **only** manual step is to toggle
+`Score Text` **visible**. You do **not** also hide `Score Overlay` — the browser overlay
+**auto-hides on death**: its client-side renderer (`overlay-render.js`) fully hides the lower-third
+once the console stops answering polls past the `DEAD_MS` threshold (~3s, shipped in 14-01). So a
+truly dead console's browser overlay vanishes on its own, leaving the revealed `Score Text` as the
+single on-air score — no manual hide needed, no double-score.
+
+(The earlier "also toggle `Score Overlay` hidden for a clean swap" step from Phase 13 is now
+**redundant and removed**: the `DEAD_MS` auto-hide does the swap. Manually hiding the browser
+source is harmless but unnecessary.)
+
+There is still **no auto-reveal** of the text source — revealing `Score Text` is the operator's
+deliberate one action; the text does not air on its own. Phase 14 validates this coexistence policy
+end-to-end under console-death / browser-blank conditions.
 
 ## Score overlay — read-from-file (degraded fallback, OBS-05)
 

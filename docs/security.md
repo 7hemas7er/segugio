@@ -141,3 +141,13 @@ serves. The documented browser URL (`http://<console-LAN-IP>:8080/overlay`) carr
 the obs-websocket :4455 password stays out of the docs. Because the browser source is just another
 reader of an already-exposed, already-assessed endpoint, the v1.1 posture is **reaffirmed, not
 changed**. Revisit only if Segugio stops being a single-operator-LAN field tool.
+
+## HTML-sink output encoding re-affirmed (SC#4, Phase 14)
+
+The Phase-14 hardening **re-affirms** the broadcast overlay's HTML-sink posture (OWASP V5 Output
+Encoding), gated by the SC#4 named test in 14-02: operator-typed score values sink into the
+`/overlay` page via `textContent` (**never** `innerHTML`), and the static branding strings
+`event_name` / `logo_path` are **Jinja-autoescaped** where they render into the page at the console
+entrypoint. A crafted score value or event name therefore cannot inject markup into the CEF
+overlay on the OBS box — it renders verbatim as text. No new control is added here; this is the
+already-shipped encoding posture, re-stated and test-gated.

@@ -299,6 +299,94 @@ global.fetch = () => {
 
 
 # ---------------------------------------------------------------------------
+# CR-01 regression — dead -> recovery RE-SHOWS the lower-third
+# ---------------------------------------------------------------------------
+
+
+@_requires_node
+def test_dead_then_recover_reshows_lower_third():
+    """CR-01 / WR-01: after a console DEATH (>DEAD_MS, lower-third hidden via is-exiting)
+    during a STILL-RUNNING run, a RECOVERY (successful poll, SAME started_at, BUMPED gen,
+    running:true) must RE-SHOW the lower-third — is-exiting cleared AND is-live restored.
+
+    This is the dangerous half of the live failure mode that the shipped two-stage gate
+    never exercised: it asserted death HIDES but never drove a resume, so a one-way hide
+    (no recovery counterpart) shipped green. wasRunning stays true across the outage, so
+    the resume payload is running true→true and animateRunEdge's run-START edge (false→true
+    only) never fires — the fix re-shows on a live payload consumed while is-exiting.
+
+    Drive: live polls → fetchMode="down", NOW past DEAD_MS, poll (assert is-exiting, isDead)
+    → fetchMode="ok", bump gen, poll → assert is-live present and is-exiting cleared. This
+    fails against the pre-fix renderer (plate stays hidden) and passes once CR-01 is fixed.
+    """
+    js = _read_file_js()
+    harness = _HARNESS_PREAMBLE + r"""
+// started_at is the persisted run anchor — FIXED in wall-clock terms across the outage.
+const STARTED_AT = NOW / 1000;
+
+let fetchMode = "ok";
+let gen = 7;
+global.fetch = () => {
+  if (fetchMode === "down") return Promise.reject(new Error("down"));
+  return Promise.resolve({
+    json: async () => ({
+      gen: gen,
+      discipline: "agility",
+      running: true,                 // STILL running across the death and recovery
+      started_at: STARTED_AT,        // SAME anchor before and after the outage
+      server_now: NOW / 1000,
+    }),
+  });
+};
+
+(async () => {
+  const DEAD_MS = _m.DEAD_MS;
+  const r = _m.createRenderer(document, {});
+  r.start();
+  await drain();                 // first successful poll → live, lastResponseAt=NOW
+  intervalCb(); await drain();
+  const liveHasLive = lowerThird.classList.contains("is-live");
+  const liveHasExiting = lowerThird.classList.contains("is-exiting");
+
+  // DEATH: console stops answering, advance past DEAD_MS, poll (rejects → response stalls).
+  fetchMode = "down";
+  NOW += DEAD_MS + 500;
+  intervalCb(); await drain();
+  const deadIsDead = r.isDead();
+  const deadHasExiting = lowerThird.classList.contains("is-exiting");
+  const deadHasLive = lowerThird.classList.contains("is-live");
+
+  // RECOVERY: console answers again with the SAME started_at and a BUMPED gen (passes the
+  // p.gen > lastGen re-render gate → applyPayload runs). running stays true (true→true).
+  fetchMode = "ok";
+  gen = 8;
+  intervalCb(); await drain();
+  const recIsDead = r.isDead();
+  const recHasExiting = lowerThird.classList.contains("is-exiting");
+  const recHasLive = lowerThird.classList.contains("is-live");
+
+  process.stdout.write(JSON.stringify({
+    liveHasLive, liveHasExiting,
+    deadIsDead, deadHasExiting, deadHasLive,
+    recIsDead, recHasExiting, recHasLive,
+  }));
+})();
+"""
+    out = json.loads(_run_node(js + "\n" + harness))
+    # Baseline: shown live before the outage.
+    assert out["liveHasLive"] is True
+    assert out["liveHasExiting"] is False
+    # Death: fully hidden via is-exiting, is-live gone, isDead True.
+    assert out["deadIsDead"] is True
+    assert out["deadHasExiting"] is True
+    assert out["deadHasLive"] is False
+    # Recovery: the plate is RE-SHOWN — is-exiting cleared, is-live restored, no longer dead.
+    assert out["recIsDead"] is False
+    assert out["recHasExiting"] is False, "CR-01: lower-third stayed hidden after recovery"
+    assert out["recHasLive"] is True, "CR-01: lower-third did not regain is-live on recovery"
+
+
+# ---------------------------------------------------------------------------
 # SC#2 — gen re-anchor, no phantom jump
 # ---------------------------------------------------------------------------
 

@@ -228,6 +228,11 @@
   // so the last-response timestamp stops advancing and the overlay goes stale.
   const PUBLISH_MS = 200; // ~5 fps publish cadence
   const STALE_MS = PUBLISH_MS * 3; // no successful poll within ~2-3x → stale (OVD-03)
+  // Second degrade stage (D-04/D-05): a SUSTAINED no-response past this threshold is a
+  // real console DEATH (not a transient WiFi hiccup) → fully HIDE the lower-third so no
+  // frozen score airs from the OBS browser source. MUST stay > STALE_MS (a short stale
+  // only dims; a long stale hides). Keyed on response-recency, NEVER gen-age (260615-tsi).
+  const DEAD_MS = 3000; // ~3s full-hide threshold
 
   // The freeze-at-0 literal shown when a countdown reaches 0 (TMR-03 / D-04).
   const TEMPO_LITERAL = "Tempo";
@@ -296,6 +301,27 @@
       return everResponded && Date.now() - lastResponseAt > STALE_MS;
     }
 
+    // isDead() — second-stage liveness, IDENTICAL structure to isStale() but at the
+    // longer DEAD_MS threshold. Response-recency keyed (everResponded && now -
+    // lastResponseAt > DEAD_MS), NEVER gen-age: `gen` is flat during a live idle run,
+    // so keying on gen-age would false-HIDE a live overlay (the 260615-tsi bug — far
+    // worse here than the dim-only stale stage). A live console answering polls is
+    // never dead even with a flat gen; only a console that STOPS answering past
+    // DEAD_MS is dead → fully hide the lower-third (D-04/D-05).
+    function isDead() {
+      return everResponded && Date.now() - lastResponseAt > DEAD_MS;
+    }
+
+    // Full-hide on death: remove the live/stale states and reuse the EXISTING exit
+    // primitive (animateRunEdge's `is-exiting` → @keyframes exit → opacity:0, forwards)
+    // so the plate slides out and STAYS hidden — no new keyframe/animation (D-04).
+    function applyDead() {
+      if (!lowerThird) return;
+      lowerThird.classList.remove("is-live");
+      lowerThird.classList.remove("is-stale");
+      retrigger(lowerThird, "is-exiting");
+    }
+
     // Offset-cancellation elapsed (ARCHITECTURE (c) / Pitfall 1): count LOCALLY
     // between polls, re-measuring skew each poll — NEVER raw Date.now()-started_at.
     function currentElapsed() {
@@ -332,7 +358,11 @@
       // Stop conditions: not running, or stale data (degrade). Freeze the displayed
       // value — do NOT free-run forever past a dead source.
       if (!running || isStale()) {
-        applyStale(isStale());
+        // Two-stage degrade: a DEATH (past DEAD_MS) fully HIDES (is-exiting); a SHORT
+        // stale (past STALE_MS, under DEAD_MS) only dims (is-stale). isDead() implies
+        // isStale(), so check dead first.
+        if (isDead()) applyDead();
+        else applyStale(isStale());
         rafId = null; // stop the loop; restarted by startTimer() on a fresh running gen
         return;
       }
@@ -423,7 +453,13 @@
            so the watchdog degrades once the console stays unreachable past STALE_MS */
       }
       // Even with no gen advance, keep the timer honest: stop + degrade if stale.
-      if (isStale()) {
+      // Two-stage: a sustained no-response past DEAD_MS is a console DEATH → fully HIDE
+      // (is-exiting) so no frozen score airs; a SHORT stale only dims (is-stale). isDead()
+      // implies isStale(), so check dead first; both stop the rAF timer.
+      if (isDead()) {
+        stopTimer();
+        applyDead();
+      } else if (isStale()) {
         stopTimer();
         applyStale(true);
       }
@@ -442,7 +478,7 @@
       stopTimer();
     }
 
-    return { start, stop, applyPayload, isStale, currentElapsed, paintTimer, _state: () => ({ lastGen, lastResponseAt, everResponded, skew, running }) };
+    return { start, stop, applyPayload, isStale, isDead, currentElapsed, paintTimer, _state: () => ({ lastGen, lastResponseAt, everResponded, skew, running }) };
   }
 
   // Auto-mount on the document when loaded as a page script (the 11-02 bootstrap
@@ -472,6 +508,7 @@
     createRenderer,
     PUBLISH_MS,
     STALE_MS,
+    DEAD_MS,
     SCV_MAX_FIELD_LEN,
     DISCIPLINE_CELLS,
   };

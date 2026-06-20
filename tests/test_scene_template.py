@@ -137,3 +137,47 @@ def test_score_text_is_fallback_hidden():
         assert (
             text_items[0]["visible"] is False
         ), f"{scene}: Score Text must ship visible:false (manual-toggle fallback)"
+
+
+def _scene_ndi_source_names() -> set[str]:
+    """All NDI ``ndi_source_name`` values declared in the scene-collection template.
+
+    Every NDI input source ships ``id == "ndi_source"`` and carries the published phone
+    NDI name in ``settings.ndi_source_name``. These are the strings OBS resolves a live
+    feed by — a config ``ndi_source`` that does not byte-match one of these is the
+    "OBS sees it but the console is blank" drift (D-08).
+    """
+    data = json.loads(_TEMPLATE.read_text(encoding="utf-8"))
+    return {
+        src["settings"]["ndi_source_name"]
+        for src in data.get("sources", [])
+        if src.get("id") == "ndi_source"
+    }
+
+
+def _config_ndi_sources(config_path: Path) -> dict[str, str]:
+    """Map each camera id -> its configured ``ndi_source`` in the example config."""
+    raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    return {cam["id"]: cam["ndi_source"] for cam in raw["cameras"]}
+
+
+@pytest.mark.parametrize(
+    "config_name",
+    ["config.example.yaml", "config.agility.example.yaml"],
+)
+def test_config_ndi_source_matches_scene_collection(config_name):
+    """D-08 — every example-config ``ndi_source`` byte-matches a scene ``ndi_source_name``.
+
+    The scene-collection JSON + the agility config are canonical (RESEARCH A2); this
+    lockstep assertion catches the "OBS sees it but console blank" drift (T-14-ndidrift)
+    if the example config's NDI name ever diverges from the published name OBS resolves.
+    """
+    scene_names = _scene_ndi_source_names()
+    config_sources = _config_ndi_sources(_REPO_ROOT / config_name)
+
+    for cam_id, ndi_source in config_sources.items():
+        assert ndi_source in scene_names, (
+            f"{config_name}: camera {cam_id} ndi_source {ndi_source!r} does not byte-match "
+            f"any scene-collection ndi_source_name {sorted(scene_names)} "
+            "(the 'OBS sees it but console blank' drift, D-08)"
+        )

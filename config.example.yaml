@@ -24,7 +24,7 @@ cameras:
     role: main_wide          # the SAFE fallback — always neutral weights
     obs_scene: "CAM Wide"
     is_safe: true            # at least one camera must be is_safe (SAFE fallback)
-    ndi_source: "LOCALHOST (iPhone Camera for OBS Studio App)"
+    ndi_source: "PHONE-WIDE (NDI HX3)"   # MUST byte-match the scene JSON's wide ndi_source_name (D-08)
     zones:                   # depth bands: near (close) -> far (downfield)
       - { name: near, rect: [0.0, 0.55, 1.0, 1.0] }
       - { name: mid,  rect: [0.0, 0.30, 1.0, 0.55] }

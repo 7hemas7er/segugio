@@ -161,7 +161,7 @@
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 14-03-PLAN.md — Docs/config consistency: D-06 simplified reveal in `docs/obs-setup.md`, D-08 NDI-source-name fix in `config.example.yaml` + consistency test, SC#4 security re-affirm
+- [x] 14-03-PLAN.md — Docs/config consistency: D-06 simplified reveal in `docs/obs-setup.md`, D-08 NDI-source-name fix in `config.example.yaml` + consistency test, SC#4 security re-affirm (completed 2026-06-20)
 
 ## Progress
 
@@ -182,4 +182,4 @@
 | 11. Shared Graphical Renderer, /overlay Page & Branding | v1.2 | 3/3 | Complete    | 2026-06-15 |
 | 12. SCV-01 Unification | v1.2 | 3/3 | Complete    | 2026-06-16 |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete    | 2026-06-16 |
-| 14. Fallback Coexistence & Degrade Hardening | v1.2 | 2/3 | In progress | - |
+| 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Awaiting verify-work | - |

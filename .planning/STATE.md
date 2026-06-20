@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-06-20T16:10:00.000Z"
-last_activity: 2026-06-20 -- Phase 14 plan 02 complete (RBT-06 per-criterion named gates + HUMAN-UAT)
+stopped_at: Completed 14-03-PLAN.md
+last_updated: "2026-06-20T16:40:00.000Z"
+last_activity: 2026-06-20 -- Phase 14 plan 03 complete (D-06 simplified reveal + D-08 NDI byte-match + SC#4 re-affirm); all 3 phase-14 plans executed, awaiting verify-work
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 15
-  completed_plans: 14
-  percent: 93
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 
 ## Current Position
 
-Phase: 14 (fallback-coexistence-degrade-hardening) — EXECUTING
-Plan: 3 of 3
-Status: Executing Phase 14 (plan 02 complete)
-Last activity: 2026-06-20 -- Phase 14 plan 02 complete (RBT-06 per-criterion named gates + HUMAN-UAT)
+Phase: 14 (fallback-coexistence-degrade-hardening) — EXECUTING (all plans done, awaiting verify-work)
+Plan: 3 of 3 (complete)
+Status: Executing Phase 14 (plan 03 complete — all 3 plans executed)
+Last activity: 2026-06-20 -- Phase 14 plan 03 complete (D-06 simplified reveal + D-08 NDI byte-match + SC#4 re-affirm)
 
 ## Performance Metrics
 
@@ -112,6 +112,7 @@ Last activity: 2026-06-20 -- Phase 14 plan 02 complete (RBT-06 per-criterion nam
 | Phase 13 P02 | 5min | 2 tasks | 2 files |
 | Phase 14 P01 | 5min | 2 tasks | 2 files |
 | Phase 14 P02 | 8min | 2 tasks | 4 files |
+| Phase 14 P03 | 7min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -215,6 +216,7 @@ Recent decisions affecting current work:
 - [Phase 11 / 11-03]: The ONE shared renderer shipped — src/segugio/ui/static/overlay-render.js (auto-served at /static/overlay-render.js by Flask's default static folder), the back half of OVL-02/04 + TMR-01..04 + BRD-02 + OVD-03 client-half. Sanitize mirror cleanField/scvGet ported VERBATIM from console.html gsd:scv01-mirror (SCV_MAX_FIELD_LEN 64, SCV_NONPRINT Unicode-property regex, sct/SCT first-present alias) → byte-exact with Python score_render._clean/_get. Per-discipline DOM via DISCIPLINE_CELLS (disc_tf prese/zona/totale; freestyle Timer; agility SCT(alias)/faults — SCT a STATIC reference cell, no verdict/color D-05); EVERY operator value written el.textContent = cleanField(v), NEVER innerHTML (T-11-03-01 HIGH sink closed), updated IN PLACE (FOUC). Identity (D-08/BRD-02): competitor = verbatim scvGet(fields,'nome') for ALL disciplines + static event from #identity[data-event] (NOT /overlay-json); empty halves hide via :empty. Event-only animations (OVL-04): animateRunEdge enter/exit on run edges, pulseOnce single pulse on score-value change AND end-of-countdown (one-shot via remove→reflow→re-add); no perpetual motion. OFFSET-CANCELLATION TIMER (TMR-04, the one genuinely new behavior): skew = server_now - Date.now()/1000 re-measured each poll, elapsed = Date.now()/1000 + skew - started_at advanced LOCALLY on requestAnimationFrame between polls (never snaps, never raw cross-machine subtraction). Per-discipline direction (TMR-02/03): disc_tf down from 60s, freestyle down from window.OVERLAY_CFG.freestyleDurationS, both M:SS freezing at 0 on the literal "Tempo" (formatCountdown); agility up in SS.hh continuing past SCT into overtime (formatAgility, no freeze/verdict). gen-age FRESHNESS WATCHDOG (OVD-03 client / Pitfall 4): PUBLISH_MS 200, STALE_MS x3, lastGen -1 cold-start guard, isStale() ported verbatim → on stale (or fetch reject) the rAF timer STOPS and .is-stale degrade applies (frozen-but-ticking is the worst broadcast failure); fresh gen re-anchors. Poll /overlay-json?t=<gen> nonce (load-bearing CEF) at PUBLISH_MS cadence gated on p.gen>lastGen; fetch errors coast. Pure client-side ES2020, no build/imports/package install, zero director compute, zero new Python dep; dual-export window.SEGUGIO_OVERLAY + module.exports, auto-mounts on DOMContentLoaded (no-op under node). tests/test_ui_overlay_render.py = 11 served-JS + node-executed behavior assertions (cleanField byte-parity vs _clean; ~30s skew near-0 error; freeze-at-0/Tempo; agility overtime; no innerHTML sink). Rule-3 fix: decode node subprocess stdout as UTF-8 (Windows cp1252 mangled café in byte-parity). OVL-02/04 + TMR-01..04 + BRD-02 + OVD-03 client-half COMPLETE — Phase 11 done.
 - [Phase 14 / 14-01]: Two-stage degrade hardening (RBT-06). overlay-render.js gained a SECOND degrade stage above the Phase-11 dim: `DEAD_MS = 3000` (full-hide threshold, MUST stay > STALE_MS, D-05) + `isDead()` keyed on response-recency (`everResponded && Date.now() - lastResponseAt > DEAD_MS`) — IDENTICAL structure to isStale(), NEVER gen-age (the source still has zero `lastGenAt`; the 260615-tsi anti-pattern stays absent). `applyDead()` fully HIDES the lower-third by removing is-live/is-stale and re-triggering the EXISTING `is-exiting` exit animation (no new keyframe added to overlay.html, D-04). Both degrade sites — poll() post-catch and the tick() stop edge — check isDead() BEFORE applyStale() (isDead implies isStale): a SHORT stale only dims (is-stale, transient WiFi hiccup), a sustained death past DEAD_MS hides (is-exiting) + stops the rAF loop, so NO frozen score airs from the OBS browser source. isDead exported on createRenderer() + DEAD_MS on the api object (node-gate surface). tests/test_overlay_degrade_gate.py = 3 node fake-DOM gates (harness copied verbatim from test_ui_overlay_render.py): SC#1 two-stage stale->dead (dim then hide + rAF stop), Pitfall-1 "live idle run is NOT dead" (flat-gen response-recency regression guard, T-14-falsehide), SC#2 gen re-anchor (currentElapsed continuous with true wall-clock elapsed across a bumped-gen resume, NOT outage-inflated, T-14-phantom). RBT-07 crash-isolation (test_imports.py) green; full regression set (degrade + overlay-render + freshness + imports) green, zero regression. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha). 14-02/14-03 own the fallback/poll-storm/HTML-sink gates + docs.
 - [Phase 14 / 14-02]: RBT-06 per-criterion named gates + on-rig HUMAN-UAT (D-03/D-02). THREE new gate files, one per success criterion so a single-criterion regression names itself even where the underlying logic already passes. SC#1 tests/test_overlay_fallback_gate.py (Flask test_client): POST /score writes overlay.txt, then a SIMULATED console death (drop the app/client — NO orchestrator import, NO direct file write, NO second writer) leaves the rendered last score on disk byte-for-byte == render_overlay_text(ScoreDoc(...)) — single-writer coexistence proven (the property under test is exactly "no second writer clears it"). SC#3 tests/test_overlay_poll_storm.py: the test_preview_concurrency.py live_server fixture (make_server("127.0.0.1", 0, app, threaded=True) on a daemon thread) + _get/_post_command helpers COPIED VERBATIM (Pitfall 2: test_client does NOT exercise WSGI threading → false green), the 8 concurrent GETs retargeted from /preview/<cam>.jpg to /overlay-json; asserts POST /command returns 204 in < 1.0s AND read_command(...).force_cam == "cam_long" (the override actually written, not just acked). SC#4 tests/test_overlay_html_sink_gate.py: pure-source assert that overlay-render.js uses textContent and NO innerHTML variant (innerHTML =, innerHTML=, innerHTML  =, .innerHTML all absent) + a Jinja regression — create_app(tmp, overlay_cfg={"event_name":"<script>x</script>"}) then GET /overlay asserts the served HTML carries &lt;script&gt;x&lt;/script&gt; and NOT the raw tag (autoescape on at the #identity sink). 14-HUMAN-UAT.md authored into the phase dir: three physical scenarios (console-death browser auto-hide within DEAD_MS no frozen score; LAN-drop timer-stop + restart gen re-anchor with no phantom jump; overlay.txt read-from-file keeps the last score) + the D-06 simplified Score Text reveal + the D-08 exact-ndi_source-name gotcha + a pre-flight + sign-off, explicitly marked DEFERRED/non-blocking (D-02 — Phase 14 closes when the automation gate is green AND this checklist is written). All three gates + test_imports.py (RBT-07) green per task; no-regression on the copied-from harnesses (test_preview_concurrency.py, test_ui_overlay_render.py) confirmed (43 green). Zero runtime surface touched (tests+docs only); crash-isolation allowlist preserved. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha). 14-03 owns the docs (obs-setup.md D-06 simplified reveal + D-08 note).
+- [Phase 14 / 14-03]: Operator-facing consistency fixes (D-06/D-08/SC#4), docs+config only. (1) D-08: config.example.yaml cam_wide ndi_source aligned from the LOCALHOST drift to the canonical "PHONE-WIDE (NDI HX3)" (the scene JSON + agility config + the other 3 cams were already canonical — direction NOT flipped, RESEARCH A2/Pitfall 4). tests/test_scene_template.py gained a parametrized test_config_ndi_source_matches_scene_collection asserting every example-config ndi_source byte-matches a scene ndi_source_name (over both configs) — the permanent T-14-ndidrift guard against "OBS sees it but console blank"; reused the existing json/yaml parse helpers, no new dep. (2) D-06: docs/obs-setup.md coexistence section rewritten — the operator's ONLY manual step on a browser death is revealing Score Text; the redundant Phase-13 "also hide Score Overlay" step is REMOVED because the browser overlay auto-hides via the 14-01 DEAD_MS (~3s) threshold; the Score-Text-visible:false-while-alive note + read-from-file fallback + "no auto-reveal" guarantee kept. A byte-match NDI-name note (D-08) added near the NDI setup step citing "PHONE-WIDE (NDI HX3)" + the "OBS sees it but console blank" gotcha. (3) docs/security.md gained a new one-paragraph "HTML-sink output encoding re-affirmed (SC#4, Phase 14)" section: score values sink via textContent (never innerHTML), event_name/logo_path are Jinja-autoescaped, gated by the 14-02 SC#4 test (the Phase-13 paragraph covered only the textContent half → non-duplicating addition). No code touched (RBT-07 import surface unaffected); test_scene_template.py (9) + test_imports.py green. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha). All 3 Phase-14 plans now executed.
 
 ### Pending Todos
 
@@ -256,9 +258,9 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 
 ## Session Continuity
 
-Last session: 2026-06-20T16:10:00.000Z
-Stopped at: Completed 14-02-PLAN.md
-Resume file: .planning/phases/14-fallback-coexistence-degrade-hardening/14-03-PLAN.md
+Last session: 2026-06-20T16:40:00.000Z
+Stopped at: Completed 14-03-PLAN.md (all 3 Phase-14 plans executed)
+Resume file: None — run /gsd-verify-work for Phase 14
 
 ## Operator Next Steps
 

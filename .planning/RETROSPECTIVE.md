@@ -44,6 +44,48 @@
 
 ---
 
+## Milestone: v1.2 — Overlay Grafico Broadcast
+
+**Shipped:** 2026-06-20 (tag `v1.2`)
+**Phases:** 5 (10–14) | **Plans:** 15 | **Sessions:** ~3–4 (2026-06-14 → 2026-06-20, estimate)
+
+### What Was Built
+- An **overlay data contract**: a NEW console-owned `overlay_run.json` run-edge stamp + a boundary-safe `GET /overlay-json` carrying the `server_now` clock anchor and a monotonic `gen` — `runstate.json` (director-read every tick) never touched, zero HTML (OVD-01/02/03, RBT-07).
+- A **transparent shared HTML/CSS/JS renderer** + `/overlay` page: a per-discipline lower-third with a self-counting run timer correct across machine clock skew (offset-cancellation via `server_now`, never raw `Date.now() − started_at`), a freshness degrade, event-only animations, and config branding (OVL-01..04, TMR-01..04, BRD-01/02).
+- **SCV-01/02 unification**: the console preview became an `<iframe src="/overlay?preview=1">` reusing the one renderer OBS loads — the byte-exact Python↔JS mirror + `/score/preview` drift-guard retired, drift structurally impossible (SCV-02).
+- A **curated OBS scene-collection**: a transparent browser-source wired top-of-z-order into all 7 scenes (CEF `shutdown:false`/`refresh-on-activate:false`), with the `overlay.txt` text source retained as the always-wired fallback (SCN-01/02, RBT-06).
+- **Live-robustness hardening** (Phase 14): a `DEAD_MS` second degrade stage that fully *hides* the lower-third on a real console death (no frozen score airs), `overlay.txt` single-writer coexistence, an `/overlay-json` poll storm that never starves `POST /command`, and HTML-sink escaping — each a named per-criterion gate (RBT-06).
+
+### What Worked
+- **Dependency-forced build order held.** data contract → renderer → unification → OBS wiring → robustness. `server_now` was in the contract from the first commit, so the clock-skew solution never had to be retrofitted.
+- **Code review caught a broadcast-integrity blocker the gate false-passed.** CR-01: the `DEAD_MS` dead-hide was a one-way `is-exiting` transition — after a console death+recovery *mid-run*, the overlay would have stayed hidden on air for the rest of the run. The SC#2 test passed because it asserted only `currentElapsed()` continuity, not visibility. Fixed (`be7ef7e`) with a regression test confirmed to fail pre-fix / pass post-fix (`d3dfa62`).
+- **Structural drift made impossible, not policed.** SCV unification deleted the hand-maintained mirror rather than adding another drift-guard — the strongest form of "can't drift."
+- **Security verification closed 9/9 threats by grep + executing gate**, not on intent (`14-SECURITY.md`) — including confirming the `lastGenAt` gen-age anti-pattern stays absent.
+
+### What Was Inefficient
+- **A passing gate hid a real bug — again.** SC#2 asserted the internal value (clock continuity) but not the user-observable outcome (the plate is visible). That's the same "green but wrong" class as v1.1's `coasting`/`coast`: the test checked what was easy to read, not what the operator sees on air.
+- **STATE.md format drift.** Executors hand-edit STATE.md (no gsd-tools on PATH in worktrees), leaving it slightly off the CLI's expected shape — `phase.complete` and `milestone.complete` both warned `STATE.md field "Last Activity Description" not found` and skipped a field.
+- **Quick-task status never marked.** Three executed `.planning/quick/` tasks (each with a SUMMARY) showed as `[unknown]`/incomplete in the pre-close audit, forcing a manual "is this actually done?" inspection at milestone close.
+- **Worktree parallelism auto-degraded to sequential** (HEAD diverged from origin/HEAD, #683) — correct and safe, but the wave plans were authored assuming parallel isolation.
+
+### Patterns Established
+- **Assert the user-observable invariant, not just the internal value.** A timer-continuity test must also assert the plate is *shown*; a degrade test must assert the recovery *re-shows*. The gap between "value correct" and "operator sees it" is where broadcast bugs live.
+- **Response-recency liveness, never gen-age.** `gen` is flat during a live idle run; keying staleness/death on response recency (`lastResponseAt`) is the only correct signal — gen-age would false-hide a live overlay.
+- **Delete the drift source over guarding it.** Unify onto one renderer/URL rather than maintaining a mirror + a drift test.
+
+### Key Lessons
+1. A named per-criterion gate is only as good as the assertion inside it — gate on the *observable* outcome (visibility, what airs), or a green test will ship a dead-on-screen overlay (CR-01).
+2. Run the code-review gate *before* marking a phase done, even when all automated tests pass — it caught a blocker that the phase's own tests certified as working.
+3. Mark quick-task completion status as you finish them; the pre-close audit treats SUMMARY-present-but-status-unknown as open work.
+4. Keep STATE.md edits on the CLI's shape (or always go through gsd-tools) so `phase.complete`/`milestone.complete` don't skip fields.
+
+### Cost Observations
+- Model mix: opus-leaning (executor `opus`, verifier/auditor `sonnet`/`opus`); not finely instrumented.
+- Sessions: ~3–4 across 2026-06-14 → 2026-06-20.
+- Notable: the Phase-14 code-review + targeted fixer pass (one reviewer + one fixer agent) was the highest-value spend — it converted a phase that *looked* done (all gates green) into one that survives the live failure it was built for.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -52,6 +94,7 @@
 |-----------|----------|--------|------------|
 | v1.0 MVP | ~6 (est.) | 6 | Established the GSD synthetic-first dependency chain: pure brains (scorer/FSM) unit-tested before YOLO is wired; integration phase closes the milestone |
 | v1.1 Console Regia | ~2–3 (est.) | 3 | Added adversarial multi-agent review + a formal milestone audit before close; "gate-the-boundary-first" for the one new cross-process boundary |
+| v1.2 Overlay Grafico Broadcast | ~3–4 (est.) | 5 | Per-criterion named gates + a pre-completion code-review gate that caught a broadcast-integrity blocker the gates false-passed; "delete the drift source over guarding it" (SCV unification); structural threat verification (9/9) |
 
 ### Cumulative Quality
 
@@ -59,6 +102,7 @@
 |-----------|-------|----------|-------------------|
 | v1.0 MVP | ~314 headless passed | high on pure modules (framing 99%, decision 100%) | transitions (light), Flask; native-ReID (no extra weights) |
 | v1.1 Console Regia | ~421 passed / 8 skipped | UI suite 76/76; crash-isolation import gate green | none new — reused opcomm atomic-file channel + render_overlay_text; Waitress optional |
+| v1.2 Overlay Grafico Broadcast | full headless/overlay suite green (3 pre-existing hardware-rig tests excepted: latency p95 + 2 NDI) | overlay degrade/fallback/poll-storm/HTML-sink + scene-template gates green; crash-isolation gate green | none new — client-side JS renderer only, no new Python runtime dependency |
 
 ### Top Lessons (Verified Across Milestones)
 

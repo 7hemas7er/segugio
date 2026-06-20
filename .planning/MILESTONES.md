@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.2 Overlay Grafico Broadcast (Shipped: 2026-06-20)
+
+**Phases completed:** 5 phases (10–14), 15 plans · ~99 commits, +13,635 / −485 across 98 files (2026-06-14 → 2026-06-20)
+**Delivered:** The text-on-file score overlay became an animated graphical broadcast lower-third — a transparent OBS browser-source served by the crash-isolated console with a clock-skew-safe client timer, two-stage freshness degrade, a unified-renderer console preview, and a curated OBS scene-collection — with the director never imported or touched.
+
+**Key accomplishments:**
+
+- **Phase 10 — Overlay data contract:** a NEW console-owned `overlay_run.json` run-edge stamp + boundary-safe `GET /overlay-json` carrying the `server_now` clock anchor and a monotonic `gen`; `runstate.json` (director-read every tick) untouched, zero HTML, crash-isolation re-verified (OVD-01/02/03, RBT-07).
+- **Phase 11 — Shared graphical renderer & /overlay page:** a transparent FOUC-free per-discipline lower-third with a self-counting run timer correct across machine clock skew (offset-cancellation via `server_now`, never raw `Date.now() − started_at`), a freshness degrade, event-only animations, and config logo/theme + identity line (OVL-01..04, TMR-01..04, BRD-01/02).
+- **Phase 12 — SCV-01/02 unification:** the console preview became `<iframe src="/overlay?preview=1">` reusing the one renderer OBS loads; the byte-exact Python↔JS mirror + `/score/preview` drift-guard deleted — console↔OBS drift structurally impossible (SCV-02).
+- **Phase 13 — Curated OBS scene-collection:** a transparent `Score Overlay` browser-source wired top-of-z-order into all 7 scenes (CEF `shutdown:false`/`refresh-on-activate:false`), with `Score Text` retained as the always-wired hidden text fallback (RBT-06); `tests/test_scene_template.py` lockstep guard + `docs/obs-setup.md` (SCN-01/02).
+- **Phase 14 — Live-robustness hardening:** a `DEAD_MS` second degrade stage that fully *hides* the lower-third on a real console death (no frozen score airs), `overlay.txt` single-writer coexistence, an `/overlay-json` poll storm that never starves `POST /command`, and HTML-sink escaping — each a named per-criterion gate (RBT-06).
+
+**Quality gates:** the Phase-14 code review caught + fixed a broadcast-integrity blocker (CR-01: the dead-hide was one-way → the overlay would have stayed hidden after a console death+recovery mid-run; the SC#2 gate false-passed it by asserting only clock continuity, not visibility). Security verification closed 9/9 threats (`14-SECURITY.md`). 17/18 v1.2 requirements Complete; SCV-02 awaiting its deferred Phase-12 human-UAT sign-off.
+
+**Known deferred items at close:** physical on-rig UAT — console-death auto-hide confirmed on rig; LAN-drop re-anchor + `overlay.txt` text-source coexistence deferred (non-blocking, D-02). Plus 2 already-executed quick-tasks flagged `unknown` (SUMMARYs present). See STATE.md → Deferred Items.
+
+---
+
 ## v1.1 Console Regia (Shipped: 2026-06-14)
 
 **Phases completed:** 3 phases (7–9), 11 plans, ~26 tasks

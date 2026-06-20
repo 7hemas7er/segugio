@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Overlay Grafico Broadcast
-status: executing
+status: Awaiting next milestone
 stopped_at: Completed 14-03-PLAN.md (all 3 Phase-14 plans executed)
-last_updated: "2026-06-20T22:46:18.889Z"
-last_activity: 2026-06-20
+last_updated: "2026-06-20T22:59:14.554Z"
+last_activity: 2026-06-20 — Milestone v1.2 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
@@ -18,17 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-14)
+See: .planning/PROJECT.md (updated 2026-06-20)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 14 — fallback-coexistence-degrade-hardening
+**Current focus:** Planning next milestone (v1.2 shipped 2026-06-20, tag `v1.2`) — run `/gsd-new-milestone`.
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Executing Phase 14 (plan 03 complete — all 3 plans executed)
-Last activity: 2026-06-20
+Phase: Milestone v1.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-20 — Milestone v1.2 completed and archived
 
 ## Performance Metrics
 
@@ -257,12 +257,23 @@ Items acknowledged and deferred at the v1.1 milestone close (2026-06-14). All ar
 | verification | Phase 07 — 07-VERIFICATION.md (on-rig PRV-01 p95) | human_needed | 2026-06-14 |
 | quick_task | 260613-rjz-aggiungi-a-docs-run-md-una-sezione-phase (done per Quick Tasks Completed; checker reads status) | unknown | 2026-06-14 |
 
+Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. All hardware/field-gated or already-executed — none a code gap. v1.2 automation gate green, code review clean (CR-01 fixed), security 9/9 closed.
+
+| Category | Item | Status | Deferred At |
+|----------|------|--------|-------------|
+| uat | Phase 14 — 14-UAT.md: Test 1 (console-death auto-hide) PASSED on rig; Tests 2–3 (LAN-drop re-anchor, overlay.txt text-source) deferred to a rig session (non-blocking, D-02) | partial (blocked: physical-device) | 2026-06-20 |
+| uat | Phase 14 — 14-HUMAN-UAT.md (on-rig physical-scenario checklist, deferred carry-forward) | unknown (0 pending) | 2026-06-20 |
+| verification | Phase 14 — 14-VERIFICATION.md: automated gate PASSED; physical on-rig items remain (non-blocking, D-02) | human_needed | 2026-06-20 |
+| verification | Phase 12 — SCV-02 / 12-UAT.md: 3/3 automated must-haves verified; human-UAT sign-off deferred | human_needed | 2026-06-20 |
+| quick_task | 260615-sod-fix-obs-browser-source-overlay-live-upda (EXECUTED — SUMMARY.md present; CEF cache-buster shipped in overlay-render.js) | done (unmarked status) | 2026-06-20 |
+| quick_task | 260615-tsi-fix-overlay-run-timer-freeze-response-re (EXECUTED — SUMMARY.md present; response-recency watchdog shipped, the foundation Phase-14 isDead built on) | done (unmarked status) | 2026-06-20 |
+
 ## Session Continuity
 
-Last session: 2026-06-20T16:40:00.000Z
-Stopped at: Completed 14-03-PLAN.md (all 3 Phase-14 plans executed)
-Resume file: None — run /gsd-verify-work for Phase 14
+Last session: 2026-06-20T23:00:00.000Z
+Stopped at: Milestone v1.2 completed and archived (Phase 14 verified + secured; UAT Test 1 passed on rig, Tests 2–3 deferred non-blocking)
+Resume file: None — run /gsd-new-milestone to scope the next milestone
 
 ## Operator Next Steps
 
-- Phase 12 plans 01 (Wave-0 test contract) + 02 (server: ?preview=1 body.preview flag + force-visible CSS, POST /score/preview removed) complete — execute 12-03 (console: embed the `<iframe src="/overlay?preview=1">`, delete the gsd:scv01-mirror block + every mirror/drift symbol: mirrorOverlayText/updateScorePreview/scheduleScorePreview/scvCurrentFields/driftCheck/setDrift/#drift-warning/#overlay-preview) to flip the remaining xfail structural tests in test_ui_scv_unification.py to PASS and close SCV-02
+- Start the next milestone with /gsd-new-milestone

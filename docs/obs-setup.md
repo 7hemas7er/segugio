@@ -123,6 +123,14 @@ once the console stops answering polls past the `DEAD_MS` threshold (~3s, shippe
 truly dead console's browser overlay vanishes on its own, leaving the revealed `Score Text` as the
 single on-air score — no manual hide needed, no double-score.
 
+**Auto-reveal on recovery.** If the console comes back during a still-running run (a recoverable
+WiFi hiccup, not a true death), the browser overlay **auto-restores on its own**: the next
+successful poll re-shows the lower-third (clears the death-hide and re-runs the enter animation),
+so it resumes airing the live score with no operator action. If you manually revealed `Score Text`
+during the outage, hide it again once the browser overlay is back to avoid a double-score (this is
+the one manual cleanup step; revealing the text was the only manual action, and it does not
+auto-hide).
+
 (The earlier "also toggle `Score Overlay` hidden for a clean swap" step from Phase 13 is now
 **redundant and removed**: the `DEAD_MS` auto-hide does the swap. Manually hiding the browser
 source is harmless but unnecessary.)

@@ -298,7 +298,7 @@ atomic_write_text(_path(_OVERLAY_FILE), render_overlay_text(doc))  # last score 
 
 **Note:** A2 is a direction choice, not a correctness question — the requirement is internal consistency. All other findings are VERIFIED by direct codebase read.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the SC#1 `overlay.txt` gate also assert OBS-side airing, or only on-disk persistence?**
    - What we know: The headless gate can prove the file persists the last score after a /score then a simulated console death (no second writer clears it).

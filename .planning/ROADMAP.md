@@ -153,8 +153,15 @@
   2. A LAN drop stops the timer (never a stale "live"), and a console restart re-anchors the timer via `gen` without a phantom jump
   3. An `/overlay-json` poll storm does not starve the safety-critical `/command` POST (the UXT-02 concurrency test extended to the new route)
   4. Operator-entered score values are HTML-escaped at the overlay HTML sink (Jinja autoescape on or `textContent` not `innerHTML`) — no injection into the broadcast overlay; the crash-isolation import test stays green
+**Plans**: 3 plans (Wave 1: 14-01, 14-02 parallel | Wave 2: 14-03)
+**Wave 1**
 
-**Plans**: TBD
+- [ ] 14-01-PLAN.md — Two-stage degrade hardening (`DEAD_MS`/`isDead()` hide in `overlay-render.js`) + SC#1 two-stage stale->dead and SC#2 gen re-anchor named gate tests (node fake-DOM)
+- [ ] 14-02-PLAN.md — SC#1 `overlay.txt` on-disk persistence, SC#3 `/overlay-json` poll-storm vs `/command`, SC#4 HTML-sink named gate tests + `14-HUMAN-UAT.md` checklist
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 14-03-PLAN.md — Docs/config consistency: D-06 simplified reveal in `docs/obs-setup.md`, D-08 NDI-source-name fix in `config.example.yaml` + consistency test, SC#4 security re-affirm
 
 ## Progress
 

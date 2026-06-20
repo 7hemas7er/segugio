@@ -361,6 +361,14 @@
         // Two-stage degrade: a DEATH (past DEAD_MS) fully HIDES (is-exiting); a SHORT
         // stale (past STALE_MS, under DEAD_MS) only dims (is-stale). isDead() implies
         // isStale(), so check dead first.
+        //
+        // WR-03 NOTE: the isDead() branch here is BELT-AND-SUSPENDERS and normally never
+        // self-fires in production. The rAF loop is armed only while running && !isStale(),
+        // so on the FIRST tick where the source turns stale this block runs, sets rafId=null
+        // and stops the loop — long before DEAD_MS (3s) can elapse. The authoritative dead
+        // escalation is owned by poll() (the always-on setInterval), which keeps observing
+        // after the loop self-stops. tick() reaches isDead() only in the rare case where a
+        // single frame straddles both thresholds (e.g. a multi-second main-thread stall).
         if (isDead()) applyDead();
         else applyStale(isStale());
         rafId = null; // stop the loop; restarted by startTimer() on a fresh running gen
@@ -407,6 +415,21 @@
       // fresh run start so the next end-of-countdown pulses again.
       if (nextRunning && !wasRunning) countdownPulsed = false;
       animateRunEdge(lowerThird, wasRunning, nextRunning);
+
+      // DEAD_MS recovery re-show (CR-01): applyDead() hid the plate via is-exiting, but
+      // the run-START edge above only fires on running false→true. A console that DIED
+      // mid-run (>DEAD_MS) and then RECOVERS sends running:true while wasRunning was
+      // already true (true→true), so animateRunEdge takes NEITHER branch and the plate
+      // would stay hidden (opacity:0) on air for the rest of the run. When a live payload
+      // is consumed while the plate is still in the dead/is-exiting hidden state, mirror
+      // the enter edge: clear is-exiting and restore the shown (is-live + is-entering)
+      // state so the overlay reappears once the console is healthy again. This is keyed
+      // purely on the CURRENT hidden class state, NOT on gen-age (260615-tsi stays out).
+      if (nextRunning && lowerThird && lowerThird.classList.contains("is-exiting")) {
+        lowerThird.classList.remove("is-exiting");
+        retrigger(lowerThird, "is-entering");
+        lowerThird.classList.add("is-live");
+      }
 
       // Single pulse on a score-VALUE change (D-04 trigger #1) — only while shown.
       if (res.scoreChanged && nextRunning) pulseOnce(lowerThird);

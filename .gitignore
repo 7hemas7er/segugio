@@ -40,6 +40,11 @@ opcomm/
 /runstate.json
 /score.json
 
+# --- runtime process logs / PID files (orchestrator + console launched via docs/run.md) ---
+# Detached-process stdout/stderr + PID files written when running the live director/console;
+# runtime artifacts, never source.
+run-logs/
+
 # --- test fixture video binaries (external-dir + committed-manifest pattern) ---
 # Real competition footage is large and may be license-restricted (consent/copyright),
 # so binaries stay local and un-committed. Only the manifest + README carry provenance.

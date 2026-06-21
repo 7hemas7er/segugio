@@ -5,7 +5,7 @@ milestone_name: Overlay Grafico Broadcast
 status: Awaiting next milestone
 stopped_at: Completed 14-03-PLAN.md (all 3 Phase-14 plans executed)
 last_updated: "2026-06-20T22:59:14.554Z"
-last_activity: 2026-06-20 — Milestone v1.2 completed and archived
+last_activity: 2026-06-21 — Completed quick task 260621-jr2 (single-page console layout)
 progress:
   total_phases: 5
   completed_phases: 5
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-20)
 Phase: Milestone v1.2 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-06-20 — Milestone v1.2 completed and archived
+Last activity: 2026-06-21 — Completed quick task 260621-jr2 (single-page console layout)
 
 ## Performance Metrics
 
@@ -242,6 +242,7 @@ Recent decisions affecting current work:
 | 2026-06-13 | run-md-phase8-console-multiview | docs/run.md: new "Phase 8 — Console multiview live" section (2-process arch console venv vs orchestratore venv312; console env vars SEGUGIO_OPCOMM_DIR/SEGUGIO_CONFIG/SEGUGIO_CAM_IDS; route GET /preview + /preview/<cam>.jpg; cap config-time max_total_mbps 8 Mbps → SystemExit(2); troubleshooting "OBS vede ma console no" → match esatto ndi_source + tools/verify_ndi_hx_decode.py) — quick 260613-rjz |
 | 2026-06-15 | fix-obs-browser-source-overlay-live-upda | overlay-render.js: per-request poll nonce (`++reqSeq`) replaces the per-gen `?t=lastGen`, so OBS CEF's URL-keyed cache (ignores `no-store`) can no longer serve a stale body and mask a gen advance — fixes the Phase 11 UAT live-update stall in OBS. Gen-gate (`p.gen > lastGen`), freshness watchdog, and offset-cancellation timer untouched; test pins the new nonce — quick 260615-sod (commit 63713d8) |
 | 2026-06-15 | fix-overlay-run-timer-freeze-response-re | overlay-render.js: freshness watchdog now keys on **console response recency** (`everResponded` + `lastResponseAt`, stamped on every successful poll) instead of **gen-age** (`lastGenAt`). Root cause of the Phase 11 UAT "score updates but run timer freezes" bug: `gen` only advances on `/run`+`/score` (no heartbeat), so an idle live run went stale after 600ms and the rAF timer stopped + overlay dimmed. Empirically reproduced in a sandbox and verified fixed (idle run now counts down, stays non-stale; console-down still degrades — OVD-03 preserved). Node regression test pins both cases — quick 260615-tsi (commits f635f5c, 49019bb) |
+| 2026-06-21 | riorganizza-layout-console-operatore-in- | console.html: layout single-page — 4 card info in alto (`.info-strip` 4-col: Motivo/Punteggi framing/Auto vuole/Cambi recenti) → banner ON AIR → multiview centrato → 3 card controllo (`.control-strip` 3-col: Punteggio+anteprima overlay / Run+Rilascia uniti / Stato live); entrambe le fasce collassano a 2/1 colonna sotto `@media max-width:1024px`. `<script>` byte-invariato, tutti gli id preservati, nessun peso font 500/600 — quick 260621-jr2 (commit 33379b1) |
 
 ## Deferred Items
 

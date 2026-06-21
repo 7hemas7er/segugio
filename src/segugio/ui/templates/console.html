@@ -52,6 +52,11 @@
        multiview (centered) → control-strip (3 cards). No more 2-column layout/overflowing
        sidebar; everything fits one landscape-tablet screen with no sidebar scroll. --- */
     .onair { font-weight: 700; margin: 0 0 8px; font-size: 1.75rem; line-height: 1.2; }
+    /* ON AIR row: big title on the left, the live status (stato/feeds/freshness) inline beside it. */
+    .onair-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin: 0 0 16px; }
+    .onair-row .onair { margin: 0; }
+    .onair-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+    .onair-status .freshness { margin: 0; }
     /* BAND 1 — 4 info cards in a horizontal row above ON AIR (gap a 4px multiple). */
     .info-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
                   align-items: start; margin: 0 0 16px; }
@@ -213,9 +218,17 @@
     </section>
   </div>
 
-  <!-- BAND 2 — ON AIR banner (enlarged) above the single live (the multiview). The overlay is
-       published directly to OBS, so the console shows NO redundant overlay preview here. -->
-  <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
+  <!-- BAND 2 — ON AIR banner with the live status inline beside the title (Stato live moved up
+       from the side column). The overlay is published directly to OBS (no preview here). -->
+  <div class="onair-row">
+    <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
+    <div class="onair-status">
+      <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
+      <div id="feeds"></div>
+      <!-- UXT-03 freshness stamp: "agg. {n}s fa" / "frame non aggiornato" (never "LIVE" stale). -->
+      <div class="freshness" id="freshness">agg. 0s fa</div>
+    </div>
+  </div>
 
   <!-- BAND 3 — live-row: MULTIVIEW (left) + Punteggio card (right). Each tile is role="button"
        = the whole-tile force control (D-02): one click POSTs /command {force_cam} immediately,
@@ -292,15 +305,6 @@
       <button type="button" data-action="start" class="run-btn">Avvia run</button>
       <button type="button" data-action="stop" class="run-btn danger">Ferma run</button>
       <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
-    </fieldset>
-
-    <!-- Stato live: LIVE DIRECTOR STATUS read-back (D-11) -->
-    <fieldset>
-      <legend>Stato live</legend>
-      <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
-      <div id="feeds"></div>
-      <!-- UXT-03 freshness stamp: "agg. {n}s fa" / "frame non aggiornato" (never "LIVE" stale). -->
-      <div class="freshness" id="freshness">agg. 0s fa</div>
     </fieldset>
 
   </div>

@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Overlay Grafico Broadcast
-status: Awaiting next milestone
-stopped_at: Completed 14-03-PLAN.md (all 3 Phase-14 plans executed)
-last_updated: "2026-06-20T22:59:14.554Z"
-last_activity: 2026-06-21 — Completed quick task 260621-jr2 (single-page console layout)
+milestone: v1.3
+milestone_name: Gestione Punteggi Avanzata
+status: planning
+last_updated: "2026-06-21T15:19:40.011Z"
+last_activity: 2026-06-21
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-20)
 
 ## Current Position
 
-Phase: Milestone v1.2 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-21 — Completed quick task 260621-jr2 (single-page console layout)
+Status: Defining requirements
+Last activity: 2026-06-21 — Milestone v1.3 started
 
 ## Performance Metrics
 

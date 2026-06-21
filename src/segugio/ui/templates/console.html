@@ -55,9 +55,16 @@
     /* BAND 1 — 4 info cards in a horizontal row above ON AIR (gap a 4px multiple). */
     .info-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
                   align-items: start; margin: 0 0 16px; }
-    /* BAND 4 — 3 control cards in a horizontal row below the multiview. Keeps the
-       safe-area-inset-bottom that previously lived on .cluster-bottom. */
-    .control-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    /* BAND 3b — live-row: the multiview (live) on the LEFT, the Punteggio card on the RIGHT,
+       so the operator scores while watching the live. Collapses to one column below tablet width. */
+    .live-row { display: grid; grid-template-columns: 1fr minmax(320px, 380px); gap: 16px;
+                align-items: start; margin: 0 0 16px; }
+    .live-row > * { margin-bottom: 0; }
+    .live-row > form > fieldset:last-child,
+    .live-row > fieldset:last-child { margin-bottom: 0; }
+    /* BAND 4 — 2 control cards in a horizontal row below the live-row (Run+Rilascia, Stato live).
+       Keeps the safe-area-inset-bottom that previously lived on .cluster-bottom. */
+    .control-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
                      align-items: start; margin: 24px 0 0;
                      padding-bottom: env(safe-area-inset-bottom, 0px);
                      padding-right: env(safe-area-inset-right, 0px); }
@@ -73,6 +80,7 @@
        whole console still fits one page — info-strip → 2 columns, control-strip → 1 column. */
     @media (max-width: 1024px) {
       .info-strip { grid-template-columns: repeat(2, 1fr); }
+      .live-row { grid-template-columns: 1fr; }
       .control-strip { grid-template-columns: 1fr; }
     }
 
@@ -220,9 +228,11 @@
   <!-- BAND 2 — D-03 minimal ON AIR banner, below the info-strip, above the multiview. -->
   <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
 
-  <!-- BAND 3 — MULTIVIEW (centered below ON AIR). Each tile is role="button" = the whole-tile
-       force control (D-02): one click POSTs /command {force_cam} immediately, no dialog. Tiles
-       carry the 5 D-04 states + a per-tile dog-lock bbox SVG (WHY-03, zero JS letterbox math). -->
+  <!-- BAND 3 — live-row: MULTIVIEW (left) + Punteggio card (right). Each tile is role="button"
+       = the whole-tile force control (D-02): one click POSTs /command {force_cam} immediately,
+       no dialog. Tiles carry the 5 D-04 states + a per-tile dog-lock bbox SVG (WHY-03). -->
+  <div class="live-row">
+
   <div class="multiview" id="multiview">
     {% for cam in cam_ids %}
     <div class="tile" id="tile-{{ cam }}" role="button" aria-pressed="false" data-cam="{{ cam }}" tabindex="0">
@@ -238,13 +248,9 @@
     {% endfor %}
   </div>
 
-  <!-- BAND 4 — control-strip: 3 control cards in a horizontal row below the multiview:
-       (a) Punteggio (#form-score, overlay preview INSIDE) — (b) Run + Rilascia (one fieldset) —
-       (c) Stato live (#stato/#feeds/#freshness). -->
-  <div class="control-strip">
-
-    <!-- (a) SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02);
-             the SCV-02 overlay preview stays INSIDE this card. -->
+    <!-- Punteggio card — RIGHT column of the live-row, beside the multiview. SCORE ENTRY:
+         discipline selector + 3 per-discipline field sets (SCR-02); the SCV-02 overlay
+         preview stays INSIDE this card. -->
     <form id="form-score" method="post" action="/score">
       <fieldset>
         <legend>Punteggio</legend>
@@ -295,7 +301,14 @@
       </fieldset>
     </form>
 
-    <!-- (b) RUN START/STOP (D-09) + OVERRIDE undo (D-03) UNITED in one fieldset. The blind
+  </div>
+  <!-- /live-row -->
+
+  <!-- BAND 4 — control-strip: 2 control cards below the live-row:
+       (a) Run + Rilascia (one fieldset) — (b) Stato live (#stato/#feeds/#freshness). -->
+  <div class="control-strip">
+
+    <!-- (a) RUN START/STOP (D-09) + OVERRIDE undo (D-03) UNITED in one fieldset. The blind
              per-cam text force buttons are REMOVED; the whole tile is the force control.
              "Rilascia (auto)" stays the distinct large always-visible undo. -->
     <fieldset>

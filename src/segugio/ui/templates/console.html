@@ -48,22 +48,37 @@
             background: #222; margin-right: 4px; }
     .hint { font-size: 0.75rem; font-weight: 400; color: #b9b9b9; margin: 4px 0 0; }
 
-    /* --- Layout (UXT-01, D-01): landscape two-region — multiview LEFT, sidebar RIGHT --- */
+    /* --- Layout (UXT-01): single-page vertical stack — info-strip (4 cards) → ON AIR →
+       multiview (centered) → control-strip (3 cards). No more 2-column layout/overflowing
+       sidebar; everything fits one landscape-tablet screen with no sidebar scroll. --- */
     .onair { font-weight: 700; margin: 0 0 8px; font-size: 1.25rem; line-height: 1.2; }
-    .layout { display: grid; grid-template-columns: 1fr 340px; gap: 32px; align-items: start; }
-    .sidebar { display: flex; flex-direction: column; gap: 24px; min-width: 320px; }
+    /* BAND 1 — 4 info cards in a horizontal row above ON AIR (gap a 4px multiple). */
+    .info-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+                  align-items: start; margin: 0 0 16px; }
+    /* BAND 4 — 3 control cards in a horizontal row below the multiview. Keeps the
+       safe-area-inset-bottom that previously lived on .cluster-bottom. */
+    .control-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+                     align-items: start; margin: 24px 0 0;
+                     padding-bottom: env(safe-area-inset-bottom, 0px);
+                     padding-right: env(safe-area-inset-right, 0px); }
+    /* Drop the redundant trailing margin of the cards' fieldset/form so they add no extra
+       vertical space that could reopen the scroll. */
+    .control-strip > * { margin-bottom: 0; }
+    .control-strip > * > fieldset:last-child,
+    .control-strip > fieldset:last-child { margin-bottom: 0; }
     .sidebar-block { background: #1a1d22; border: 1px solid #333; border-radius: 8px; padding: 16px; }
     .sidebar-block h2 { font-size: 0.875rem; font-weight: 700; margin: 0 0 8px; color: #b9b9b9; }
     .tabular { font-variant-numeric: tabular-nums; }
-    /* Reflow: below a landscape-tablet width the sidebar drops BELOW the grid (single column,
-       grid first) — live cam + reason stay visible (D-01 criterion). */
+    /* Reflow: below a landscape-tablet width both strips collapse to fewer columns so the
+       whole console still fits one page — info-strip → 2 columns, control-strip → 1 column. */
     @media (max-width: 1024px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { min-width: 0; }
+      .info-strip { grid-template-columns: repeat(2, 1fr); }
+      .control-strip { grid-template-columns: 1fr; }
     }
 
-    /* --- Multiview (MVW-01/02/03): responsive grid on the LEFT (D-01) --- */
-    .multiview { display: grid; gap: 8px; margin: 0;
+    /* --- Multiview (MVW-01/02/03): responsive grid, centered below the ON AIR banner --- */
+    .multiview { display: grid; gap: 8px; margin: 0 auto;
+                 max-width: 1280px; justify-content: center;
                  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     /* Whole tile = the force control (D-02): role=button, ≥44px, no native highlight → :active. */
     .tile { position: relative; border: 3px solid #333; border-radius: 8px; overflow: hidden;
@@ -161,151 +176,144 @@
                   font-size: 0.75rem; font-weight: 700; background: #34D399; color: #14161a;
                   vertical-align: middle; }
 
-    /* --- Bottom-trailing thumb-arc cluster (UXT-01 reachability): undo + score form, safe-area
-       padded so it clears the home indicator. --- */
-    .cluster-bottom { margin-top: 24px;
-                      padding-bottom: env(safe-area-inset-bottom, 0px);
-                      padding-right: env(safe-area-inset-right, 0px); }
-    /* Rilascia (auto) = the large always-visible undo for an accidental tap-to-force (≥48px). */
+    /* Rilascia (auto) = the large always-visible undo for an accidental tap-to-force (≥48px).
+       The safe-area padding that used to wrap this cluster now lives on .control-strip. */
     #rilascia { min-height: 48px; min-width: 48px; font-size: 1rem; margin-top: 16px; }
   </style>
 </head>
 <body>
   <h1>Segugio — Console Regia</h1>
 
-  <!-- D-03 minimal ON AIR banner (top, always visible). -->
+  <!-- UXT-01 single-page vertical stack (3 bands): info-strip (4 cards) → ON AIR banner →
+       multiview (centered) → control-strip (3 cards). Replaces the old 2-column layout/sidebar
+       that overflowed vertically ("multi-page") on a landscape tablet. -->
+
+  <!-- BAND 1 — info-strip: 4 info cards in a horizontal row ABOVE the ON AIR banner, in the
+       order Motivo → Punteggi framing → Auto vuole → Cambi recenti. Reuses .sidebar-block. -->
+  <div class="info-strip">
+
+    <!-- (1) Reason (WHY-01) -->
+    <section class="sidebar-block">
+      <h2>Motivo</h2>
+      <div id="reason">In attesa…</div>
+    </section>
+
+    <!-- (2) Score leaderboard (WHY-02) -->
+    <section class="sidebar-block">
+      <h2>Punteggi framing</h2>
+      <div id="leaderboard" class="tabular">Nessun dato di framing</div>
+    </section>
+
+    <!-- (3) Auto-wants hint (WHY-04) -->
+    <section class="sidebar-block">
+      <h2>Auto vuole</h2>
+      <div id="auto-wants">—</div>
+    </section>
+
+    <!-- (4) Switch-history strip (MVW-05) -->
+    <section class="sidebar-block">
+      <h2>Cambi recenti</h2>
+      <div id="switch-history">Nessun cambio recente</div>
+    </section>
+  </div>
+
+  <!-- BAND 2 — D-03 minimal ON AIR banner, below the info-strip, above the multiview. -->
   <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
 
-  <!-- (D-01) two-region landscape layout: dominant multiview grid LEFT, fixed sidebar RIGHT.
-       Below tablet width the sidebar reflows BELOW the grid (single column). -->
-  <div class="layout">
-
-    <!-- MULTIVIEW (left, dominant). Each tile is role="button" = the whole-tile force control
-         (D-02): one click POSTs /command {force_cam} immediately, no dialog. Tiles carry the 5
-         D-04 states + a per-tile dog-lock bbox SVG (WHY-03, zero JS letterbox math). -->
-    <div class="multiview" id="multiview">
-      {% for cam in cam_ids %}
-      <div class="tile" id="tile-{{ cam }}" role="button" aria-pressed="false" data-cam="{{ cam }}" tabindex="0">
-        <img id="img-{{ cam }}" alt="{{ cam }}" decoding="sync">
-        <svg class="bbox-overlay" id="bbox-{{ cam }}" viewBox="0 0 1 1" preserveAspectRatio="xMidYMid meet">
-          <rect class="bbox-rect" id="rect-{{ cam }}" vector-effect="non-scaling-stroke" x="0" y="0" width="0" height="0"></rect>
-        </svg>
-        <span class="badge" id="badge-{{ cam }}">{{ cam }}</span>
-        <span class="ribbon" id="ribbon-{{ cam }}">🔒 FORZATA</span>
-        <span class="auto-tag" id="autotag-{{ cam }}">▸ auto →</span>
-        <div class="stale-overlay" id="stale-{{ cam }}">STALE</div>
-      </div>
-      {% endfor %}
+  <!-- BAND 3 — MULTIVIEW (centered below ON AIR). Each tile is role="button" = the whole-tile
+       force control (D-02): one click POSTs /command {force_cam} immediately, no dialog. Tiles
+       carry the 5 D-04 states + a per-tile dog-lock bbox SVG (WHY-03, zero JS letterbox math). -->
+  <div class="multiview" id="multiview">
+    {% for cam in cam_ids %}
+    <div class="tile" id="tile-{{ cam }}" role="button" aria-pressed="false" data-cam="{{ cam }}" tabindex="0">
+      <img id="img-{{ cam }}" alt="{{ cam }}" decoding="sync">
+      <svg class="bbox-overlay" id="bbox-{{ cam }}" viewBox="0 0 1 1" preserveAspectRatio="xMidYMid meet">
+        <rect class="bbox-rect" id="rect-{{ cam }}" vector-effect="non-scaling-stroke" x="0" y="0" width="0" height="0"></rect>
+      </svg>
+      <span class="badge" id="badge-{{ cam }}">{{ cam }}</span>
+      <span class="ribbon" id="ribbon-{{ cam }}">🔒 FORZATA</span>
+      <span class="auto-tag" id="autotag-{{ cam }}">▸ auto →</span>
+      <div class="stale-overlay" id="stale-{{ cam }}">STALE</div>
     </div>
+    {% endfor %}
+  </div>
 
-    <!-- SIDEBAR (right). Five content blocks in the D-01 order: Reason → Leaderboard →
-         Auto-wants → Switch-history → Score form. The first four are SCAFFOLD containers here
-         (empty), filled by 09-03/09-04; the score form + run + status + undo move in now. -->
-    <aside class="sidebar" id="sidebar">
+  <!-- BAND 4 — control-strip: 3 control cards in a horizontal row below the multiview:
+       (a) Punteggio (#form-score, overlay preview INSIDE) — (b) Run + Rilascia (one fieldset) —
+       (c) Stato live (#stato/#feeds/#freshness). -->
+  <div class="control-strip">
 
-      <!-- (1) Reason (WHY-01) — scaffold, filled 09-03 -->
-      <section class="sidebar-block">
-        <h2>Motivo</h2>
-        <div id="reason">In attesa…</div>
-      </section>
+    <!-- (a) SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02);
+             the SCV-02 overlay preview stays INSIDE this card. -->
+    <form id="form-score" method="post" action="/score">
+      <fieldset>
+        <legend>Punteggio</legend>
+        <label for="disciplina">Disciplina</label>
+        <select id="disciplina" name="discipline">
+          <option value="disc_tf">Disc — Toss &amp; Fetch</option>
+          <option value="disc_freestyle">Disc — Freestyle</option>
+          <option value="agility">Agility</option>
+        </select>
 
-      <!-- (2) Score leaderboard (WHY-02) — scaffold, filled 09-03 -->
-      <section class="sidebar-block">
-        <h2>Punteggi framing</h2>
-        <div id="leaderboard" class="tabular">Nessun dato di framing</div>
-      </section>
+        <!-- disc Toss & Fetch: prese / zona / totale -->
+        <div class="campi" data-disc="disc_tf">
+          <div class="row">
+            <div><label for="prese">Prese</label><input id="prese" name="prese" type="text" inputmode="numeric" enterkeyhint="next"></div>
+            <div><label for="zona">Zona</label><input id="zona" name="zona" type="text" enterkeyhint="next"></div>
+            <div><label for="totale">Totale</label><input id="totale" name="totale" type="text" inputmode="numeric" enterkeyhint="send"></div>
+          </div>
+        </div>
 
-      <!-- (3) Auto-wants hint (WHY-04) — scaffold, filled 09-03 -->
-      <section class="sidebar-block">
-        <h2>Auto vuole</h2>
-        <div id="auto-wants">—</div>
-      </section>
+        <!-- disc Freestyle: nome + timer -->
+        <div class="campi hidden" data-disc="disc_freestyle">
+          <div class="row">
+            <div><label for="nome">Nome</label><input id="nome" name="nome" type="text" enterkeyhint="next"></div>
+            <div><label for="timer">Timer</label><input id="timer" name="timer" type="text" inputmode="decimal" placeholder="mm:ss" enterkeyhint="send"></div>
+          </div>
+          <div class="hint">usa il punto (.) per i decimali</div>
+        </div>
 
-      <!-- (4) Switch-history strip (MVW-05) — scaffold, filled 09-04 -->
-      <section class="sidebar-block">
-        <h2>Cambi recenti</h2>
-        <div id="switch-history">Nessun cambio recente</div>
-      </section>
+        <!-- agility: tempo vs SCT + faults -->
+        <div class="campi hidden" data-disc="agility">
+          <div class="row">
+            <div><label for="tempo">Tempo</label><input id="tempo" name="tempo" type="text" inputmode="decimal" enterkeyhint="next"></div>
+            <div><label for="sct">SCT</label><input id="sct" name="sct" type="text" inputmode="decimal" enterkeyhint="next"></div>
+            <div><label for="faults">Faults</label><input id="faults" name="faults" type="text" inputmode="numeric" enterkeyhint="send"></div>
+          </div>
+          <div class="hint">usa il punto (.) per i decimali</div>
+        </div>
 
-      <!-- (5) Score form + run + override undo + live status (bottom-trailing thumb arc). -->
-      <div class="cluster-bottom">
+        <!-- SCV-02 overlay preview: a same-origin iframe of the ONE /overlay route
+             (preview=1 cosmetic fork) — the SAME page OBS loads, so the console preview
+             and the OBS overlay can never drift (the byte-exact JS mirror is retired). -->
+        <label>Anteprima overlay — come va in onda<span class="on-air-tag">● ON AIR</span></label>
+        <div class="overlay-preview-frame">
+          <iframe src="/overlay?preview=1" title="Anteprima overlay live"></iframe>
+        </div>
 
-        <!-- SCORE ENTRY — discipline selector + 3 per-discipline field sets (SCR-02) -->
-        <form id="form-score" method="post" action="/score">
-          <fieldset>
-            <legend>Punteggio</legend>
-            <label for="disciplina">Disciplina</label>
-            <select id="disciplina" name="discipline">
-              <option value="disc_tf">Disc — Toss &amp; Fetch</option>
-              <option value="disc_freestyle">Disc — Freestyle</option>
-              <option value="agility">Agility</option>
-            </select>
+        <button type="submit">Aggiorna punteggio</button>
+      </fieldset>
+    </form>
 
-            <!-- disc Toss & Fetch: prese / zona / totale -->
-            <div class="campi" data-disc="disc_tf">
-              <div class="row">
-                <div><label for="prese">Prese</label><input id="prese" name="prese" type="text" inputmode="numeric" enterkeyhint="next"></div>
-                <div><label for="zona">Zona</label><input id="zona" name="zona" type="text" enterkeyhint="next"></div>
-                <div><label for="totale">Totale</label><input id="totale" name="totale" type="text" inputmode="numeric" enterkeyhint="send"></div>
-              </div>
-            </div>
+    <!-- (b) RUN START/STOP (D-09) + OVERRIDE undo (D-03) UNITED in one fieldset. The blind
+             per-cam text force buttons are REMOVED; the whole tile is the force control.
+             "Rilascia (auto)" stays the distinct large always-visible undo. -->
+    <fieldset>
+      <legend>Run + Rilascia</legend>
+      <button type="button" data-action="start" class="run-btn">Avvia run</button>
+      <button type="button" data-action="stop" class="run-btn danger">Ferma run</button>
+      <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
+    </fieldset>
 
-            <!-- disc Freestyle: nome + timer -->
-            <div class="campi hidden" data-disc="disc_freestyle">
-              <div class="row">
-                <div><label for="nome">Nome</label><input id="nome" name="nome" type="text" enterkeyhint="next"></div>
-                <div><label for="timer">Timer</label><input id="timer" name="timer" type="text" inputmode="decimal" placeholder="mm:ss" enterkeyhint="send"></div>
-              </div>
-              <div class="hint">usa il punto (.) per i decimali</div>
-            </div>
+    <!-- (c) LIVE DIRECTOR STATUS read-back (D-11) -->
+    <fieldset>
+      <legend>Stato live</legend>
+      <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
+      <div id="feeds"></div>
+      <!-- UXT-03 freshness stamp: "agg. {n}s fa" / "frame non aggiornato" (never "LIVE" stale). -->
+      <div class="freshness" id="freshness">agg. 0s fa</div>
+    </fieldset>
 
-            <!-- agility: tempo vs SCT + faults -->
-            <div class="campi hidden" data-disc="agility">
-              <div class="row">
-                <div><label for="tempo">Tempo</label><input id="tempo" name="tempo" type="text" inputmode="decimal" enterkeyhint="next"></div>
-                <div><label for="sct">SCT</label><input id="sct" name="sct" type="text" inputmode="decimal" enterkeyhint="next"></div>
-                <div><label for="faults">Faults</label><input id="faults" name="faults" type="text" inputmode="numeric" enterkeyhint="send"></div>
-              </div>
-              <div class="hint">usa il punto (.) per i decimali</div>
-            </div>
-
-            <!-- SCV-02 overlay preview: a same-origin iframe of the ONE /overlay route
-                 (preview=1 cosmetic fork) — the SAME page OBS loads, so the console preview
-                 and the OBS overlay can never drift (the byte-exact JS mirror is retired). -->
-            <label>Anteprima overlay — come va in onda<span class="on-air-tag">● ON AIR</span></label>
-            <div class="overlay-preview-frame">
-              <iframe src="/overlay?preview=1" title="Anteprima overlay live"></iframe>
-            </div>
-
-            <button type="submit">Aggiorna punteggio</button>
-          </fieldset>
-        </form>
-
-        <!-- RUN START/STOP (D-09) -->
-        <fieldset>
-          <legend>Run</legend>
-          <button type="button" data-action="start" class="run-btn">Avvia run</button>
-          <button type="button" data-action="stop" class="run-btn danger">Ferma run</button>
-        </fieldset>
-
-        <!-- OVERRIDE undo (D-03) — the blind per-cam text force buttons are REMOVED; the whole tile
-             is the force control. "Rilascia (auto)" stays the distinct large always-visible undo. -->
-        <fieldset>
-          <legend>Regia</legend>
-          <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
-        </fieldset>
-
-        <!-- LIVE DIRECTOR STATUS read-back (D-11) -->
-        <fieldset>
-          <legend>Stato live</legend>
-          <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
-          <div id="feeds"></div>
-          <!-- UXT-03 freshness stamp: "agg. {n}s fa" / "frame non aggiornato" (never "LIVE" stale). -->
-          <div class="freshness" id="freshness">agg. 0s fa</div>
-        </fieldset>
-
-      </div>
-    </aside>
   </div>
 
   <script>

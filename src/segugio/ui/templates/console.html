@@ -62,17 +62,14 @@
     .live-row > * { margin-bottom: 0; }
     .live-row > form > fieldset:last-child,
     .live-row > fieldset:last-child { margin-bottom: 0; }
-    /* BAND 4 — 2 control cards in a horizontal row below the live-row (Run+Rilascia, Stato live).
-       Keeps the safe-area-inset-bottom that previously lived on .cluster-bottom. */
-    .control-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
-                     align-items: start; margin: 24px 0 0;
-                     padding-bottom: env(safe-area-inset-bottom, 0px);
-                     padding-right: env(safe-area-inset-right, 0px); }
-    /* Drop the redundant trailing margin of the cards' fieldset/form so they add no extra
-       vertical space that could reopen the scroll. */
-    .control-strip > * { margin-bottom: 0; }
-    .control-strip > * > fieldset:last-child,
-    .control-strip > fieldset:last-child { margin-bottom: 0; }
+    /* The live-row RIGHT column: Punteggio + Run/Rilascia + Stato live stacked vertically beside
+       the live. The safe-area-inset padding that lived on .control-strip moves here. */
+    .side-col { display: flex; flex-direction: column; gap: 16px;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+                padding-right: env(safe-area-inset-right, 0px); }
+    .side-col > * { margin-bottom: 0; }
+    .side-col > * > fieldset:last-child,
+    .side-col > fieldset:last-child { margin-bottom: 0; }
     .sidebar-block { background: #1a1d22; border: 1px solid #333; border-radius: 8px; padding: 16px; }
     .sidebar-block h2 { font-size: 0.875rem; font-weight: 700; margin: 0 0 8px; color: #b9b9b9; }
     .tabular { font-variant-numeric: tabular-nums; }
@@ -81,12 +78,14 @@
     @media (max-width: 1024px) {
       .info-strip { grid-template-columns: repeat(2, 1fr); }
       .live-row { grid-template-columns: 1fr; }
-      .control-strip { grid-template-columns: 1fr; }
     }
 
-    /* --- Multiview (MVW-01/02/03): the single live; fills its live-row column (no max-width
-       cap / centering, so the tile is as large as the column allows). --- */
-    .multiview { display: grid; gap: 8px;
+    /* --- Multiview (MVW-01/02/03): the single live. Capped by the vertical budget so the 16/9
+       tile never runs off the bottom of the screen — the cap is on WIDTH (height = width*9/16),
+       preserving the img object-fit / bbox letterbox math. Centers (margin auto) when the cap
+       binds. Tune the 21rem chrome budget if the live should be bigger/smaller. --- */
+    .multiview { display: grid; gap: 8px; margin: 0 auto;
+                 max-width: calc((100vh - 21rem) * 16 / 9);
                  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     /* Whole tile = the force control (D-02): role=button, ≥44px, no native highlight → :active. */
     .tile { position: relative; border: 3px solid #333; border-radius: 8px; overflow: hidden;
@@ -238,9 +237,11 @@
     {% endfor %}
   </div>
 
-    <!-- Punteggio card — RIGHT column of the live-row, beside the multiview. SCORE ENTRY:
-         discipline selector + 3 per-discipline field sets (SCR-02); the SCV-02 overlay
-         preview stays INSIDE this card. -->
+  <!-- RIGHT column of the live-row: Punteggio + Run/Rilascia + Stato live stacked vertically
+       beside the live (the bottom control-strip is gone). -->
+  <div class="side-col">
+
+    <!-- Punteggio card — SCORE ENTRY: discipline selector + 3 per-discipline field sets (SCR-02). -->
     <form id="form-score" method="post" action="/score">
       <fieldset>
         <legend>Punteggio</legend>
@@ -283,16 +284,9 @@
       </fieldset>
     </form>
 
-  </div>
-  <!-- /live-row -->
-
-  <!-- BAND 4 — control-strip: 2 control cards below the live-row:
-       (a) Run + Rilascia (one fieldset) — (b) Stato live (#stato/#feeds/#freshness). -->
-  <div class="control-strip">
-
-    <!-- (a) RUN START/STOP (D-09) + OVERRIDE undo (D-03) UNITED in one fieldset. The blind
-             per-cam text force buttons are REMOVED; the whole tile is the force control.
-             "Rilascia (auto)" stays the distinct large always-visible undo. -->
+    <!-- Run + Rilascia: RUN START/STOP (D-09) + OVERRIDE undo (D-03) UNITED in one fieldset.
+         The blind per-cam text force buttons are REMOVED; the whole tile is the force control.
+         "Rilascia (auto)" stays the distinct large always-visible undo. -->
     <fieldset>
       <legend>Run + Rilascia</legend>
       <button type="button" data-action="start" class="run-btn">Avvia run</button>
@@ -300,7 +294,7 @@
       <button type="button" id="rilascia" class="secondary">Rilascia (auto)</button>
     </fieldset>
 
-    <!-- (c) LIVE DIRECTOR STATUS read-back (D-11) -->
+    <!-- Stato live: LIVE DIRECTOR STATUS read-back (D-11) -->
     <fieldset>
       <legend>Stato live</legend>
       <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
@@ -310,6 +304,10 @@
     </fieldset>
 
   </div>
+  <!-- /side-col -->
+
+  </div>
+  <!-- /live-row -->
 
   <script>
     // --- discipline selector toggles the matching field set (SCR-02) ---

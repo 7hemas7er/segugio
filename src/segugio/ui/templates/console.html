@@ -85,11 +85,13 @@
       .live-row { grid-template-columns: 1fr; }
     }
 
-    /* --- Multiview (MVW-01/02/03): the single live. Capped by the vertical budget so the 16/9
-       tile never runs off the bottom of the screen — the cap is on WIDTH (height = width*9/16),
-       preserving the img object-fit / bbox letterbox math. Centers (margin auto) when the cap
-       binds. Tune the 21rem chrome budget if the live should be bigger/smaller. --- */
-    .multiview { display: grid; gap: 8px; margin: 0 auto;
+    /* --- Multiview (MVW-01/02/03): the single live; fills (stretch) its live-row 1fr column,
+       capped by the vertical budget so the 16/9 tile never runs off the bottom of the screen —
+       the cap is on WIDTH (height = width*9/16), preserving the img object-fit / bbox letterbox
+       math. NB: do NOT set `margin: 0 auto` here — auto margins on a grid item disable
+       justify-self:stretch and collapse the grid to its 240px min. Tune the 21rem chrome
+       budget if the live should be bigger/smaller (left-aligned when the cap binds). --- */
+    .multiview { display: grid; gap: 8px;
                  max-width: calc((100vh - 21rem) * 16 / 9);
                  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     /* Whole tile = the force control (D-02): role=button, ≥44px, no native highlight → :active. */

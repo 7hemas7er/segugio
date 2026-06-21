@@ -67,26 +67,32 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCE-01 | TBD | Pending |
-| SCE-02 | TBD | Pending |
-| SCE-03 | TBD | Pending |
-| SCE-04 | TBD | Pending |
-| SCE-05 | TBD | Pending |
-| SCC-01 | TBD | Pending |
-| SCC-02 | TBD | Pending |
-| SCC-03 | TBD | Pending |
-| SCC-04 | TBD | Pending |
-| SCC-05 | TBD | Pending |
-| SCP-01 | TBD | Pending |
-| SCP-02 | TBD | Pending |
-| RBT-08 | TBD | Pending |
-| RBT-09 | TBD | Pending |
+| SCE-01 | Phase 16 | Pending |
+| SCE-02 | Phase 16 | Pending |
+| SCE-03 | Phase 16 | Pending |
+| SCE-04 | Phase 17 | Pending |
+| SCE-05 | Phase 16 | Pending |
+| SCC-01 | Phase 16 | Pending |
+| SCC-02 | Phase 15 | Pending |
+| SCC-03 | Phase 16 | Pending |
+| SCC-04 | Phase 15 | Pending |
+| SCC-05 | Phase 17 | Pending |
+| SCP-01 | Phase 15 | Pending |
+| SCP-02 | Phase 15 | Pending |
+| RBT-08 | Phase 15 | Pending |
+| RBT-09 | Phase 18 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 14 total
-- Mapped to phases: 0 (popolata dalla roadmap)
-- Unmapped: 14 ⚠️ (risolto in roadmap)
+- Mapped to phases: 14 ✓ (100% — no orphans, no duplicates)
+- Unmapped: 0
+
+**Per-phase mapping:**
+- **Phase 15** (Pure Calc + Validation Core & Scoring Profiles): SCC-02, SCC-04, SCP-01, SCP-02, RBT-08
+- **Phase 16** (Shared Entry Component, Dedicated Page & Server-Authoritative POST): SCE-01, SCE-02, SCE-03, SCE-05, SCC-01, SCC-03
+- **Phase 17** (Console Modal, Multi-throw State & Tablet UX): SCE-04, SCC-05
+- **Phase 18** (Rich Data Model & Overlay-Continuity Regression): RBT-09
 
 ---
 *Requirements defined: 2026-06-21*
-*Last updated: 2026-06-21 after initial v1.3 definition*
+*Last updated: 2026-06-21 — traceability popolata dalla roadmap v1.3 (Phasi 15–18, 14/14 mappati)*

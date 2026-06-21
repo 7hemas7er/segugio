@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: planning
-last_updated: "2026-06-21T15:19:40.011Z"
+last_updated: "2026-06-21T16:00:00.000Z"
 last_activity: 2026-06-21
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-20)
+See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Planning next milestone (v1.2 shipped 2026-06-20, tag `v1.2`) — run `/gsd-new-milestone`.
+**Current focus:** v1.3 "Gestione Punteggi Avanzata" — roadmap created (Phases 15–18). Next: `/gsd-plan-phase 15` (Pure Calc + Validation Core & Scoring Profiles). REQ blocker: pin the exact per-discipline/federation rule tables (zone bands/points, freestyle criteria+scale, agility model+fault table+time-fault rate) before coding Phase 15.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 15 — Pure Calc + Validation Core & Scoring Profiles (Not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-21 — Milestone v1.3 started
+Status: Roadmap created — awaiting phase planning
+Last activity: 2026-06-21 — v1.3 roadmap created (Phases 15–18, 14/14 requirements mapped)
 
 ## Performance Metrics
 
@@ -118,6 +118,11 @@ Last activity: 2026-06-21 — Milestone v1.3 started
 
 ### Roadmap Evolution
 
+- Milestone v1.3 "Gestione Punteggi Avanzata" roadmap created (2026-06-21): 4 phases appended after the v1.2 Phases 10–14 (numbering continues at Phase 15, no reset). 14/14 v1.3 requirements mapped, no orphans, no duplicates. The shape is dependency-forced (pure calc+profile authority → shared component + dedicated page + server-authoritative POST → console modal reusing the same component → rich data model + overlay-continuity regression) and is a *publish-and-render* extension of the v1.1/v1.2 channel — the console still imports ONLY `Flask + segugio.opcomm` + the NEW pure stdlib `score_calc`, the director is never touched, transport stays fetch-polling (no WebSocket/SSE/MJPEG), zero new runtime dep. Keystone = SERVER-AUTHORITATIVE calc+validation (client live-calc is advisory, parity by drift-guard test). Single on-air score only (no roster/standings; freestyle = single-judge multi-criteria):
+  - **Phase 15 — Pure Calc + Validation Core & Scoring Profiles** (SCC-02/04, SCP-01/02, RBT-08): the gating authority. NEW stdlib-only `segugio/ui/score_calc.py` (`validate()` + `compute()` for disc T&F / freestyle / agility) is the single source of truth, built and proven BEFORE any UI consumes it. Config-driven scoring profiles (zone bands/points, fault tables, freestyle criteria/scale, agility count-up-vs-deduct model) extend the CFG-03 discriminated-union; a default profile ships, malformed profiles fail-fast at config-load. `score_calc` added to `PHASE1_SURFACE`; the heavy-absent import-smoke gate (`test_console_resolves_with_heavy_stack_and_numpy_absent`) extended to the new module + a `POST /score` round-trip — establishing the crash-isolation guard every later phase inherits (Pitfall 6). REQ blocker: pin the exact per-federation rule tables before coding.
+  - **Phase 16 — Shared Entry Component, Dedicated Page & Server-Authoritative POST** (SCE-01/02/03/05, SCC-01/03): the spine. ONE vanilla-JS `score-entry.js` component (`mount(root, cfg)` factory, dual export, mounted FIRST on the simpler dedicated `/score-entry` page) shows per-discipline rich fields from the active profile, live advisory total + per-field validation errors. `score-calc.js` is a byte-exact ADVISORY port; a drift-guard test (node-vs-Python shared fixtures, `test_ui_overlay_render.py` precedent) keeps it from becoming a second authority. `POST /score` made AUTHORITATIVE: validate → 400 + write-nothing on invalid → recompute in Python → atomic `score.json`+`overlay.txt`, preserving `running`/`started_at` (WR-03). Locked here: the round-trip acceptance test (form total === `overlay.txt` === `/overlay-json`-rendered total). Avoids Pitfalls 1/2/3.
+  - **Phase 17 — Console Modal, Multi-throw State & Tablet UX** (SCE-04, SCC-05): proves the SCV-02 drift-free claim across two hosts. A native `<dialog>` in `console.html` + "Apri punteggio" trigger mounts the SAME `score-entry.js`; a single Jinja `{% include "score-form.html" %}` partial = one markup source (legacy inline `#form-score` retired). Multi-throw/round progressive total with reload-safe in-progress state (localStorage restore; any server-side persistence via `atomic_write_*` + never-raise reader, gen under `_gen_lock`, run-state not clobbered — Pitfall 7). Explicit danger-styled publish action (no accidental on-air); ZERO CDN assets, ≥16px inputs (no iOS zoom), focus trap, sleep/wake survival (Pitfall 8 code-time parts; real-iPad rig UAT deferred non-blocking).
+  - **Phase 18 — Rich Data Model & Overlay-Continuity Regression** (RBT-09): done last, verified against the fully-wired system. Structured `fields` subkeys (throws[]/criteria{}/faults_breakdown{}) carried ADDITIVELY through `score.json` + `/overlay-json` alongside the preserved flat summary keys; `render_overlay_text` summarizes to one line. Regression gates: `overlay.txt` single-line/non-empty after a rich POST, `/overlay-json` legacy keys intact, `/overlay` carries no score data, XSS sink extended to new free-text fields (no `innerHTML`/`| safe`; crafted `<script>` name renders escaped). Avoids Pitfalls 4/5.
 - Milestone v1.2 "Overlay Grafico Broadcast" roadmap created (2026-06-14): 5 phases appended after the v1.1 Phases 7–9 (numbering continues at Phase 10, no reset). 18/18 v1.2 requirements mapped, no orphans. The shape is dependency-forced (data contract → renderer → SCV-01 unification → OBS wiring → robustness hardening) and is a *publish-and-render* extension of the v1.1 preview channel — the console still imports ONLY `Flask + segugio.opcomm`, the director is never touched, transport is fetch-polling:
   - **Phase 10 — Overlay Data Contract & Run-Timestamp Publish** (OVD-01/02/03, RBT-07): the gating data foundation. NEW console-owned `overlay_run.json` (mirrors PreviewDoc) stamps `run_started_at`+`running` on the run start/stop edge — `runstate.json` (director-read every tick) is NEVER touched. `GET /overlay-json` returns boundary-safe `{discipline, fields verbatim, running, started_at, server_now, gen}` with `Cache-Control: no-store`. `server_now` (the clock-skew anchor, the milestone's one genuinely new behavior) and a monotonic `gen` are in the contract from the first commit. Crash-isolation import test green = a success criterion here, re-asserted every later phase. Zero HTML.
   - **Phase 11 — Shared Graphical Renderer, /overlay Page & Branding** (OVL-01..04, TMR-01..04, BRD-01/02): the core deliverable. ONE shared `overlay-render.js` + transparent `overlay.html` (critical CSS inlined, FOUC-free, title-safe lower band). Self-counting client timer with offset-cancellation (`skew = server_now − Date.now()/1000`, never raw subtraction across machines) — T&F/freestyle count down + freeze-at-0 "Tempo", agility counts up into SCT overtime. gen-age freshness watchdog STOPS the timer + degrades on stale (a frozen run is never "live"). Animations only on events (enter/exit/score-pulse). Config logo + CSS-var theme + identity line folded in (renderer concern). All client-side, no director compute, no new Python dep.
@@ -135,6 +140,11 @@ Last activity: 2026-06-21 — Milestone v1.3 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Milestone v1.3]: Gestione Punteggi Avanzata is *publish-and-render* with a SERVER-AUTHORITATIVE calc keystone — the client POSTs RAW inputs, `POST /score` validates (400 + write-nothing on invalid) and RECOMPUTES totals in Python (`decimal`, never float), then writes `score.json`+`overlay.txt`. The client live-calc (`score-calc.js`) is ADVISORY only; parity with the Python `score_calc.py` authority is enforced by a drift-guard test, never by trust. Only Python writes → form and on-air files cannot diverge.
+- [Milestone v1.3]: Score entry is ONE shared vanilla-JS component mounted into BOTH the dedicated `/score-entry` page AND a console native `<dialog>` modal (SCV-02 lesson applied to a form). NOT an iframe (focus/keyboard/submit cross the boundary badly for an interactive form), NOT a hand-mirrored copy. One JS module + one Jinja form partial = drift structurally impossible.
+- [Milestone v1.3]: Scoring rules are CONFIG-DRIVEN via a per-discipline/federation "scoring profile" extending the CFG-03 pydantic discriminated-union — zones/points, fault tables, freestyle criteria/scale, and the agility model (count-up faults OR deduct-from-100) change with NO code edit; malformed profile fails fast at config-load.
+- [Milestone v1.3]: The new `score_calc.py` is PURE stdlib-only (no numpy, no `import segugio.config` at module top) so the console import-surface stays `Flask + segugio.opcomm + score_calc`; the import-smoke gate is extended to it. Director never imported/modified; transport stays fetch-polling (WebSocket/SSE/MJPEG re-rejected — UXT-02 starvation).
+- [Milestone v1.3]: Data model enrichment is ADDITIVE — structured `fields` subkeys (throws[]/criteria{}/faults_breakdown{}) ride ALONGSIDE the preserved flat summary keys; `overlay.txt`, `/overlay`, `/overlay-json`, and the OBS text fallback are untouched and regression-verified (RBT-09). New free-text fields HTML-escaped at the sink (`textContent`, never `innerHTML`/`| safe`).
 - [Milestone v1.2]: Overlay Grafico Broadcast is *publish-and-render*, not compute — the same v1.1 preview-channel precedent. The console serves `/overlay` + `/overlay-json` over the existing opcomm-over-files channel; the run timer counts client-side from a published `run_started_at`+`server_now`+`running`; zero per-frame director work, zero new Python runtime dep, director never imported/modified.
 - [Milestone v1.2]: The run-start timestamp lives in a NEW console-owned `overlay_run.json` (mirroring PreviewDoc), NEVER in `runstate.json` (the director reads it every tick) — keeps "director never touched" literally true.
 - [Milestone v1.2]: Clock-skew is solved by offset-cancellation from day one — `/overlay-json` publishes `server_now` alongside `started_at` (both the console clock); the client computes `skew = server_now − Date.now()/1000` each poll and counts locally. NEVER a naive `Date.now() − started_at` across two machines. This is the milestone's single highest-risk new behavior, solved at Phase 10/11.
@@ -220,10 +230,13 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- *(none — Phase 10 planned 2026-06-14; next is `/gsd-execute-phase 10`)*
+- *(none — v1.3 roadmap created 2026-06-21; next is `/gsd-plan-phase 15`)*
 
 ### Blockers/Concerns
 
+- [Milestone v1.3 — Phase 15 REQ blocker]: The exact per-discipline/federation scoring rule tables must be pinned in the Phase-15 REQ before coding — which federation's zone bands/points ship as the BUILT-IN default profile (UFO/USDDN/Skyhoundz disc T&F), the freestyle criteria names/count/scale (single-judge), and the agility model (count-up faults vs deduct-from-100) + fault table + time-fault rate (FCI/AKC). FEATURES.md gives research-level values; the REQ commits the shipped defaults. Product/operator decision, not a research gap (research confidence HIGH for disc-dog formulas, MEDIUM for cross-federation completeness).
+- [Milestone v1.3 — Phase 16 REQ]: Pin the multi-judge-combiner "design-for vs implement" boundary — ARCHITECTURE says design the combiner to support drop_high_low even though v1.3 ships single-judge sum (+ optionally average). Resolve before Phase 16.
+- [Milestone v1.3 — Phase 17 REQ]: Resolve two product/UX decisions before Phase 17 — the explicit publish-to-air affordance (danger button vs confirm dialog) and the `<dialog>` dismiss-on-dirty behavior (block backdrop-dismiss when the form has unsaved throws?). The iPadOS 26 `<dialog>` + virtual-keyboard behavior is a hardware-gated UAT note (deferred, non-blocking), not a code-time blocker.
 - [Milestone v1.2 — (1) RESOLVED 2026-06-14 in 10-03]: The freestyle round-length config key is `overlay.freestyle_duration_s` (int, gt=0, default 120; orgs override to 90) — the 90s-vs-120s question is closed (default 120, org-overridable). Remaining open UX question: (2) the T&F/freestyle timer-at-zero visual treatment (freeze at 0:00 + "Tempo"; confirm whether a TEMPO flash is wanted) and the agility over-SCT display treatment, both to confirm before Phase 11 implementation. Also a CEF border-radius-over-transparency gray-edge artifact to verify on the production OBS box (avoid hairline rounded borders if it surfaces).
 - [Phase 1]: Framing-scorer math (Phase 2) is dense/novel — flagged for `--research-phase` during planning (lead-room, motion-adaptive alpha, conf-norm, size band, zone multiplier)
 - [Phase 4 — RESOLVED 2026-06-10 GPU UAT]: Native-ReID engagement on yolo26s VERIFIED on RTX 4000 Ada (assert_native_reid_engaged does not raise with end2end=False → no silent yolo26n-cls.pt fallback). COCO dog recall MEASURED on the 6 hard slices: strong on close/clear (handler_close cam_c 0.89, dusk_distant 0.76, sprint_blur 0.69), weak on distant/small + crowd (distant 0.04, crowd_distractor 0.16) — candidate for dog-detector fine-tuning later. NOTE: GPU UAT also found+fixed a real bug — the tracker yaml was passed as a bare name and never resolved, so TRK-01/TRK-02 were dead on the real path (silent coast every frame); fixed in detector.py with fail-loud abs-path resolution + CPU regression test.
@@ -278,10 +291,10 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-20T23:00:00.000Z
-Stopped at: Milestone v1.2 completed and archived (Phase 14 verified + secured; UAT Test 1 passed on rig, Tests 2–3 deferred non-blocking)
-Resume file: None — run /gsd-new-milestone to scope the next milestone
+Last session: 2026-06-21T16:00:00.000Z
+Stopped at: v1.3 "Gestione Punteggi Avanzata" roadmap created (Phases 15–18, 14/14 requirements mapped, no orphans)
+Resume file: None — run /gsd-plan-phase 15 to plan the first v1.3 phase (pin the per-discipline scoring rule tables in the REQ first)
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Plan the first v1.3 phase with /gsd-plan-phase 15 (Pure Calc + Validation Core & Scoring Profiles). Pin the exact per-discipline/federation scoring rule tables in the Phase-15 REQ before coding (see Blockers/Concerns).

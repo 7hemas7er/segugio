@@ -51,7 +51,10 @@
     /* --- Layout (UXT-01): single-page vertical stack — info-strip (4 cards) → ON AIR →
        multiview (centered) → control-strip (3 cards). No more 2-column layout/overflowing
        sidebar; everything fits one landscape-tablet screen with no sidebar scroll. --- */
-    .onair { font-weight: 700; margin: 0 0 8px; font-size: 1.25rem; line-height: 1.2; }
+    .onair { font-weight: 700; margin: 0 0 8px; font-size: 1.75rem; line-height: 1.2; }
+    /* ON AIR program monitor band: the published overlay shown large under the on-air label. */
+    .onair-band { margin: 0 0 16px; }
+    .onair-band .overlay-preview-frame { width: 100%; max-width: 880px; }
     /* BAND 1 — 4 info cards in a horizontal row above ON AIR (gap a 4px multiple). */
     .info-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
                   align-items: start; margin: 0 0 16px; }
@@ -225,8 +228,15 @@
     </section>
   </div>
 
-  <!-- BAND 2 — D-03 minimal ON AIR banner, below the info-strip, above the multiview. -->
-  <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
+  <!-- BAND 2 — ON AIR program monitor: the overlay shown EXACTLY as published (the
+       /overlay?preview=1 iframe = the SAME page OBS loads) under an enlarged on-air label.
+       The overlay is published directly, so its preview belongs here, not in the score card. -->
+  <section class="onair-band">
+    <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span><span class="on-air-tag">● LIVE</span></div>
+    <div class="overlay-preview-frame">
+      <iframe src="/overlay?preview=1" title="ON AIR — come va in onda"></iframe>
+    </div>
+  </section>
 
   <!-- BAND 3 — live-row: MULTIVIEW (left) + Punteggio card (right). Each tile is role="button"
        = the whole-tile force control (D-02): one click POSTs /command {force_cam} immediately,
@@ -287,14 +297,6 @@
             <div><label for="faults">Faults</label><input id="faults" name="faults" type="text" inputmode="numeric" enterkeyhint="send"></div>
           </div>
           <div class="hint">usa il punto (.) per i decimali</div>
-        </div>
-
-        <!-- SCV-02 overlay preview: a same-origin iframe of the ONE /overlay route
-             (preview=1 cosmetic fork) — the SAME page OBS loads, so the console preview
-             and the OBS overlay can never drift (the byte-exact JS mirror is retired). -->
-        <label>Anteprima overlay — come va in onda<span class="on-air-tag">● ON AIR</span></label>
-        <div class="overlay-preview-frame">
-          <iframe src="/overlay?preview=1" title="Anteprima overlay live"></iframe>
         </div>
 
         <button type="submit">Aggiorna punteggio</button>

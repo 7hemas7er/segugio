@@ -112,6 +112,8 @@
     .tile.dead { opacity: 0.55; filter: grayscale(1); }            /* MORTO: dim + desaturate */
     .tile.stale { opacity: 0.55; filter: grayscale(0.6); }         /* STALE: frozen/reconnecting */
 
+    /* Inline Tabler icon (SVG): scales with font-size, aligned to the text baseline. */
+    .ico { width: 1em; height: 1em; vertical-align: -0.15em; flex: none; }
     .badge { position: absolute; top: 4px; left: 4px; padding: 4px 8px;
              border-radius: 4px; font-size: 0.875rem; font-weight: 700; background: #222;
              color: #b9b9b9; }
@@ -167,9 +169,9 @@
               border: 1px solid #333; overflow: hidden; }
     .lb-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0;
                border-radius: 4px 0 0 4px; }
-    /* tracking → solid green fill + ● */
+    /* tracking → solid green fill + broadcast icon */
     .lb-fill.tracking { background: #34D399; }
-    /* coast → hatched neutral (#9CA3AF) + ◐ — a categorically different fill, not just a hue. */
+    /* coast → hatched neutral (#9CA3AF) + pause icon — a categorically different fill, not just a hue. */
     .lb-fill.coast { background-color: #9CA3AF;
                      background-image: repeating-linear-gradient(45deg,
                        rgba(20,22,26,0.55) 0, rgba(20,22,26,0.55) 4px,
@@ -245,8 +247,8 @@
         <rect class="bbox-rect" id="rect-{{ cam }}" vector-effect="non-scaling-stroke" x="0" y="0" width="0" height="0"></rect>
       </svg>
       <span class="badge" id="badge-{{ cam }}">{{ cam }}</span>
-      <span class="ribbon" id="ribbon-{{ cam }}">🔒 FORZATA</span>
-      <span class="auto-tag" id="autotag-{{ cam }}">▸ auto →</span>
+      <span class="ribbon" id="ribbon-{{ cam }}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" /></svg> FORZATA</span>
+      <span class="auto-tag" id="autotag-{{ cam }}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6" /></svg> auto</span>
       <div class="stale-overlay" id="stale-{{ cam }}">STALE</div>
     </div>
     {% endfor %}
@@ -353,6 +355,20 @@
     const CAMS = {{ cam_ids | tojson }};
     const CAM_LABEL = Object.fromEntries(CAMS.map(c => [c, c]));
 
+    // Inline Tabler icons (SVG, offline — no CDN/web font). icon(name) returns an <svg> string of
+    // STATIC markup only; NEVER interpolate dynamic data into it (labels/values go via append/textContent).
+    const ICONS = {
+      lock: '<path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" />',
+      broadcast: '<path d="M18.364 19.364a9 9 0 1 0 -12.728 0" /><path d="M15.536 16.536a5 5 0 1 0 -7.072 0" /><path d="M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />',
+      pause: '<path d="M6 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12" /><path d="M14 6a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1l0 -12" />',
+      off: '<path d="M20.042 16.045a9 9 0 0 0 -12.087 -12.087m-2.318 1.677a9 9 0 1 0 12.725 12.73" /><path d="M3 3l18 18" />',
+      chevron: '<path d="M9 6l6 6l-6 6" />',
+    };
+    function icon(name) {
+      return '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+        + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
+    }
+
     // ===== gsd:why-mirror:start =====
     // WHY-01 reason → plain-Italian copy (UI-SPEC §Copywriting Contract). The mapping is the
     // single source of truth for the sidebar #reason string. Unknown/none → "In attesa…".
@@ -424,10 +440,11 @@
 
         const value = document.createElement("span");
         value.className = "lb-value tabular";
-        // glyph + value/label per state: tracking ● {score}; coast ◐ coast; lost ·· lost.
-        if (state === "tracking") value.textContent = "● " + score.toFixed(2);
-        else if (state === "coasting") value.textContent = "◐ coast";
-        else value.textContent = "·· lost";
+        // icon + value/label per state: tracking broadcast {score}; coast pause; lost circle-off.
+        // icon() is STATIC svg (innerHTML); the numeric/label text is appended as a TEXT node.
+        if (state === "tracking") { value.innerHTML = icon("broadcast"); value.append(" " + score.toFixed(2)); }
+        else if (state === "coasting") { value.innerHTML = icon("pause"); value.append(" coast"); }
+        else { value.innerHTML = icon("off"); value.append(" lost"); }
 
         row.appendChild(label);
         row.appendChild(bar);
@@ -471,8 +488,8 @@
       post("/command", { release: "1" }));
 
     // --- Tile state dispatcher (D-04): toggle exactly the 5 grayscale-safe states + badge text. ---
-    // states: "live" (auto, green ●) | "forzata" (override, amber 🔒 + ribbon) | "auto-wants"
-    // (dashed blue ▸) | "dead" (MORTO dim/desaturate ✕) | "stale" (frozen) | "idle" (cam id).
+    // states: "live" (auto, green broadcast icon) | "forzata" (override, amber lock icon + ribbon) |
+    // "auto-wants" (dashed blue chevron) | "dead" (MORTO dim/desaturate) | "stale" (frozen) | "idle" (cam id).
     function setTileState(cam, state) {
       const tile = document.getElementById("tile-" + cam);
       const badge = document.getElementById("badge-" + cam);
@@ -492,11 +509,13 @@
       badge.classList.toggle("live", live);
       badge.classList.toggle("forzata", forzata);
       badge.classList.toggle("dead", dead);
-      badge.textContent = dead ? "MORTO"
-        : forzata ? "🔒 FORZATA"
-        : live ? "● LIVE"
-        : stale ? "STALE"
-        : CAM_LABEL[cam];
+      // Icon + label: icon() is STATIC svg (innerHTML); the label is appended as a TEXT node so a
+      // cam id can never inject markup. States without an icon stay textContent. Same priority as before.
+      if (dead) badge.textContent = "MORTO";
+      else if (forzata) { badge.innerHTML = icon("lock"); badge.append(" FORZATA"); }
+      else if (live) { badge.innerHTML = icon("broadcast"); badge.append(" LIVE"); }
+      else if (stale) badge.textContent = "STALE";
+      else badge.textContent = CAM_LABEL[cam];
     }
 
     // --- Dog-lock bbox overlay (WHY-03): zero JS letterbox math. The SVG unit viewBox +

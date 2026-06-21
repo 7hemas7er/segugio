@@ -3,8 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: planning
-last_updated: "2026-06-21T16:00:00.000Z"
-last_activity: 2026-06-21
+stopped_at: Phase 15 context gathered
+last_updated: "2026-06-21T22:31:40.080Z"
+last_activity: 2026-06-21 — v1.3 roadmap created (Phases 15–18, 14/14 requirements mapped)
 progress:
   total_phases: 4
   completed_phases: 0
@@ -291,9 +292,9 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-21T16:00:00.000Z
-Stopped at: v1.3 "Gestione Punteggi Avanzata" roadmap created (Phases 15–18, 14/14 requirements mapped, no orphans)
-Resume file: None — run /gsd-plan-phase 15 to plan the first v1.3 phase (pin the per-discipline scoring rule tables in the REQ first)
+Last session: 2026-06-21T22:31:40.053Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-pure-calc-validation-core-scoring-profiles/15-CONTEXT.md
 
 ## Operator Next Steps
 

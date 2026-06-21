@@ -57,7 +57,7 @@
                   align-items: start; margin: 0 0 16px; }
     /* BAND 3b — live-row: the multiview (live) on the LEFT, the Punteggio card on the RIGHT,
        so the operator scores while watching the live. Collapses to one column below tablet width. */
-    .live-row { display: grid; grid-template-columns: 1fr minmax(320px, 380px); gap: 16px;
+    .live-row { display: grid; grid-template-columns: 1fr minmax(260px, 300px); gap: 16px;
                 align-items: start; margin: 0 0 16px; }
     .live-row > * { margin-bottom: 0; }
     .live-row > form > fieldset:last-child,
@@ -84,9 +84,9 @@
       .control-strip { grid-template-columns: 1fr; }
     }
 
-    /* --- Multiview (MVW-01/02/03): responsive grid, centered below the ON AIR banner --- */
-    .multiview { display: grid; gap: 8px; margin: 0 auto;
-                 max-width: 1280px; justify-content: center;
+    /* --- Multiview (MVW-01/02/03): the single live; fills its live-row column (no max-width
+       cap / centering, so the tile is as large as the column allows). --- */
+    .multiview { display: grid; gap: 8px;
                  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     /* Whole tile = the force control (D-02): role=button, ≥44px, no native highlight → :active. */
     .tile { position: relative; border: 3px solid #333; border-radius: 8px; overflow: hidden;

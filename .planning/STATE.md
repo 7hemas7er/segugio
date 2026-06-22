@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: planning
 stopped_at: Phase 15 context gathered
-last_updated: "2026-06-21T22:31:40.080Z"
+last_updated: "2026-06-22T13:09:03.911Z"
 last_activity: 2026-06-21 — v1.3 roadmap created (Phases 15–18, 14/14 requirements mapped)
 progress:
   total_phases: 4

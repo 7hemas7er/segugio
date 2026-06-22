@@ -21,52 +21,68 @@
 ## Phase Details
 
 ### Phase 15: Pure Calc + Validation Core & Scoring Profiles
+
 **Goal**: The single authoritative scoring brain exists and is crash-isolation-safe — one pure stdlib module computes and validates every discipline's score, driven by config-driven profiles, before any UI can consume it.
 **Depends on**: Nothing (first v1.3 phase; builds on the shipped v1.2 console/opcomm surface)
 **Requirements**: SCC-02, SCC-04, SCP-01, SCP-02, RBT-08
 **Success Criteria** (what must be TRUE):
+
   1. Given raw inputs for any of the three disciplines, the module returns a correctly auto-calculated total — disc T&F sums throws×zone (+ bonus), freestyle sums single-judge criteria, agility applies the configured model (count-up faults OR deduct-from-100) plus time-faults vs SCT (verifiable by unit tests against the pinned per-federation rule tables).
   2. Given invalid inputs (out-of-range, missing required field, malformed `mm:ss` time), the module reports per-field validation errors rather than computing a result.
   3. Swapping the active scoring profile (zones/points, fault table, freestyle criteria/scale, agility model) changes the computed result with NO code change; a malformed profile fails fast at config-load with a clear error.
-  4. The console import-smoke gate passes with the full heavy stack and numpy ABSENT while now also covering `score_calc` — i.e. the new module imports clean and a `POST /score` round-trip resolves with torch/cv2/ultralytics/numpy/cyndilib/obsws unavailable.
-**Plans**: 3 plans
+  4. The console import-smoke gate passes with the full heavy stack and numpy ABSENT while now also covering `score_calc` — i.e. the new module imports clean and a `POST /score` round-trip resolves with torch/cv2/ultralytics/numpy/cyndilib/obsws unavailable.**Plans**: 3 plans
+
+**Wave 1**
+
   - [ ] 15-01-PLAN.md — pure-stdlib score_calc.py (ScoringProfile + validate + compute for all 3 disciplines) + unit tests vs pinned CSEN tables
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
   - [ ] 15-02-PLAN.md — config-driven scoring-profile pydantic sub-model + pydantic→stdlib adapter + CSEN/FIDASC/FCI fixtures + swap/malformed tests (FIDASC numbers human-verify gated)
   - [ ] 15-03-PLAN.md — crash-isolation gate extension (score_calc → PHASE1_SURFACE + heavy-absent POST /score round-trip)
 
 ### Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST
+
 **Goal**: An operator can enter a score on a dedicated full-screen page using ONE shared component with live advisory feedback, and the server is the sole authority that validates and recomputes what airs.
 **Depends on**: Phase 15
 **Requirements**: SCE-01, SCE-02, SCE-03, SCE-05, SCC-01, SCC-03
 **Success Criteria** (what must be TRUE):
+
   1. The operator opens the dedicated `/score-entry` page, picks a discipline, and sees the rich per-discipline structured fields from the active scoring profile.
   2. As the operator types, a running total updates live (advisory) and per-field validation errors appear before publishing.
   3. Submitting POSTs RAW inputs only; the server validates (returns 400 and writes NOTHING on invalid input, leaving any previous on-air score untouched) and recomputes the total in Python before writing atomically.
   4. For the same inputs, the form-displayed total equals the value the server writes — proven both by the round-trip acceptance test (form total === `overlay.txt` line === `/overlay-json`-rendered total) and by the JS↔Python drift-guard test (the advisory client calc never becomes a second authority).
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 17: Console Modal, Multi-throw State & Tablet UX
+
 **Goal**: The operator can enter and publish a score from inside the console via a popup that reuses the exact same component, accumulate multi-throw/round entries without losing them, and do it all reliably on the offline-rig tablet.
 **Depends on**: Phase 16
 **Requirements**: SCE-04, SCC-05
 **Success Criteria** (what must be TRUE):
+
   1. The operator opens a console `<dialog>` modal and enters a score using the SAME component as the dedicated page — both hosts share one Jinja form partial and one JS module, so the page and the modal are byte-for-byte the same form (no duplicated calc/submit logic, no re-introduced mirror).
   2. For multi-throw disc T&F the operator adds/edits throws across N rounds and sees a correct progressive running total; reloading the tablet mid-run restores the in-progress entry (no lost throws), and any persisted in-progress state is written atomically with a never-raise reader.
   3. Publishing to air is a deliberate, visually distinct action — a casual tap or Enter cannot put a half-entered score on air.
   4. The new page and modal load with ZERO external/CDN assets, all inputs are ≥16px (no iOS focus-zoom), and the modal traps focus and survives sleep/wake — code-time tablet contract met (real-iPad rig UAT deferred, non-blocking).
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 18: Rich Data Model & Overlay-Continuity Regression
+
 **Goal**: The richer structured score rides through the publish path additively, and every shipped overlay contract — graphical `/overlay`, `/overlay-json`, the `overlay.txt` text fallback, and the HTML sink — is verified unbroken.
 **Depends on**: Phases 15–17
 **Requirements**: RBT-09
 **Success Criteria** (what must be TRUE):
+
   1. After a rich `POST /score`, `score.json` and `/overlay-json` carry the structured subkeys (throws[]/criteria{}/faults_breakdown{}) ALONGSIDE all preserved flat summary keys; no legacy `/overlay-json` key is renamed or removed.
   2. `overlay.txt` is still written on every publish as a single non-empty line (length-bounded per field), and the OBS read-from-file text fallback shows the current score — regression-verified, not assumed.
   3. The `/overlay` graphical renderer still displays the score from the flat keys, and the host page bakes in NO score data (stays thin/poll-only).
   4. New free-text fields (dog/handler name, judges) are HTML-escaped at the sink — no `innerHTML`, no `| safe`; a crafted `<script>` name renders as inert escaped text both on the overlay and in any form preview.
+
 **Plans**: TBD
 **UI hint**: yes
 

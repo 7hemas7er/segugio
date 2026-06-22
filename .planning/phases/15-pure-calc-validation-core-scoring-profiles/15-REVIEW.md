@@ -11,10 +11,14 @@ files_reviewed_list:
   - tests/test_imports.py
 findings:
   critical: 3
+  critical_resolved: 3
+  critical_open: 0
   warning: 5
   info: 3
   total: 11
 status: issues_found
+fix_iteration: 1
+fix_status: criticals_resolved
 ---
 
 # Phase 15: Code Review Report
@@ -32,7 +36,13 @@ However, the adversarial pass surfaced real correctness gaps that the test suite
 
 ## Critical Issues
 
-### CR-01: Bonus flags use bare truthiness — string `"false"`/`"0"` inflate the on-air score
+> **RESOLVED (fix iteration 1, 2026-06-22):** All 3 Criticals fixed with regression tests.
+> CR-01 → commit `f80d2ae`, CR-02/CR-03 → commit `1437c4b`. Full phase suite green
+> (`tests/test_score_calc.py tests/test_score_profiles.py tests/test_imports.py`, 44 passed).
+> The 5 Warnings and 3 Info findings below remain OPEN (advisory debt). See
+> `15-REVIEW-FIX.md` for the fix report.
+
+### CR-01: [RESOLVED] Bonus flags use bare truthiness — string `"false"`/`"0"` inflate the on-air score
 
 **File:** `src/segugio/ui/score_calc.py:274-276`
 **Issue:** In `_compute_disc_tf`, bonuses are applied with `if throw.get(key):`. Form posts and JSON bodies deliver flags as **strings**, so `throw.get("midair") == "false"` is truthy and the +0.5 bonus is added; `"0"` and `"no"` are likewise truthy. `validate()` never checks the bonus-flag types at all, so this passes validation and silently inflates a broadcast total. Verified:
@@ -55,7 +65,7 @@ for key, value in profile.bonuses:
         score += value
 ```
 
-### CR-02: `count_best_n` has no lower-bound constraint — a negative value silently drops throws
+### CR-02: [RESOLVED] `count_best_n` has no lower-bound constraint — a negative value silently drops throws
 
 **File:** `src/segugio/config/discipline.py:104` (and consumed at `score_calc.py:282-283`)
 **Issue:** `count_best_n: int | None = None` carries no `Field(ge=...)` constraint, so a config with `count_best_n: -2` passes pydantic validation and the loader's fail-fast (SCP-02 claims malformed profiles exit 2 — this one does not). It then reaches `sorted(per_throw, reverse=True)[: profile.count_best_n]`, where Python's negative-slice semantics **drop throws from the end** instead of keeping the best N, producing a wrong total with no error. Verified:
@@ -69,7 +79,7 @@ Zero (`count_best_n: 0`) is also accepted and would score every round as 0.
 count_best_n: Annotated[int, Field(ge=1)] | None = None
 ```
 
-### CR-03: `per_throw_cap` has no lower-bound constraint — a negative cap airs a negative total
+### CR-03: [RESOLVED] `per_throw_cap` has no lower-bound constraint — a negative cap airs a negative total
 
 **File:** `src/segugio/config/discipline.py:103` (and consumed at `score_calc.py:278-279`)
 **Issue:** `per_throw_cap: Decimal | None = None` has no `ge` constraint, so `per_throw_cap: -5` passes validation and reaches `score = min(score, profile.per_throw_cap)`, capping every throw at `-5` and airing a negative round total. SCP-02 promises a malformed profile exits 2; this slips through. Verified:

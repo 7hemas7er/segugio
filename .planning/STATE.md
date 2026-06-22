@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: planning
-stopped_at: Phase 15 complete — Phase 16 not started
-last_updated: "2026-06-22T14:36:14.596Z"
-last_activity: 2026-06-22
+status: verifying
+stopped_at: Phase 16 context gathered
+last_updated: "2026-06-22T15:21:50.911Z"
+last_activity: 2026-06-22 — Phase 15 executed and completed
 progress:
   total_phases: 4
   completed_phases: 1
@@ -299,9 +299,9 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-21T22:31:40.053Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-pure-calc-validation-core-scoring-profiles/15-CONTEXT.md
+Last session: 2026-06-22T15:21:50.902Z
+Stopped at: Phase 16 context gathered
+Resume file: .planning/phases/16-shared-entry-component-dedicated-page-server-authoritative-p/16-CONTEXT.md
 
 ## Operator Next Steps
 

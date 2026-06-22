@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: executing
-stopped_at: 15-02 Task 2 — PAUSED at checkpoint:human-verify (FIDASC numbers)
-last_updated: "2026-06-22T14:05:00Z"
-last_activity: 2026-06-22 -- Phase 15 plan 15-02 in progress: Task 1 done (pydantic scoring sub-model + adapter + CSEN/FCI fixtures, commit 4937c33), Task 2 FIDASC fixture written + PAUSED at human-verify (commit f4e8cd5); Task 3 (SCP-01/02 tests) NOT yet run
+stopped_at: 15-02 COMPLETE — all 3 Phase 15 plans done; phase ready for /gsd-verify-work sign-off
+last_updated: "2026-06-22T14:00:00Z"
+last_activity: 2026-06-22 -- Phase 15 plan 15-02 COMPLETE: Task 3 (SCP-01 swap + SCP-02 fail-fast tests, commit 2b0a725) green; FIDASC human-verify gate resolved as "stub accepted for v1.3" (numbers stay [ASSUMED]). All 3 Phase 15 plans (15-01/15-02/15-03) now done; phase-level sign-off DEFERRED to /gsd-verify-work (env gotcha — gsd-tools not on PATH)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 15 (pure-calc-validation-core-scoring-profiles) — EXECUTING
-Plan: 15-02 IN PROGRESS — PAUSED at Task 2 checkpoint:human-verify (15-01 + 15-03 complete)
-Status: 15-02 Task 1 done (pydantic ScoringProfile sub-model on CFG-03 union + adapt_scoring_profile + config.csen/agility fixtures, commit 4937c33). Task 2 wrote config.fidasc.example.yaml with [ASSUMED] numbers (commit f4e8cd5) and PAUSED at the blocking human-verify gate — FIDASC numbers must be confirmed against the official PDF (or the stub explicitly accepted) before Task 3 (SCP-01/02 tests) runs. Plan 15-02 NOT complete; phase NOT signed off.
-Last activity: 2026-06-22 -- Phase 15 plan 15-02 paused at FIDASC human-verify checkpoint
+Phase: 15 (pure-calc-validation-core-scoring-profiles) — EXECUTING (all 3 plans done; awaiting verify sign-off)
+Plan: 15-02 COMPLETE (15-01 + 15-02 + 15-03 all done)
+Status: 15-02 fully done. Task 1 (pydantic ScoringProfile sub-model on CFG-03 union + adapt_scoring_profile + config.csen/agility fixtures, commit 4937c33), Task 2 (config.fidasc.example.yaml [ASSUMED], commit f4e8cd5), Task 3 (tests/test_score_profiles.py — SCP-01 swap + SCP-02 SystemExit(2) fail-fast, commit 2b0a725, 2 passed). The blocking human-verify gate on the FIDASC numbers was resolved by the user as "stub accepted for v1.3": FIDASC numbers stay [ASSUMED] (NOT flipped to [VERIFIED]); CSEN (pinned) carries scoring correctness. All 3 Phase 15 plans complete — phase-level [x] + SCP-01/SCP-02/SCC/RBT-08 REQ Complete sign-off DEFERRED to /gsd-verify-work (env gotcha: gsd-tools not on PATH, executor must not pre-mark phase-level sign-off).
+Last activity: 2026-06-22 -- Phase 15 plan 15-02 COMPLETE (Task 3 SCP-01/02 tests green; FIDASC stub accepted)
 
 ## Performance Metrics
 
@@ -115,6 +115,7 @@ Last activity: 2026-06-22 -- Phase 15 plan 15-02 paused at FIDASC human-verify c
 | Phase 14 P02 | 8min | 2 tasks | 4 files |
 | Phase 14 P03 | 7min | 2 tasks | 4 files |
 | Phase 15 P01 | 10min | 2 tasks | 2 files |
+| Phase 15 P02 | ~20min | 3 tasks | 5 files |
 | Phase 15 P03 | 6min | 1 task | 1 files |
 
 ## Accumulated Context
@@ -143,6 +144,7 @@ Last activity: 2026-06-22 -- Phase 15 plan 15-02 paused at FIDASC human-verify c
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 15 / 15-02]: Scoring rules made config-driven (SCP-01) with fail-fast validation (SCP-02). Pydantic `ZoneBand`/`Bonus`/`FreestyleCategory`/`ScoringProfile` sub-models attached ADDITIVELY to the CFG-03 union (`Field(default_factory=...)` so `extra="forbid"` configs without a `scoring:` block still validate); `adapt_scoring_profile` bridges the validated pydantic profile into the plain stdlib `score_calc.ScoringProfile` with a LAZY in-body `score_calc` import (D-10/RBT-08 — no config import leaks into the crash-isolated console). Three fixtures ship: `config.csen.example.yaml` (pinned CSEN 2026 default, [VERIFIED]), `config.fidasc.example.yaml` (alternate, structurally divergent — 5 zones/single +1/no best-N), `config.agility.example.yaml` (generic FCI). `tests/test_score_profiles.py`: `test_profile_swap_changes_result` asserts the CSEN→FIDASC STRUCTURAL divergence + CSEN numeric correctness (23.5) + the two totals differ (swap is config-only); `test_malformed_profile_fails_fast` asserts a negative zone `points` → `SystemExit(2)` riding the existing loader (no new fail-fast surface). The blocking human-verify gate on the FIDASC numbers was resolved by the user as "stub accepted for v1.3" — numbers stay [ASSUMED] (NOT [VERIFIED]); CSEN carries scoring correctness; FIDASC verifiable later with no code change (D-13 ordered-band-list). 2 passed; all 3 fixtures load. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + REQ Complete sign-off DEFERRED to /gsd-verify-work (env gotcha).
 - [Phase 15 / 15-03]: Crash-isolation import-smoke gate extended (RBT-08 + SCC-02 closed). `segugio.ui.score_calc` appended to `PHASE1_SURFACE` (auto-parametrized heavy-deps-absent import) and `test_console_resolves_with_heavy_stack_and_numpy_absent` extended with `import segugio.ui.score_calc` + a `POST /score` round-trip (asserts 200/204, tolerant so Phase 16's authoritative route doesn't break the gate) under the torch/cv2/ultralytics/numpy/cyndilib/obsws forced-absent block. Test-only edit to `tests/test_imports.py` (26 passed). 5 unrelated pre-existing failures (NDI/node/iframe/tablet) re-confirmed on baseline `aeaba3d` and deferred. Phase 15 NOT yet signed off — 15-02 (scoring profiles) still pending.
 - [Phase 15 / 15-01]: `segugio.ui.score_calc` shipped as the SOLE pure-stdlib compute authority — `ScoringProfile` frozen dataclass (immutable tuple fields, D-13 ordered band list) + `AgilityModel` str-Enum + `validate()` (per-field error contract, D-11) + `compute()` (Decimal-exact totals, D-09 — zero `float(` in source). Disc T&F = per-throw zone+exact bonuses, cap-5 via `min()` (never quantized — Pitfall 4), best-5-of-N; freestyle = 4×0.01 snap, sum max 40, minus manual adjustment (D-08); agility = count_up + deduct_from_100 with Decimal-native ceil time-faults and elimination sentinel checked FIRST (D-06/Pattern 4). Imports only `decimal`/`re`/`dataclasses`/`enum` + `opcomm.records.Discipline` (RBT-08); `compute()` emits the exact `score_render` flat keys (SCR-04). CSEN_DISC_PROFILE default + generic FCI_AGILITY_PROFILE builtins. 11/11 unit tests green; pydantic profile + config adapter (D-10) and the import-smoke gate extension are plans 15-02/15-03.
 - [Milestone v1.3]: Gestione Punteggi Avanzata is *publish-and-render* with a SERVER-AUTHORITATIVE calc keystone — the client POSTs RAW inputs, `POST /score` validates (400 + write-nothing on invalid) and RECOMPUTES totals in Python (`decimal`, never float), then writes `score.json`+`overlay.txt`. The client live-calc (`score-calc.js`) is ADVISORY only; parity with the Python `score_calc.py` authority is enforced by a drift-guard test, never by trust. Only Python writes → form and on-air files cannot diverge.

@@ -38,7 +38,7 @@
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-  - [ ] 15-02-PLAN.md — config-driven scoring-profile pydantic sub-model + pydantic→stdlib adapter + CSEN/FIDASC/FCI fixtures + swap/malformed tests (FIDASC numbers human-verify gated)
+  - [x] 15-02-PLAN.md — config-driven scoring-profile pydantic sub-model + pydantic→stdlib adapter + CSEN/FIDASC/FCI fixtures + swap/malformed tests — completed 2026-06-22 (SCP-01 swap + SCP-02 fail-fast green; FIDASC human-verify gate resolved as "stub accepted for v1.3", numbers stay [ASSUMED])
   - [x] 15-03-PLAN.md — crash-isolation gate extension (score_calc → PHASE1_SURFACE + heavy-absent POST /score round-trip)
 
 ### Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST

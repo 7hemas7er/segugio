@@ -13,6 +13,18 @@ field:
   sport: agility             # <- the swap: selects the agility overlay-field set
   event: agility_standard
 
+  # ---- scoring profile (SCP-01) — generic FCI-style example (D-07) ---------- #
+  # A GENERIC example, NOT a pinned federation. The agility ENGINE supports both
+  # models; real Italian agility numbers are deferred (D-06/D-07). `count_up`
+  # (lowest wins): total_faults = course_faults + ceil(rate × max(0, run − SCT));
+  # `E` on elimination overrides the numeric result with a sentinel string.
+  scoring:
+    units: m
+    agility_model: count_up    # count_up | deduct_from_100
+    time_fault_rate: 1         # faults per second over SCT
+    fault_value: 5             # points per course fault (informational for count_up)
+    elimination_sentinel: "E"  # rendered verbatim on elimination, never a number
+
 # ---- cameras --------------------------------------------------------------- #
 # Same 4-camera rig; for agility the main_wide covers the whole ring, long the
 # far half, low the contact/jump moments, handler_side the handler-side obstacles.

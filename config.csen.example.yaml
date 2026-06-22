@@ -1,0 +1,101 @@
+# Segugio — CSEN 2026 disc-dog scoring profile (the pinned DEFAULT, D-01)
+#
+# This is the shipped CSEN 2026 Italian disc-dog reference config. It is the
+# disc_dog reference (config.example.yaml) plus a `field.scoring:` block carrying
+# the pinned CSEN 2026 rule tables (D-02/D-03). CSEN is the active default and the
+# milestone's correctness reference — every per-discipline unit test asserts
+# against these numbers. Swap to config.fidasc.example.yaml to score a FIDASC event
+# with NO code change (SCP-01: the scoring profile is config-driven).
+#
+# Source of truth: discdogcsen.it RegolamentoDiscDogCsen2026.pdf (fully extracted,
+# D-02/D-03). Zones / bonuses / freestyle below are VERIFIED against that ruleset.
+#
+# Coordinate model (ARCHITECTURE.md Part 3, Option A): zones are rectangles in each
+# camera's OWN normalized image frame [0..1], origin top-left, as [x0, y0, x1, y1].
+
+# ---- field / discipline profile -------------------------------------------- #
+field:
+  sport: disc_dog            # disc_dog | agility
+  event: distance_accuracy   # distance_accuracy | freestyle | xtreme
+
+  # ---- scoring profile (SCP-01) — CSEN 2026 [VERIFIED: D-02/D-03] ----------- #
+  # Toss & Fetch: 90s round, single disc, unlimited throws but only the best 5
+  # count (count_best_n: 5, max round = 25). Two independent +0.5 bonuses per
+  # catch (all-four-paws-airborne, central-corridor); per-throw cap = 5.
+  scoring:
+    units: m
+    zones:                       # landing paw nearest the throw line, by meters
+      - { band: 1, points: 1 }   # 9m   [VERIFIED]
+      - { band: 2, points: 2 }   # 18m  [VERIFIED]
+      - { band: 3, points: 3 }   # 27m  [VERIFIED]
+      - { band: 4, points: 4 }   # 36m  [VERIFIED]
+    bonuses:                     # two independent +0.5 per catch [VERIFIED]
+      - { key: midair,   value: 0.5 }   # all four paws airborne
+      - { key: corridor, value: 0.5 }   # catch in the central corridor
+    per_throw_cap: 5             # 4 + 0.5 + 0.5 [VERIFIED]
+    count_best_n: 5              # only the best 5 throws count (max round 25) [VERIFIED]
+    # Freestyle: 4 judged categories, each 0-10 in 0.01 increments, total = sum
+    # (max 40). CSEN deductions enter as a single manual `adjustment` field (D-08).
+    freestyle_cats:
+      - { name: team,   min: 0, max: 10, increment: 0.01 }   # Team Elements [VERIFIED]
+      - { name: dog,    min: 0, max: 10, increment: 0.01 }   # Dog (Cane)    [VERIFIED]
+      - { name: player, min: 0, max: 10, increment: 0.01 }   # Player        [VERIFIED]
+      - { name: catch,  min: 0, max: 10, increment: 0.01 }   # Catch Ratio   [VERIFIED]
+    freestyle_max: 40            # sum ceiling [VERIFIED]
+
+# ---- cameras --------------------------------------------------------------- #
+cameras:
+  - id: cam_wide
+    role: main_wide
+    obs_scene: "CAM Wide"
+    is_safe: true
+    ndi_source: "PHONE-WIDE (NDI HX3)"
+    zones:
+      - { name: near, rect: [0.0, 0.55, 1.0, 1.0] }
+      - { name: mid,  rect: [0.0, 0.30, 1.0, 0.55] }
+      - { name: far,  rect: [0.0, 0.0,  1.0, 0.30] }
+
+  - id: cam_long
+    role: long
+    obs_scene: "CAM Long"
+    ndi_source: "PHONE-LONG (NDI HX3)"
+    zones:
+      - { name: far, rect: [0.0, 0.0,  1.0, 0.60] }
+      - { name: mid, rect: [0.0, 0.60, 1.0, 1.0] }
+
+  - id: cam_low
+    role: low
+    obs_scene: "CAM Low"
+    ndi_source: "PHONE-LOW (NDI HX3)"
+    zones:
+      - { name: near, rect: [0.0, 0.0, 1.0, 1.0] }
+
+  - id: cam_handler
+    role: handler_side
+    obs_scene: "CAM Handler"
+    ndi_source: "PHONE-HANDLER (NDI HX3)"
+    zones:
+      - { name: stage, rect: [0.20, 0.25, 0.80, 1.0] }
+
+# ---- role x zone framing weights ------------------------------------------- #
+framing_weights:
+  main_wide:    { near: 1.00, mid: 1.00, far: 1.00, stage: 1.00 }
+  long:         { near: 0.60, mid: 1.10, far: 1.60 }
+  low:          { near: 1.40, mid: 0.70, far: 0.30 }
+  handler_side: { stage: 1.50, near: 1.20, mid: 0.80, far: 0.50 }
+
+# ---- switching thresholds -------------------------------------------------- #
+thresholds:
+  alpha: 0.3
+  hysteresis_margin: 0.1
+  min_dwell: 2.0
+  debounce_N: 3
+  cooldown: 1.0
+  watchdog_timeout: 0.8
+  track_buffer: 60
+
+# ---- YOLO model (CFG-04) --------------------------------------------------- #
+model:
+  path: yolo26s.pt
+  class_index: 16
+  use_fp16: true

@@ -13,7 +13,7 @@
 
 ### v1.3 Gestione Punteggi Avanzata (Phases 15–18) — ACTIVE
 
-- [ ] **Phase 15: Pure Calc + Validation Core & Scoring Profiles** — the stdlib-only `score_calc` authority (validate + compute for disc T&F / freestyle / agility) + config-driven scoring profiles, added to the crash-isolation import gate before any UI consumes it
+- [x] **Phase 15: Pure Calc + Validation Core & Scoring Profiles** — the stdlib-only `score_calc` authority (validate + compute for disc T&F / freestyle / agility) + config-driven scoring profiles, added to the crash-isolation import gate before any UI consumes it (completed 2026-06-22)
 - [ ] **Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST** — the ONE vanilla-JS score-entry component proven on the dedicated `/score-entry` page, advisory client calc with a drift-guard, and `POST /score` made authoritative (validate→400 / recompute→atomic write)
 - [ ] **Phase 17: Console Modal, Multi-throw State & Tablet UX** — the same component mounted in a native `<dialog>` modal (single Jinja partial), multi-throw/round progressive total with reload-safe in-progress state, explicit publish action + offline-asset/≥16px/focus-trap tablet contract
 - [ ] **Phase 18: Rich Data Model & Overlay-Continuity Regression** — structured `fields` (throws[]/criteria{}/faults_breakdown{}) carried additively through the write path + `/overlay-json`, with `overlay.txt` / `/overlay` / OBS fallback and the XSS sink verified unchanged
@@ -138,7 +138,7 @@
 | 12. SCV-01 Unification | v1.2 | 3/3 | Complete | 2026-06-16 |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete | 2026-06-16 |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
-| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 1/3 | In progress | - |
+| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 0/? | Not started | - |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 0/? | Not started | - |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

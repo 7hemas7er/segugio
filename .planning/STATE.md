@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: executing
-stopped_at: 15-02 COMPLETE — all 3 Phase 15 plans done; phase ready for /gsd-verify-work sign-off
-last_updated: "2026-06-22T14:00:00Z"
-last_activity: 2026-06-22 -- Phase 15 plan 15-02 COMPLETE: Task 3 (SCP-01 swap + SCP-02 fail-fast tests, commit 2b0a725) green; FIDASC human-verify gate resolved as "stub accepted for v1.3" (numbers stay [ASSUMED]). All 3 Phase 15 plans (15-01/15-02/15-03) now done; phase-level sign-off DEFERRED to /gsd-verify-work (env gotcha — gsd-tools not on PATH)
+status: verifying
+stopped_at: Phase 15 context gathered
+last_updated: "2026-06-22T14:36:14.596Z"
+last_activity: 2026-06-22
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
   completed_plans: 3
-  percent: 0
+  percent: 25
 ---
 
 # Project State
@@ -25,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 15 (pure-calc-validation-core-scoring-profiles) — EXECUTING (all 3 plans done; awaiting verify sign-off)
-Plan: 15-02 COMPLETE (15-01 + 15-02 + 15-03 all done)
+Phase: 16
+Plan: Not started
 Status: 15-02 fully done. Task 1 (pydantic ScoringProfile sub-model on CFG-03 union + adapt_scoring_profile + config.csen/agility fixtures, commit 4937c33), Task 2 (config.fidasc.example.yaml [ASSUMED], commit f4e8cd5), Task 3 (tests/test_score_profiles.py — SCP-01 swap + SCP-02 SystemExit(2) fail-fast, commit 2b0a725, 2 passed). The blocking human-verify gate on the FIDASC numbers was resolved by the user as "stub accepted for v1.3": FIDASC numbers stay [ASSUMED] (NOT flipped to [VERIFIED]); CSEN (pinned) carries scoring correctness. All 3 Phase 15 plans complete — phase-level [x] + SCP-01/SCP-02/SCC/RBT-08 REQ Complete sign-off DEFERRED to /gsd-verify-work (env gotcha: gsd-tools not on PATH, executor must not pre-mark phase-level sign-off).
-Last activity: 2026-06-22 -- Phase 15 plan 15-02 COMPLETE (Task 3 SCP-01/02 tests green; FIDASC stub accepted)
+Last activity: 2026-06-22
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 39
+- Total plans completed: 42
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -53,6 +53,7 @@ Last activity: 2026-06-22 -- Phase 15 plan 15-02 COMPLETE (Task 3 SCP-01/02 test
 | 11 | 3 | - | - |
 | 13 | 2 | - | - |
 | 14 | 3 | - | - |
+| 15 | 3 | - | - |
 
 **Recent Trend:**
 

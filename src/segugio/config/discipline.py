@@ -100,8 +100,11 @@ class ScoringProfile(BaseModel):
     units: str = "m"
     zones: list[ZoneBand] = Field(default_factory=list)
     bonuses: list[Bonus] = Field(default_factory=list)
-    per_throw_cap: Decimal | None = None
-    count_best_n: int | None = None
+    # CR-03: a negative cap would air a negative total (min() caps every throw at it);
+    # CR-02: a negative/zero count_best_n hits Python's negative-slice / empty-slice
+    # semantics and silently drops throws. Both must fail fast at config-load (SCP-02).
+    per_throw_cap: Annotated[Decimal, Field(gt=0)] | None = None
+    count_best_n: Annotated[int, Field(ge=1)] | None = None
     freestyle_cats: list[FreestyleCategory] = Field(default_factory=list)
     freestyle_max: Decimal = Decimal("40")
     agility_model: Literal["count_up", "deduct_from_100"] = "count_up"

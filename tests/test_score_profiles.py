@@ -117,3 +117,44 @@ def test_malformed_profile_fails_fast(tmp_config, valid_config_dict):
     with pytest.raises(SystemExit) as exc_info:
         load_config(path)
     assert exc_info.value.code == 2, "malformed profile must fail fast with SystemExit(2)"
+
+
+@pytest.mark.parametrize("bad_n", [-2, 0])
+def test_count_best_n_negative_or_zero_fails_fast(tmp_config, valid_config_dict, bad_n):
+    """CR-02/SCP-02: a non-positive ``count_best_n`` fails fast at config-load (SystemExit(2)).
+
+    Without a lower bound, ``count_best_n: -2`` reached Python's negative-slice semantics and
+    silently dropped throws (and ``0`` scored every round as 0). ``Annotated[int, Field(ge=1)]``
+    now rejects it via the existing loader fail-fast — no new fail-fast surface."""
+    import yaml
+
+    bad = valid_config_dict
+    bad["field"]["scoring"] = {
+        "zones": [{"band": 1, "points": 1}],
+        "count_best_n": bad_n,
+    }
+    path = tmp_config(yaml.safe_dump(bad))
+
+    with pytest.raises(SystemExit) as exc_info:
+        load_config(path)
+    assert exc_info.value.code == 2, "non-positive count_best_n must fail fast with SystemExit(2)"
+
+
+def test_per_throw_cap_negative_fails_fast(tmp_config, valid_config_dict):
+    """CR-03/SCP-02: a negative ``per_throw_cap`` fails fast at config-load (SystemExit(2)).
+
+    Without a lower bound, ``per_throw_cap: -5`` reached ``min(score, cap)`` and aired a
+    negative round total. ``Annotated[Decimal, Field(gt=0)]`` now rejects it via the existing
+    loader fail-fast — no new fail-fast surface."""
+    import yaml
+
+    bad = valid_config_dict
+    bad["field"]["scoring"] = {
+        "zones": [{"band": 1, "points": 1}],
+        "per_throw_cap": -5,
+    }
+    path = tmp_config(yaml.safe_dump(bad))
+
+    with pytest.raises(SystemExit) as exc_info:
+        load_config(path)
+    assert exc_info.value.code == 2, "negative per_throw_cap must fail fast with SystemExit(2)"

@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: executing
-stopped_at: Completed 15-03-PLAN.md
-last_updated: "2026-06-22T13:36:20Z"
-last_activity: 2026-06-22 -- Phase 15 plan 15-03 complete (crash-isolation gate: score_calc → PHASE1_SURFACE + heavy-absent POST /score)
+stopped_at: 15-02 Task 2 — PAUSED at checkpoint:human-verify (FIDASC numbers)
+last_updated: "2026-06-22T14:05:00Z"
+last_activity: 2026-06-22 -- Phase 15 plan 15-02 in progress: Task 1 done (pydantic scoring sub-model + adapter + CSEN/FCI fixtures, commit 4937c33), Task 2 FIDASC fixture written + PAUSED at human-verify (commit f4e8cd5); Task 3 (SCP-01/02 tests) NOT yet run
 progress:
   total_phases: 4
   completed_phases: 0
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 ## Current Position
 
 Phase: 15 (pure-calc-validation-core-scoring-profiles) — EXECUTING
-Plan: 15-02 remaining (15-01 + 15-03 complete)
-Status: Plans 15-01 (pure scoring authority) + 15-03 (crash-isolation import gate, RBT-08/SCC-02) complete; 15-02 (config-driven scoring profiles, SCP-01/02) still pending — phase NOT yet signed off
-Last activity: 2026-06-22 -- Phase 15 plan 15-03 complete (crash-isolation gate)
+Plan: 15-02 IN PROGRESS — PAUSED at Task 2 checkpoint:human-verify (15-01 + 15-03 complete)
+Status: 15-02 Task 1 done (pydantic ScoringProfile sub-model on CFG-03 union + adapt_scoring_profile + config.csen/agility fixtures, commit 4937c33). Task 2 wrote config.fidasc.example.yaml with [ASSUMED] numbers (commit f4e8cd5) and PAUSED at the blocking human-verify gate — FIDASC numbers must be confirmed against the official PDF (or the stub explicitly accepted) before Task 3 (SCP-01/02 tests) runs. Plan 15-02 NOT complete; phase NOT signed off.
+Last activity: 2026-06-22 -- Phase 15 plan 15-02 paused at FIDASC human-verify checkpoint
 
 ## Performance Metrics
 

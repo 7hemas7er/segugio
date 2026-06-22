@@ -1,0 +1,109 @@
+# Segugio — FIDASC disc-dog scoring profile (ALTERNATE, numbers [ASSUMED])
+#
+# ============================================================================ #
+#  WARNING — EVERY NUMERIC VALUE BELOW IS [ASSUMED], NOT VERIFIED.             #
+#  The official FIDASC Disc Dog 2025 rulebook PDF returned HTTP 503 to every   #
+#  automated fetch path. These numbers are cross-corroborated from two         #
+#  independent WebSearch snippets of that PDF (RESEARCH A1) and are gated       #
+#  behind a blocking checkpoint:human-verify (plan 15-02 Task 2). Do NOT treat #
+#  this fixture as correct until a human confirms it against the official PDF:  #
+#  https://www.fidasc.it/en/cinofilia-sportiva/discdog/regolamenti-discdog/5699-discdog-2025/file.html
+#  On confirmation, flip the [ASSUMED] markers to [VERIFIED]; on a mismatch,    #
+#  correct the values (the D-13 ordered-band-list design needs NO code change). #
+# ============================================================================ #
+#
+# FIDASC's structure DIFFERS materially from CSEN (Pitfall 5 — do NOT clone CSEN):
+#   - 5 zones on a 45m field (CSEN: 4 zones on 36m)
+#   - a SINGLE +1 central-corridor bonus, only in the 5th zone (CSEN: two +0.5)
+#   - 60s round (CSEN: 90s)        - single disc
+#   - NO best-N cap (CSEN: best 5 of N)
+# This genuine divergence is what proves SCP-01 (swapping CSEN -> FIDASC changes
+# the computed result with NO code change).
+
+# ---- field / discipline profile -------------------------------------------- #
+field:
+  sport: disc_dog
+  event: distance_accuracy
+
+  # ---- scoring profile (SCP-01) — FIDASC [ASSUMED — human-verify gated] ----- #
+  scoring:
+    units: m
+    zones:                       # 5 zones on a 45m field [ASSUMED]
+      - { band: 1, points: 1 }   # 9m   [ASSUMED]
+      - { band: 2, points: 2 }   # 18m  [ASSUMED]
+      - { band: 3, points: 3 }   # 27m  [ASSUMED]
+      - { band: 4, points: 4 }   # 36m  [ASSUMED]
+      - { band: 5, points: 5 }   # 45m, 5th-zone base value [ASSUMED — snippets imply
+                                 #   the +1 corridor bonus ADDS to the 5th-zone score
+                                 #   but the 5th-zone BASE value is not explicit]
+    bonuses:                     # SINGLE +1 corridor bonus, only in the 5th zone [ASSUMED]
+      - { key: corridor, value: 1 }   # operator sets corridor: true ONLY on a 5th-zone catch
+    # NO per_throw_cap, NO count_best_n — FIDASC shows no best-N cap in the snippets [ASSUMED]
+    # (omitting both keys = "sum all throws, no per-throw ceiling").
+
+    # ---- FIDASC Freestyle — CLEARLY-MARKED STUB (NOT correct) -------------- #
+    # The 40-max sum is confirmed (snippet); the 4 CATEGORY NAMES + per-category
+    # scale are NOT authoritatively pinnable (three conflicting judging systems
+    # cited: UFO D.I.S.C. x0.1, Judge'n'Play, UISP SEIS x0.1 — RESEARCH A2 / LOW
+    # confidence). This stub does NOT claim correctness. CSEN (fully pinned) carries
+    # the milestone's freestyle correctness. Source the official FIDASC Freestyle
+    # category list + scale and replace this stub, OR accept it as a stub for v1.3.
+    freestyle_cats: []           # TODO [ASSUMED] — FIDASC Freestyle categories NOT pinned (stub)
+    freestyle_max: 40            # [ASSUMED — the 40-max sum is snippet-confirmed]
+
+# ---- cameras --------------------------------------------------------------- #
+cameras:
+  - id: cam_wide
+    role: main_wide
+    obs_scene: "CAM Wide"
+    is_safe: true
+    ndi_source: "PHONE-WIDE (NDI HX3)"
+    zones:
+      - { name: near, rect: [0.0, 0.55, 1.0, 1.0] }
+      - { name: mid,  rect: [0.0, 0.30, 1.0, 0.55] }
+      - { name: far,  rect: [0.0, 0.0,  1.0, 0.30] }
+
+  - id: cam_long
+    role: long
+    obs_scene: "CAM Long"
+    ndi_source: "PHONE-LONG (NDI HX3)"
+    zones:
+      - { name: far, rect: [0.0, 0.0,  1.0, 0.60] }
+      - { name: mid, rect: [0.0, 0.60, 1.0, 1.0] }
+
+  - id: cam_low
+    role: low
+    obs_scene: "CAM Low"
+    ndi_source: "PHONE-LOW (NDI HX3)"
+    zones:
+      - { name: near, rect: [0.0, 0.0, 1.0, 1.0] }
+
+  - id: cam_handler
+    role: handler_side
+    obs_scene: "CAM Handler"
+    ndi_source: "PHONE-HANDLER (NDI HX3)"
+    zones:
+      - { name: stage, rect: [0.20, 0.25, 0.80, 1.0] }
+
+# ---- role x zone framing weights ------------------------------------------- #
+framing_weights:
+  main_wide:    { near: 1.00, mid: 1.00, far: 1.00, stage: 1.00 }
+  long:         { near: 0.60, mid: 1.10, far: 1.60 }
+  low:          { near: 1.40, mid: 0.70, far: 0.30 }
+  handler_side: { stage: 1.50, near: 1.20, mid: 0.80, far: 0.50 }
+
+# ---- switching thresholds -------------------------------------------------- #
+thresholds:
+  alpha: 0.3
+  hysteresis_margin: 0.1
+  min_dwell: 2.0
+  debounce_N: 3
+  cooldown: 1.0
+  watchdog_timeout: 0.8
+  track_buffer: 60
+
+# ---- YOLO model (CFG-04) --------------------------------------------------- #
+model:
+  path: yolo26s.pt
+  class_index: 16
+  use_fp16: true

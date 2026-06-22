@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: verifying
-stopped_at: Phase 15 context gathered
+status: planning
+stopped_at: Phase 15 complete — Phase 16 not started
 last_updated: "2026-06-22T14:36:14.596Z"
 last_activity: 2026-06-22
 progress:
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 15 — pure-calc-validation-core-scoring-profiles
+**Current focus:** v1.3 "Gestione Punteggi Avanzata" — Phase 15 COMPLETE (3/3 plans, verification passed). Next: `/gsd-discuss-phase 16` or `/gsd-plan-phase 16` (Shared Entry Component, Dedicated Page & Server-Authoritative POST). Phase 16 wires `score_calc` into the `/score` route — re-check code-review CR-01 (string bonus-flag truthiness, now fixed) holds when real form data flows in.
 
 ## Current Position
 
 Phase: 16
 Plan: Not started
-Status: 15-02 fully done. Task 1 (pydantic ScoringProfile sub-model on CFG-03 union + adapt_scoring_profile + config.csen/agility fixtures, commit 4937c33), Task 2 (config.fidasc.example.yaml [ASSUMED], commit f4e8cd5), Task 3 (tests/test_score_profiles.py — SCP-01 swap + SCP-02 SystemExit(2) fail-fast, commit 2b0a725, 2 passed). The blocking human-verify gate on the FIDASC numbers was resolved by the user as "stub accepted for v1.3": FIDASC numbers stay [ASSUMED] (NOT flipped to [VERIFIED]); CSEN (pinned) carries scoring correctness. All 3 Phase 15 plans complete — phase-level [x] + SCP-01/SCP-02/SCC/RBT-08 REQ Complete sign-off DEFERRED to /gsd-verify-work (env gotcha: gsd-tools not on PATH, executor must not pre-mark phase-level sign-off).
-Last activity: 2026-06-22
+Status: Phase 15 complete (3/3 plans, verification passed 5/5 must-haves). 15-01 pure-stdlib `score_calc` authority (validate+compute, Decimal-exact, crash-isolated); 15-02 config-driven scoring profiles (pydantic `ScoringProfile` sub-model + adapter + CSEN/FIDASC/FCI fixtures, SCP-01 swap + SCP-02 fail-fast); 15-03 crash-isolation import gate (`score_calc` on PHASE1_SURFACE + `POST /score` heavy-absent round-trip). Code review: 3 Criticals fixed (CR-01 strict bonus-flag truthiness; CR-02/CR-03 config-tier lower-bound constraints) with regression tests; 5 Warnings + 3 Info remain OPEN as tracked advisory debt in 15-REVIEW.md. FIDASC numbers accepted as [ASSUMED] stub for v1.3 (CSEN carries correctness). REQ SCC-02/SCC-04/SCP-01/SCP-02/RBT-08 all Complete.
+Last activity: 2026-06-22 — Phase 15 executed and completed
 
 ## Performance Metrics
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: planning
+status: executing
 stopped_at: Phase 15 context gathered
-last_updated: "2026-06-22T13:09:03.911Z"
-last_activity: 2026-06-21 — v1.3 roadmap created (Phases 15–18, 14/14 requirements mapped)
+last_updated: "2026-06-22T13:25:19Z"
+last_activity: 2026-06-22 -- Phase 15 plan 15-01 complete (pure scoring authority)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** v1.3 "Gestione Punteggi Avanzata" — roadmap created (Phases 15–18). Next: `/gsd-plan-phase 15` (Pure Calc + Validation Core & Scoring Profiles). REQ blocker: pin the exact per-discipline/federation rule tables (zone bands/points, freestyle criteria+scale, agility model+fault table+time-fault rate) before coding Phase 15.
+**Current focus:** Phase 15 — pure-calc-validation-core-scoring-profiles
 
 ## Current Position
 
-Phase: 15 — Pure Calc + Validation Core & Scoring Profiles (Not started)
-Plan: —
-Status: Roadmap created — awaiting phase planning
-Last activity: 2026-06-21 — v1.3 roadmap created (Phases 15–18, 14/14 requirements mapped)
+Phase: 15 (pure-calc-validation-core-scoring-profiles) — EXECUTING
+Plan: 2 of 3
+Status: Plan 15-01 complete (pure scoring authority shipped + unit-tested); next 15-02 (config-driven scoring profiles)
+Last activity: 2026-06-22 -- Phase 15 plan 15-01 complete (pure scoring authority)
 
 ## Performance Metrics
 
@@ -114,6 +114,7 @@ Last activity: 2026-06-21 — v1.3 roadmap created (Phases 15–18, 14/14 requir
 | Phase 14 P01 | 5min | 2 tasks | 2 files |
 | Phase 14 P02 | 8min | 2 tasks | 4 files |
 | Phase 14 P03 | 7min | 2 tasks | 4 files |
+| Phase 15 P01 | 10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,7 @@ Last activity: 2026-06-21 — v1.3 roadmap created (Phases 15–18, 14/14 requir
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 15 / 15-01]: `segugio.ui.score_calc` shipped as the SOLE pure-stdlib compute authority — `ScoringProfile` frozen dataclass (immutable tuple fields, D-13 ordered band list) + `AgilityModel` str-Enum + `validate()` (per-field error contract, D-11) + `compute()` (Decimal-exact totals, D-09 — zero `float(` in source). Disc T&F = per-throw zone+exact bonuses, cap-5 via `min()` (never quantized — Pitfall 4), best-5-of-N; freestyle = 4×0.01 snap, sum max 40, minus manual adjustment (D-08); agility = count_up + deduct_from_100 with Decimal-native ceil time-faults and elimination sentinel checked FIRST (D-06/Pattern 4). Imports only `decimal`/`re`/`dataclasses`/`enum` + `opcomm.records.Discipline` (RBT-08); `compute()` emits the exact `score_render` flat keys (SCR-04). CSEN_DISC_PROFILE default + generic FCI_AGILITY_PROFILE builtins. 11/11 unit tests green; pydantic profile + config adapter (D-10) and the import-smoke gate extension are plans 15-02/15-03.
 - [Milestone v1.3]: Gestione Punteggi Avanzata is *publish-and-render* with a SERVER-AUTHORITATIVE calc keystone — the client POSTs RAW inputs, `POST /score` validates (400 + write-nothing on invalid) and RECOMPUTES totals in Python (`decimal`, never float), then writes `score.json`+`overlay.txt`. The client live-calc (`score-calc.js`) is ADVISORY only; parity with the Python `score_calc.py` authority is enforced by a drift-guard test, never by trust. Only Python writes → form and on-air files cannot diverge.
 - [Milestone v1.3]: Score entry is ONE shared vanilla-JS component mounted into BOTH the dedicated `/score-entry` page AND a console native `<dialog>` modal (SCV-02 lesson applied to a form). NOT an iframe (focus/keyboard/submit cross the boundary badly for an interactive form), NOT a hand-mirrored copy. One JS module + one Jinja form partial = drift structurally impossible.
 - [Milestone v1.3]: Scoring rules are CONFIG-DRIVEN via a per-discipline/federation "scoring profile" extending the CFG-03 pydantic discriminated-union — zones/points, fault tables, freestyle criteria/scale, and the agility model (count-up faults OR deduct-from-100) change with NO code edit; malformed profile fails fast at config-load.

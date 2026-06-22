@@ -24,9 +24,9 @@
 ### Calcolo & validazione autorevoli (SCC)
 
 - [ ] **SCC-01**: `POST /score` è **autorevole**: valida gli input grezzi (400 + niente scrittura su invalido), **ricalcola** i totali in Python (`decimal`), e solo allora scrive atomicamente `score.json` + `overlay.txt`
-- [ ] **SCC-02**: Modulo **puro** `score_calc` (solo stdlib, nessuna heavy dep) che incapsula calcolo + validazione, condiviso dal server e **aggiunto alla superficie import crash-isolated** (coperto dall'import-smoke gate)
+- [ ] **SCC-02**: Modulo **puro** `score_calc` (solo stdlib, nessuna heavy dep) che incapsula calcolo + validazione, condiviso dal server e **aggiunto alla superficie import crash-isolated** (coperto dall'import-smoke gate) — *Plan 15-01: modulo puro stdlib costruito (import allowlist = decimal/re/dataclasses/enum + opcomm.records, zero `float(`); l'estensione del crash-isolation import-gate (PHASE1_SURFACE + POST /score heavy-absent) è plan 15-03 — non ancora chiuso.*
 - [ ] **SCC-03**: Port client `score-calc.js` per il calcolo advisory, con **drift-guard test** che ne garantisce la **parità** col modulo Python (no doppia verità)
-- [ ] **SCC-04**: **Totali auto-calcolati per disciplina** — disc T&F: somma lanci×zone (+ bonus); freestyle: somma criteri (giudice singolo); agility: modello configurabile (count-up faults *oppure* deduct) + time-faults vs SCT
+- [x] **SCC-04**: **Totali auto-calcolati per disciplina** — disc T&F: somma lanci×zone (+ bonus); freestyle: somma criteri (giudice singolo); agility: modello configurabile (count-up faults *oppure* deduct) + time-faults vs SCT — *Plan 15-01: `score_calc.compute()` Decimal-exact per le 3 discipline, 11/11 unit test verdi vs tabelle CSEN pinnate.*
 - [ ] **SCC-05**: **Multi-lancio/round** con totale progressivo (disc T&F a N lanci); stato in-progress robusto (scrittura atomica; restore lato client su reload)
 
 ### Profili di scoring config-driven (SCP)
@@ -73,9 +73,9 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 | SCE-04 | Phase 17 | Pending |
 | SCE-05 | Phase 16 | Pending |
 | SCC-01 | Phase 16 | Pending |
-| SCC-02 | Phase 15 | Pending |
+| SCC-02 | Phase 15 | In progress (15-01 module built; gate in 15-03) |
 | SCC-03 | Phase 16 | Pending |
-| SCC-04 | Phase 15 | Pending |
+| SCC-04 | Phase 15 | Complete (15-01) |
 | SCC-05 | Phase 17 | Pending |
 | SCP-01 | Phase 15 | Pending |
 | SCP-02 | Phase 15 | Pending |

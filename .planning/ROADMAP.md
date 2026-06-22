@@ -34,7 +34,7 @@
 
 **Wave 1**
 
-  - [ ] 15-01-PLAN.md — pure-stdlib score_calc.py (ScoringProfile + validate + compute for all 3 disciplines) + unit tests vs pinned CSEN tables
+  - [x] 15-01-PLAN.md — pure-stdlib score_calc.py (ScoringProfile + validate + compute for all 3 disciplines) + unit tests vs pinned CSEN tables — completed 2026-06-22 (11/11 tests green; Decimal-exact, stdlib-only import surface)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -138,7 +138,7 @@
 | 12. SCV-01 Unification | v1.2 | 3/3 | Complete | 2026-06-16 |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete | 2026-06-16 |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
-| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 0/3 | Planned | - |
+| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 1/3 | In progress | - |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 0/? | Not started | - |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 0/? | Not started | - |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

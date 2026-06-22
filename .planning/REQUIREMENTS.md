@@ -31,8 +31,8 @@
 
 ### Profili di scoring config-driven (SCP)
 
-- [ ] **SCP-01**: Le regole di scoring sono **config-driven** via un "profilo di scoring" per disciplina/federazione (estende il pattern discriminated-union CFG-03), così zone/punti/criteri/faults/modello cambiano senza modifiche al codice
-- [ ] **SCP-02**: Un **profilo di default** sensato ship con v1.3; il profilo è validato **fail-fast** a config-load (errore chiaro su profilo malformato)
+- [x] **SCP-01**: Le regole di scoring sono **config-driven** via un "profilo di scoring" per disciplina/federazione (estende il pattern discriminated-union CFG-03), così zone/punti/criteri/faults/modello cambiano senza modifiche al codice — *Plan 15-02: sub-model pydantic `ScoringProfile` aggiunto additivamente all'union CFG-03 + adapter `adapt_scoring_profile` (D-10); fixture CSEN/FIDASC/FCI; `test_profile_swap_changes_result` prova lo swap CSEN→FIDASC (totale CSEN `23.5` ≠ FIDASC, 4 divergenze strutturali) senza modifiche al codice.*
+- [x] **SCP-02**: Un **profilo di default** sensato ship con v1.3; il profilo è validato **fail-fast** a config-load (errore chiaro su profilo malformato) — *Plan 15-02: default CSEN 2026 pinnato; `test_malformed_profile_fails_fast` → `SystemExit(2)` su profilo malformato; rafforzato in code-review fix (CR-02/CR-03: `count_best_n` `Field(ge=1)`, `per_throw_cap` `Field(gt=0)` → fail-fast su valori negativi/zero).*
 
 ### Continuità & robustezza (RBT)
 
@@ -77,8 +77,8 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 | SCC-03 | Phase 16 | Pending |
 | SCC-04 | Phase 15 | Complete (15-01) |
 | SCC-05 | Phase 17 | Pending |
-| SCP-01 | Phase 15 | Pending |
-| SCP-02 | Phase 15 | Pending |
+| SCP-01 | Phase 15 | Complete (15-02) |
+| SCP-02 | Phase 15 | Complete (15-02) |
 | RBT-08 | Phase 15 | Complete (15-03) |
 | RBT-09 | Phase 18 | Pending |
 

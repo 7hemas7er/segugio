@@ -29,7 +29,10 @@
   2. Given invalid inputs (out-of-range, missing required field, malformed `mm:ss` time), the module reports per-field validation errors rather than computing a result.
   3. Swapping the active scoring profile (zones/points, fault table, freestyle criteria/scale, agility model) changes the computed result with NO code change; a malformed profile fails fast at config-load with a clear error.
   4. The console import-smoke gate passes with the full heavy stack and numpy ABSENT while now also covering `score_calc` — i.e. the new module imports clean and a `POST /score` round-trip resolves with torch/cv2/ultralytics/numpy/cyndilib/obsws unavailable.
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 15-01-PLAN.md — pure-stdlib score_calc.py (ScoringProfile + validate + compute for all 3 disciplines) + unit tests vs pinned CSEN tables
+  - [ ] 15-02-PLAN.md — config-driven scoring-profile pydantic sub-model + pydantic→stdlib adapter + CSEN/FIDASC/FCI fixtures + swap/malformed tests (FIDASC numbers human-verify gated)
+  - [ ] 15-03-PLAN.md — crash-isolation gate extension (score_calc → PHASE1_SURFACE + heavy-absent POST /score round-trip)
 
 ### Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST
 **Goal**: An operator can enter a score on a dedicated full-screen page using ONE shared component with live advisory feedback, and the server is the sole authority that validates and recomputes what airs.
@@ -119,7 +122,7 @@
 | 12. SCV-01 Unification | v1.2 | 3/3 | Complete | 2026-06-16 |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete | 2026-06-16 |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
-| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 0/? | Not started | - |
+| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 0/3 | Planned | - |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 0/? | Not started | - |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 0/? | Not started | - |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

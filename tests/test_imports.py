@@ -34,6 +34,7 @@ PHASE1_SURFACE = [
     "segugio.tracking",  # 04-01: the per-camera tracking layer (pure surface; cv2 lazy-imported in the heavy edge)
     "segugio.opcomm",  # 05-01: the atomic-file operator↔system channel (stdlib + loguru only)
     "segugio.ui",  # 08-01: the crash-isolated Flask console (Flask imported INSIDE create_app; opcomm-only at top)
+    "segugio.ui.score_calc",  # 15-01: the pure-stdlib scoring authority (validate/compute) — RBT-08/SCC-02, must import heavy-free
     "segugio.ndi",  # 05-01: the FrameSource interface (cyndilib lazy-imported in the real impl, Wave 2)
     "segugio.obs",  # 05-01: the ObsController interface (obsws lazy-imported in the real impl, Wave 2)
     "segugio.watchdog_feed",  # 05-04: the pure feed-liveness math (math + typing only)
@@ -106,6 +107,12 @@ def test_console_resolves_with_heavy_stack_and_numpy_absent(
         app = create_app(tmp, cam_ids=["cam_wide"])
         assert app is not None
 
+        # RBT-08 / SCC-02 (Phase 15): the pure scoring authority must import under the SAME
+        # heavy-absent block — `import segugio.ui.score_calc` proves it needs no torch/cv2/numpy/
+        # ultralytics/cyndilib/obsws (stdlib + opcomm.records.Discipline only). A heavy import
+        # sneaking into the compute brain (or anything it pulls in) would raise here.
+        import segugio.ui.score_calc  # noqa: F401 — must not raise with the heavy stack + numpy blocked
+
         # RBT-07: serve GET /overlay-json under the SAME heavy-absent block — proves the route
         # imports ONLY Flask (in-factory) + segugio.opcomm + stdlib (time/threading), never numpy/
         # cv2/torch/cyndilib/obsws. A heavy import sneaking into the route would raise here.
@@ -114,6 +121,12 @@ def test_console_resolves_with_heavy_stack_and_numpy_absent(
         assert resp.status_code == 200
         payload = resp.get_json()
         assert "gen" in payload and "server_now" in payload
+
+        # RBT-08 (Phase 15): a POST /score round-trip must RESOLVE with the heavy stack absent —
+        # the display-only route today returns 204 on success (app.py); the assertion tolerates
+        # 200/204 so Phase 16 making the route authoritative does not break this crash-isolation gate.
+        resp = client.post("/score", data={"discipline": "disc_tf", "prese": "3", "zona": "2", "totale": "6"})  # noqa: E501
+        assert resp.status_code in (204, 200)
 
         # RBT-07 (Phase 11) — the NEW GET /overlay host page must also register and resolve under
         # the heavy-absent block: building create_app + the overlay_cfg injection must add no

@@ -76,6 +76,31 @@ def test_decimal_exactness():
     assert "19.000" not in out["totale"]
 
 
+def test_csen_tf_string_falsey_flags_no_bonus():
+    """CR-01: string ``"false"`` / ``"0"`` bonus flags must NOT add the bonus.
+
+    Form posts and JSON bodies deliver flags as strings; a bare truthiness check scored
+    ``"false"`` as truthy and inflated the on-air total. A single zone-1 throw with both
+    bonus flags string-false must score exactly the zone points (no +0.5 bonuses applied):
+    the verbatim Decimal of ``Decimal("1")`` is ``"1"`` (D-09 — never quantized to "1.0")."""
+    throws = [{"zone": 1, "midair": "false", "corridor": "false"}]
+    out = compute(Discipline.disc_tf, {"throws": throws}, CSEN_DISC_PROFILE)
+    assert out["totale"] == "1"
+    # "0" and "no" are likewise falsey for the strict flag.
+    throws = [{"zone": 1, "midair": "0", "corridor": "no"}]
+    out = compute(Discipline.disc_tf, {"throws": throws}, CSEN_DISC_PROFILE)
+    assert out["totale"] == "1"
+
+
+def test_csen_tf_string_truthy_flags_add_bonus():
+    """CR-01: explicit affirmative string flags ("true"/"1") DO add the +0.5 bonus.
+
+    A zone-1 throw with both bonuses string-true must score 1 + 0.5 + 0.5 = 2.0."""
+    throws = [{"zone": 1, "midair": "true", "corridor": "1"}]
+    out = compute(Discipline.disc_tf, {"throws": throws}, CSEN_DISC_PROFILE)
+    assert out["totale"] == "2.0"
+
+
 # --------------------------------------------------------------------------------------
 # Disc Freestyle (CSEN D-03/D-08): 4 categories 0-10 on 0.01 grid, sum (max 40) minus adjustment
 # --------------------------------------------------------------------------------------

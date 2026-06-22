@@ -100,6 +100,24 @@ class ScoringProfile:
 # --------------------------------------------------------------------------------------
 
 
+def _is_truthy_flag(v: object) -> bool:
+    """Strictly interpret a bonus flag's truthiness (CR-01).
+
+    Form posts and JSON bodies deliver per-catch bonus flags as STRINGS, so a bare
+    ``if throw.get(key):`` scores ``"false"`` / ``"0"`` / ``"no"`` as truthy and inflates
+    the on-air total. This gates ONLY whether a bonus Decimal is added — no arithmetic here:
+
+      * a real ``bool`` returns itself;
+      * a ``str`` is truthy only for an explicit affirmative token (case/space-insensitive);
+      * anything else falls back to plain ``bool(v)``.
+    """
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        return v.strip().lower() in {"true", "1", "yes", "on"}
+    return bool(v)
+
+
 def _to_decimal(value: object) -> Decimal | None:
     """Parse a scalar into an exact :class:`Decimal`, or ``None`` if it is not a valid number.
 
@@ -272,7 +290,7 @@ def _compute_disc_tf(out: dict, profile: ScoringProfile) -> dict:
         score = zone_points
         # Add each declared bonus as an EXACT Decimal constant (never quantize a 0.5 add — Pitfall 4).
         for key, value in profile.bonuses:
-            if throw.get(key):
+            if _is_truthy_flag(throw.get(key)):
                 score += value
         # Cap with min(), NOT quantize (Pitfall 4).
         if profile.per_throw_cap is not None:

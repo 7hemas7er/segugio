@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: verifying
-stopped_at: Phase 16 context gathered
-last_updated: "2026-06-22T15:21:50.911Z"
+status: executing
+stopped_at: Phase 16 UI-SPEC approved
+last_updated: "2026-06-22T23:27:04.013Z"
 last_activity: 2026-06-22 — Phase 15 executed and completed
 progress:
   total_phases: 4
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 Phase: 16
 Plan: Not started
-Status: Phase 15 complete (3/3 plans, verification passed 5/5 must-haves). 15-01 pure-stdlib `score_calc` authority (validate+compute, Decimal-exact, crash-isolated); 15-02 config-driven scoring profiles (pydantic `ScoringProfile` sub-model + adapter + CSEN/FIDASC/FCI fixtures, SCP-01 swap + SCP-02 fail-fast); 15-03 crash-isolation import gate (`score_calc` on PHASE1_SURFACE + `POST /score` heavy-absent round-trip). Code review: 3 Criticals fixed (CR-01 strict bonus-flag truthiness; CR-02/CR-03 config-tier lower-bound constraints) with regression tests; 5 Warnings + 3 Info remain OPEN as tracked advisory debt in 15-REVIEW.md. FIDASC numbers accepted as [ASSUMED] stub for v1.3 (CSEN carries correctness). REQ SCC-02/SCC-04/SCP-01/SCP-02/RBT-08 all Complete.
+Status: Ready to execute
 Last activity: 2026-06-22 — Phase 15 executed and completed
 
 ## Performance Metrics
@@ -299,9 +299,9 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-22T15:21:50.902Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-shared-entry-component-dedicated-page-server-authoritative-p/16-CONTEXT.md
+Last session: 2026-06-22T21:56:29.275Z
+Stopped at: Phase 16 UI-SPEC approved
+Resume file: .planning/phases/16-shared-entry-component-dedicated-page-server-authoritative-p/16-UI-SPEC.md
 
 ## Operator Next Steps
 

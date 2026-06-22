@@ -31,6 +31,7 @@
   2. Given invalid inputs (out-of-range, missing required field, malformed `mm:ss` time), the module reports per-field validation errors rather than computing a result.
   3. Swapping the active scoring profile (zones/points, fault table, freestyle criteria/scale, agility model) changes the computed result with NO code change; a malformed profile fails fast at config-load with a clear error.
   4. The console import-smoke gate passes with the full heavy stack and numpy ABSENT while now also covering `score_calc` — i.e. the new module imports clean and a `POST /score` round-trip resolves with torch/cv2/ultralytics/numpy/cyndilib/obsws unavailable.
+
 **Plans**: 3 plans
 
 **Wave 1**
@@ -56,9 +57,13 @@
 
 **Plans**: 2 plans
 **UI hint**: yes
+Plans:
+**Wave 1**
 
-Plans:
 - [ ] 16-01-PLAN.md — Wave 1: authoritative `POST /score` (validate→400-write-nothing→Decimal recompute→atomic write) + byte-exact advisory `score-calc.js` + node drift-guard + legacy console-form back-compat (Open Q1) + all Wave 0 test scaffolds (SCC-01, SCC-03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 16-02-PLAN.md — Wave 2: the ONE shared `score-entry.js` `mount(root,cfg)` component on the dedicated `/score-entry` page — profile-injected rich fields, disc-T&F repeatable throw list + live best-5-of-N, on-blur errors, persistent publish banner; `GET /score-entry` + decimal-string profile blob (SCE-01/02/03/05)
 
 ### Phase 17: Console Modal, Multi-throw State & Tablet UX

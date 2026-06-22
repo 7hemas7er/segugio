@@ -24,7 +24,7 @@
 ### Calcolo & validazione autorevoli (SCC)
 
 - [ ] **SCC-01**: `POST /score` è **autorevole**: valida gli input grezzi (400 + niente scrittura su invalido), **ricalcola** i totali in Python (`decimal`), e solo allora scrive atomicamente `score.json` + `overlay.txt`
-- [ ] **SCC-02**: Modulo **puro** `score_calc` (solo stdlib, nessuna heavy dep) che incapsula calcolo + validazione, condiviso dal server e **aggiunto alla superficie import crash-isolated** (coperto dall'import-smoke gate) — *Plan 15-01: modulo puro stdlib costruito (import allowlist = decimal/re/dataclasses/enum + opcomm.records, zero `float(`); l'estensione del crash-isolation import-gate (PHASE1_SURFACE + POST /score heavy-absent) è plan 15-03 — non ancora chiuso.*
+- [x] **SCC-02**: Modulo **puro** `score_calc` (solo stdlib, nessuna heavy dep) che incapsula calcolo + validazione, condiviso dal server e **aggiunto alla superficie import crash-isolated** (coperto dall'import-smoke gate) — *Plan 15-01: modulo puro stdlib costruito (import allowlist = decimal/re/dataclasses/enum + opcomm.records, zero `float(`). Plan 15-03: `segugio.ui.score_calc` aggiunto a `PHASE1_SURFACE` (parametrized heavy-deps-absent import) — chiuso.*
 - [ ] **SCC-03**: Port client `score-calc.js` per il calcolo advisory, con **drift-guard test** che ne garantisce la **parità** col modulo Python (no doppia verità)
 - [x] **SCC-04**: **Totali auto-calcolati per disciplina** — disc T&F: somma lanci×zone (+ bonus); freestyle: somma criteri (giudice singolo); agility: modello configurabile (count-up faults *oppure* deduct) + time-faults vs SCT — *Plan 15-01: `score_calc.compute()` Decimal-exact per le 3 discipline, 11/11 unit test verdi vs tabelle CSEN pinnate.*
 - [ ] **SCC-05**: **Multi-lancio/round** con totale progressivo (disc T&F a N lanci); stato in-progress robusto (scrittura atomica; restore lato client su reload)
@@ -36,7 +36,7 @@
 
 ### Continuità & robustezza (RBT)
 
-- [ ] **RBT-08**: La **crash-isolation è preservata e ri-verificata** — la console importa solo `Flask + segugio.opcomm` + `score_calc` (puro); l'import-smoke test è esteso ai nuovi moduli/route e `POST /score` risponde anche con lo stack pesante assente (torch/cv2/ultralytics/numpy/cyndilib/obsws)
+- [x] **RBT-08**: La **crash-isolation è preservata e ri-verificata** — la console importa solo `Flask + segugio.opcomm` + `score_calc` (puro); l'import-smoke test è esteso ai nuovi moduli/route e `POST /score` risponde anche con lo stack pesante assente (torch/cv2/ultralytics/numpy/cyndilib/obsws) — *Plan 15-03: `test_console_resolves_with_heavy_stack_and_numpy_absent` esteso con `import segugio.ui.score_calc` + round-trip `POST /score` (200/204) sotto il blocco heavy+numpy+cv2 forced-absent.*
 - [ ] **RBT-09**: Il **fallback degradato `overlay.txt`** e i contratti **`/overlay` + `/overlay-json`** restano invariati (regressione verificata); i nuovi campi free-text (es. nome cane/handler, giudici) sono **HTML-escaped al sink** dell'overlay
 
 ## Future Requirements
@@ -73,13 +73,13 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 | SCE-04 | Phase 17 | Pending |
 | SCE-05 | Phase 16 | Pending |
 | SCC-01 | Phase 16 | Pending |
-| SCC-02 | Phase 15 | In progress (15-01 module built; gate in 15-03) |
+| SCC-02 | Phase 15 | Complete (15-01 module; 15-03 import gate) |
 | SCC-03 | Phase 16 | Pending |
 | SCC-04 | Phase 15 | Complete (15-01) |
 | SCC-05 | Phase 17 | Pending |
 | SCP-01 | Phase 15 | Pending |
 | SCP-02 | Phase 15 | Pending |
-| RBT-08 | Phase 15 | Pending |
+| RBT-08 | Phase 15 | Complete (15-03) |
 | RBT-09 | Phase 18 | Pending |
 
 **Coverage:**

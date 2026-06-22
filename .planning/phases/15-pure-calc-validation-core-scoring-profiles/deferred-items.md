@@ -14,3 +14,7 @@ and are out of scope for this plan (SCOPE BOUNDARY). Logged, not fixed.
 
 All `tests/test_score_calc.py` tests (11) pass. The 5 failures above are unrelated to the
 pure scoring authority introduced by Plan 15-01.
+
+**15-03 re-confirmation:** the same 5 failures were re-verified pre-existing on baseline
+commit `aeaba3d` via `git stash` (they fail identically with 15-03's test-only edit stashed).
+15-03 modifies only `tests/test_imports.py`; `tests/test_imports.py` is fully green (26 passed).

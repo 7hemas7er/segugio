@@ -39,7 +39,7 @@
 **Wave 2** *(blocked on Wave 1 completion)*
 
   - [ ] 15-02-PLAN.md — config-driven scoring-profile pydantic sub-model + pydantic→stdlib adapter + CSEN/FIDASC/FCI fixtures + swap/malformed tests (FIDASC numbers human-verify gated)
-  - [ ] 15-03-PLAN.md — crash-isolation gate extension (score_calc → PHASE1_SURFACE + heavy-absent POST /score round-trip)
+  - [x] 15-03-PLAN.md — crash-isolation gate extension (score_calc → PHASE1_SURFACE + heavy-absent POST /score round-trip)
 
 ### Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST
 

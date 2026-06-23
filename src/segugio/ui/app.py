@@ -80,12 +80,9 @@ _PREVIEW_FILE = "preview/preview.json"
 # Fields posted by the operator that are NOT score values (don't leak into ScoreDoc.fields).
 _NON_SCORE_KEYS = frozenset({"discipline"})
 
-# Legacy console.html #form-score flat keys (display-only, manual totale) — the pre-Phase-16
-# wire shape. Their presence (with NO structured keys) routes to the back-compat branch (Open Q1).
-_LEGACY_FLAT_KEYS = frozenset(
-    {"prese", "zona", "totale", "nome", "timer", "tempo", "sct", "faults"}
-)
 # Structured keys the AUTHORITATIVE path consumes (throws[] + per-discipline raw inputs, D-08).
+# A urlencoded POST carrying ANY of these opts into validate-before-recompute; everything else
+# urlencoded is the legacy display-only round-trip (the pre-Phase-16 #form-score wire shape).
 _STRUCTURED_KEYS = frozenset(
     {"throws", "course_faults", "course_deductions", "eliminated", "adjustment"}
 )
@@ -94,17 +91,18 @@ _STRUCTURED_KEYS = frozenset(
 def _is_legacy_score_post(raw, is_json: bool) -> bool:
     """True for a legacy console-form POST that must keep round-tripping until P17 (Open Q1).
 
-    A legacy POST is urlencoded (NOT a JSON body) and carries the flat display-only keys
-    (``prese``/``zona``/``totale``/``faults``/``timer``/…) rather than the structured
-    ``throws[]`` / ``course_faults`` contract. JSON bodies are ALWAYS the authoritative
-    structured path; a urlencoded body with any structured key is also authoritative.
+    The legacy console.html #form-score posts urlencoded FLAT display-only keys (``prese``/
+    ``zona``/``totale``, ``nome``/``timer``, ``tempo``/``sct``/``faults``, and any other manual
+    value) — the pre-Phase-16 wire shape that does NOT match the ``score_calc`` structured
+    contract. Route ANY urlencoded body to this back-compat branch UNLESS it carries a structured
+    key (``throws``/``course_faults``/…) — those, and ALL JSON bodies, are the authoritative path.
+    Keeping the default-urlencoded case legacy preserves every pre-Phase-16 display-only round-trip
+    (T-16 / Open Q1 (a)); P17 retires the branch when it retires the form.
     """
     if is_json:
         return False
     keys = set(raw.keys()) - _NON_SCORE_KEYS
-    if keys & _STRUCTURED_KEYS:
-        return False
-    return bool(keys & _LEGACY_FLAT_KEYS)
+    return not (keys & _STRUCTURED_KEYS)
 
 
 def _parse_structured_inputs(discipline, raw, is_json: bool) -> dict:

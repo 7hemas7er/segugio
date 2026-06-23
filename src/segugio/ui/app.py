@@ -345,7 +345,13 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         # FIRST and recomputes the total in Python (Decimal) before writing. The client can never
         # air a client-computed total.
         json_body = request.get_json(silent=True)
-        is_json = json_body is not None
+        # CR-01: get_json(silent=True) returns whatever the body parsed to — a list/int/bool/str
+        # for a non-object JSON body (e.g. [1,2,3], 42, true, "x"), all of which are non-None. Use
+        # isinstance(..., dict) so a non-object JSON body is NOT treated as a structured body (which
+        # would then crash on raw.get(...)); it falls through to the form path (an empty
+        # ImmutableMultiDict → legacy branch → harmless), honouring the validate→400/no-crash
+        # contract ("nessun crash ammesso") instead of raising an unhandled 500.
+        is_json = isinstance(json_body, dict)
         raw = json_body if is_json else request.form
 
         # Whitelist the discipline against the closed Enum (T-05-05-01 / T-16-02) — unknown → 400.

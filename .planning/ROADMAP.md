@@ -64,7 +64,7 @@
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 16-02-PLAN.md — Wave 2: the ONE shared `score-entry.js` `mount(root,cfg)` component on the dedicated `/score-entry` page — profile-injected rich fields, disc-T&F repeatable throw list + live best-5-of-N, on-blur errors, persistent publish banner; `GET /score-entry` + decimal-string profile blob (SCE-01/02/03/05)
+- [x] 16-02-PLAN.md — Wave 2: the ONE shared `score-entry.js` `mount(root,cfg)` component on the dedicated `/score-entry` page — profile-injected rich fields, disc-T&F repeatable throw list + live best-5-of-N, on-blur errors, persistent publish banner; `GET /score-entry` + decimal-string profile blob (SCE-01/02/03/05)
 
 ### Phase 17: Console Modal, Multi-throw State & Tablet UX
 
@@ -149,6 +149,6 @@
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete | 2026-06-16 |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
-| 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 1/2 | Executing | - |
+| 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete   | 2026-06-23 |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 0/? | Not started | - |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

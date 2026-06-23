@@ -15,11 +15,11 @@
 
 ### Componente score-entry condiviso (SCE)
 
-- [ ] **SCE-01**: L'operatore inserisce il punteggio sia da una **pagina dedicata** sia da un **popup/modal** nella console, entrambi che montano lo **stesso** componente vanilla-JS condiviso → nessun drift (niente mirror byte-exact ri-introdotto, niente iframe per il form interattivo; lezione SCV-02 applicata a un form)
-- [ ] **SCE-02**: Il componente mostra i **campi strutturati ricchi** della disciplina selezionata (disc Toss&Fetch, disc freestyle, agility), guidati dal profilo di scoring
-- [ ] **SCE-03**: **Calcolo live advisory** lato client — il totale si aggiorna mentre l'operatore digita (feedback immediato), esplicitamente *non autorevole*
+- [x] **SCE-01**: L'operatore inserisce il punteggio sia da una **pagina dedicata** sia da un **popup/modal** nella console, entrambi che montano lo **stesso** componente vanilla-JS condiviso → nessun drift (niente mirror byte-exact ri-introdotto, niente iframe per il form interattivo; lezione SCV-02 applicata a un form)
+- [x] **SCE-02**: Il componente mostra i **campi strutturati ricchi** della disciplina selezionata (disc Toss&Fetch, disc freestyle, agility), guidati dal profilo di scoring
+- [x] **SCE-03**: **Calcolo live advisory** lato client — il totale si aggiorna mentre l'operatore digita (feedback immediato), esplicitamente *non autorevole*
 - [ ] **SCE-04**: **Pubblicazione esplicita** — un'azione chiara "manda in onda" il punteggio (nessuna messa in onda accidentale); UX tablet-first (input ≥16px anti-zoom iOS, focus-trap nel modal, **asset offline/no-CDN** per il rig senza internet)
-- [ ] **SCE-05**: Gli **errori di validazione** sono mostrati per campo all'operatore prima/della pubblicazione
+- [x] **SCE-05**: Gli **errori di validazione** sono mostrati per campo all'operatore prima/della pubblicazione
 
 ### Calcolo & validazione autorevoli (SCC)
 
@@ -67,11 +67,11 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCE-01 | Phase 16 | Pending |
-| SCE-02 | Phase 16 | Pending |
-| SCE-03 | Phase 16 | Pending |
+| SCE-01 | Phase 16 | Complete |
+| SCE-02 | Phase 16 | Complete |
+| SCE-03 | Phase 16 | Complete |
 | SCE-04 | Phase 17 | Pending |
-| SCE-05 | Phase 16 | Pending |
+| SCE-05 | Phase 16 | Complete |
 | SCC-01 | Phase 16 | Complete (Plan 16-01) |
 | SCC-02 | Phase 15 | Complete (15-01 module; 15-03 import gate) |
 | SCC-03 | Phase 16 | Complete (Plan 16-01) |
@@ -83,11 +83,13 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 | RBT-09 | Phase 18 | Pending |
 
 **Coverage:**
+
 - v1.3 requirements: 14 total
 - Mapped to phases: 14 ✓ (100% — no orphans, no duplicates)
 - Unmapped: 0
 
 **Per-phase mapping:**
+
 - **Phase 15** (Pure Calc + Validation Core & Scoring Profiles): SCC-02, SCC-04, SCP-01, SCP-02, RBT-08
 - **Phase 16** (Shared Entry Component, Dedicated Page & Server-Authoritative POST): SCE-01, SCE-02, SCE-03, SCE-05, SCC-01, SCC-03
 - **Phase 17** (Console Modal, Multi-throw State & Tablet UX): SCE-04, SCC-05

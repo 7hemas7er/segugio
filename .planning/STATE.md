@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: verifying
-stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-06-23T08:03:15.114Z"
-last_activity: 2026-06-23 -- Phase 16 Plan 02 executed (shared score-entry.js mount component + /score-entry page; Task 3 UX checkpoint approved)
+status: ready
+stopped_at: Phase 16 complete (verified, passed)
+last_updated: "2026-06-23T09:17:29.239Z"
+last_activity: 2026-06-23
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
   completed_plans: 5
-  percent: 25
+  percent: 50
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 16 — shared-entry-component-dedicated-page-server-authoritative-p
+**Current focus:** v1.3 "Gestione Punteggi Avanzata" — Phase 16 COMPLETE (2/2 plans, verification passed; code-review BLOCKERs CR-01/CR-02 fixed in-phase). Next: Phase 17 (Console Modal, Multi-throw State & Tablet UX) — reuses the same `score-entry.js` in a native `<dialog>` modal.
 
 ## Current Position
 
-Phase: 16 (shared-entry-component-dedicated-page-server-authoritative-p) — EXECUTING
-Plan: 2 of 2 (both plans executed — wave 1 + wave 2 done; phase verification pending)
-Status: Both Phase 16 plans executed (16-01 + 16-02); phase-level sign-off DEFERRED to /gsd-verify-work
-Last activity: 2026-06-23 -- Phase 16 Plan 02 executed (shared score-entry.js mount component + /score-entry page; Task 3 UX checkpoint approved)
+Phase: 17
+Plan: Not started
+Status: Phase 16 complete & verified (passed); ready for Phase 17
+Last activity: 2026-06-23 — Phase 16 executed, code-review-fixed, and verified
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 42
+- Total plans completed: 44
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -54,6 +54,7 @@ Last activity: 2026-06-23 -- Phase 16 Plan 02 executed (shared score-entry.js mo
 | 13 | 2 | - | - |
 | 14 | 3 | - | - |
 | 15 | 3 | - | - |
+| 16 | 2 | - | - |
 
 **Recent Trend:**
 

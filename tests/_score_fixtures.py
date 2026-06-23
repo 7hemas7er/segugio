@@ -40,12 +40,20 @@ PROFILE_JSON = {
     "elimination_sentinel": "E",
 }
 
+# WR-02: a deduct_from_100 agility profile (otherwise identical to PROFILE_JSON) so the
+# drift-guard can exercise the `100 - course_deductions - Decimal(time_faults)` branch in BOTH
+# compute implementations — currently only count_up is covered, so any future drift on the deduct
+# path (e.g. the BigInt→Number round-trip in score-calc.js) would ship silently. Fixtures carrying
+# this profile set the optional "profile_json" key; the parity tests honour it per-fixture.
+PROFILE_JSON_DEDUCT = {**PROFILE_JSON, "agility_model": "deduct_from_100"}
+
 # Self-test (Task 1 acceptance): every numeric is a decimal STRING, never a float.
 assert PROFILE_JSON["per_throw_cap"] == "5"
 assert PROFILE_JSON["zones"][0][1] == "1"
 assert PROFILE_JSON["bonuses"][0][1] == "0.5"
 assert PROFILE_JSON["freestyle_cats"][0][3] == "0.01"
 assert PROFILE_JSON["freestyle_max"] == "40"
+assert PROFILE_JSON_DEDUCT["agility_model"] == "deduct_from_100"
 
 
 # Cross-discipline edge-case input list. Each item: {"discipline": <str>, "fields": {...}}.
@@ -116,6 +124,18 @@ FIXTURES = [
         "discipline": "agility",
         "fields": {
             "eliminated": True,
+        },
+    },
+    # agility — WR-02: deduct_from_100 branch (100 - course_deductions - time_faults). Over SCT by
+    # 4.5s → ceil = 5 time-faults; 100 - 10 - 5 = 85. Carries its own profile so the parity tests
+    # exercise the deduct compute path node-vs-Python (otherwise only count_up is covered).
+    {
+        "discipline": "agility",
+        "profile_json": PROFILE_JSON_DEDUCT,
+        "fields": {
+            "tempo": "00:34.50",        # 34.5s
+            "sct": "00:30.00",          # 30s → over 4.5s → ceil = 5 time-faults
+            "course_deductions": "10",  # → 100 - 10 - 5 = 85
         },
     },
 ]

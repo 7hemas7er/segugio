@@ -19,6 +19,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from decimal import Decimal
 
 import pytest
 
@@ -26,6 +27,37 @@ from segugio.ui import score_calc
 from segugio.ui.app import create_app
 
 from tests._score_fixtures import FIXTURES, INVALID_FIXTURES, PROFILE_JSON
+
+
+def _profile_from_json(pj: dict) -> score_calc.ScoringProfile:
+    """Build the Python ScoringProfile authority from a decimal-STRING JSON profile.
+
+    Lets a fixture carry its own ``profile_json`` (WR-02: a ``deduct_from_100`` agility profile)
+    so the node-vs-Python parity tests can exercise a compute branch the default count_up profile
+    never reaches. Mirrors the decimal-string transport shape exactly — every numeric becomes a
+    ``Decimal`` so the Python side stays float-free, matching the JS ``Dec``-from-string port.
+    """
+    return score_calc.ScoringProfile(
+        units=pj["units"],
+        zones=tuple((b, Decimal(p)) for b, p in pj["zones"]),
+        bonuses=tuple((k, Decimal(v)) for k, v in pj["bonuses"]),
+        per_throw_cap=(Decimal(pj["per_throw_cap"]) if pj["per_throw_cap"] is not None else None),
+        count_best_n=pj["count_best_n"],
+        freestyle_cats=tuple(
+            (n, Decimal(lo), Decimal(hi), Decimal(inc)) for n, lo, hi, inc in pj["freestyle_cats"]
+        ),
+        freestyle_max=(Decimal(pj["freestyle_max"]) if pj["freestyle_max"] is not None else None),
+        agility_model=pj["agility_model"],
+        time_fault_rate=Decimal(pj["time_fault_rate"]),
+        fault_value=Decimal(pj["fault_value"]),
+        elimination_sentinel=pj["elimination_sentinel"],
+    )
+
+
+def _py_profile_for(fx: dict) -> score_calc.ScoringProfile:
+    """The Python profile a fixture runs against — its own ``profile_json`` or the CSEN default."""
+    pj = fx.get("profile_json")
+    return _profile_from_json(pj) if pj is not None else score_calc.CSEN_DISC_PROFILE
 
 _JS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -99,11 +131,11 @@ def test_compute_byte_parity_with_python():
         + "\nconst _m = module.exports;\n"
         + "const _in = " + json.dumps(FIXTURES) + ";\n"
         + "const _p = " + json.dumps(PROFILE_JSON) + ";\n"
-        + "process.stdout.write(JSON.stringify(_in.map(f => _m.compute(f.discipline, f.fields, _p))));\n"
+        + "process.stdout.write(JSON.stringify(_in.map(f => _m.compute(f.discipline, f.fields, f.profile_json || _p))));\n"
     )
     js_out = json.loads(_run_node(driver))
     py_out = [
-        score_calc.compute(f["discipline"], f["fields"], score_calc.CSEN_DISC_PROFILE)
+        score_calc.compute(f["discipline"], f["fields"], _py_profile_for(f))
         for f in FIXTURES
     ]
     assert len(js_out) == len(py_out)
@@ -127,11 +159,11 @@ def test_validate_parity():
         + "\nconst _m = module.exports;\n"
         + "const _in = " + json.dumps(INVALID_FIXTURES) + ";\n"
         + "const _p = " + json.dumps(PROFILE_JSON) + ";\n"
-        + "process.stdout.write(JSON.stringify(_in.map(f => _m.validate(f.discipline, f.fields, _p))));\n"
+        + "process.stdout.write(JSON.stringify(_in.map(f => _m.validate(f.discipline, f.fields, f.profile_json || _p))));\n"
     )
     js_out = json.loads(_run_node(driver))
     py_out = [
-        score_calc.validate(f["discipline"], f["fields"], score_calc.CSEN_DISC_PROFILE)
+        score_calc.validate(f["discipline"], f["fields"], _py_profile_for(f))
         for f in INVALID_FIXTURES
     ]
     assert len(js_out) == len(py_out)
@@ -158,11 +190,11 @@ def test_validate_parity_valid_fixtures_clean():
         + "\nconst _m = module.exports;\n"
         + "const _in = " + json.dumps(FIXTURES) + ";\n"
         + "const _p = " + json.dumps(PROFILE_JSON) + ";\n"
-        + "process.stdout.write(JSON.stringify(_in.map(f => _m.validate(f.discipline, f.fields, _p))));\n"
+        + "process.stdout.write(JSON.stringify(_in.map(f => _m.validate(f.discipline, f.fields, f.profile_json || _p))));\n"
     )
     js_out = json.loads(_run_node(driver))
     py_out = [
-        score_calc.validate(f["discipline"], f["fields"], score_calc.CSEN_DISC_PROFILE)
+        score_calc.validate(f["discipline"], f["fields"], _py_profile_for(f))
         for f in FIXTURES
     ]
     for j, p, fx in zip(js_out, py_out, FIXTURES):

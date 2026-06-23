@@ -77,14 +77,15 @@ FIXTURES = [
             ],
         },
     },
-    # disc_freestyle — cap at freestyle_max: four categories summing over 40 → clamped to 40.
+    # disc_freestyle — cap boundary at freestyle_max: four maxed categories sum to exactly 40
+    # (each category is itself capped at 10, so the freestyle_max clamp is exercised at the boundary).
     {
         "discipline": "disc_freestyle",
         "fields": {
             "team": "10",
             "dog": "10",
             "player": "10",
-            "catch": "10.5",   # sum 40.5 > 40 → cap 40
+            "catch": "10",   # sum 40 == freestyle_max (clamp boundary)
             "adjustment": "0",
             "nome": "Rex & Anna",
         },

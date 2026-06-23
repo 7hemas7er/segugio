@@ -80,6 +80,64 @@ _PREVIEW_FILE = "preview/preview.json"
 # Fields posted by the operator that are NOT score values (don't leak into ScoreDoc.fields).
 _NON_SCORE_KEYS = frozenset({"discipline"})
 
+# Legacy console.html #form-score flat keys (display-only, manual totale) — the pre-Phase-16
+# wire shape. Their presence (with NO structured keys) routes to the back-compat branch (Open Q1).
+_LEGACY_FLAT_KEYS = frozenset(
+    {"prese", "zona", "totale", "nome", "timer", "tempo", "sct", "faults"}
+)
+# Structured keys the AUTHORITATIVE path consumes (throws[] + per-discipline raw inputs, D-08).
+_STRUCTURED_KEYS = frozenset(
+    {"throws", "course_faults", "course_deductions", "eliminated", "adjustment"}
+)
+
+
+def _is_legacy_score_post(raw, is_json: bool) -> bool:
+    """True for a legacy console-form POST that must keep round-tripping until P17 (Open Q1).
+
+    A legacy POST is urlencoded (NOT a JSON body) and carries the flat display-only keys
+    (``prese``/``zona``/``totale``/``faults``/``timer``/…) rather than the structured
+    ``throws[]`` / ``course_faults`` contract. JSON bodies are ALWAYS the authoritative
+    structured path; a urlencoded body with any structured key is also authoritative.
+    """
+    if is_json:
+        return False
+    keys = set(raw.keys()) - _NON_SCORE_KEYS
+    if keys & _STRUCTURED_KEYS:
+        return False
+    return bool(keys & _LEGACY_FLAT_KEYS)
+
+
+def _parse_structured_inputs(discipline, raw, is_json: bool) -> dict:
+    """Build the RAW per-discipline dict ``score_calc.validate``/``compute`` consume (D-08).
+
+    JSON bodies deliver native types (``throws`` is a list of ``{zone, midair, corridor}`` dicts,
+    ``eliminated`` a bool); urlencoded forms deliver strings. The dict is RAW input — the strict
+    flag/time/number parsing happens inside ``score_calc`` (CR-01 truthiness, mm:ss(.cc), Decimal),
+    never here, so the server stays the single validation authority.
+    """
+    fields: dict = {}
+    if discipline == Discipline.disc_tf:
+        throws = raw.get("throws")
+        if throws is None and not is_json:
+            throws = []
+        fields["throws"] = throws if throws is not None else []
+    elif discipline == Discipline.disc_freestyle:
+        # Each freestyle category value + the optional manual adjustment + the routine name.
+        for key in ("team", "dog", "player", "catch", "adjustment", "nome", "timer"):
+            if key in raw:
+                fields[key] = raw.get(key)
+    elif discipline == Discipline.agility:
+        for key in (
+            "tempo",
+            "sct",
+            "course_faults",
+            "course_deductions",
+            "eliminated",
+        ):
+            if key in raw:
+                fields[key] = raw.get(key)
+    return fields
+
 
 # Console-palette branding defaults (D-06) — mirrored from OverlayParams so the /overlay route
 # always renders a valid page even when a caller passes no overlay_cfg. Kept here as a plain dict
@@ -95,7 +153,7 @@ _OVERLAY_CFG_DEFAULTS = {
 }
 
 
-def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None):
+def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, sport="disc_dog"):
     """Build the Flask operator console wired to ``channel_dir`` (the opcomm file directory).
 
     A factory (not a module-level ``app``) so tests inject a tmp_path dir via the Flask test
@@ -114,6 +172,15 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None):
     passes nothing still renders a valid page; any keys present override the defaults. This is
     STATIC config (D-07): it is injected at render time and does NOT enter the ``/overlay-json``
     poll payload.
+
+    ``profile`` is the active scoring :class:`~segugio.ui.score_calc.ScoringProfile` the
+    authoritative ``POST /score`` validates + recomputes against (Phase 16 / SCC-01). It arrives as
+    a plain stdlib dataclass — NEVER ``import segugio.config`` here (the heavy config layer adapts
+    its pydantic profile INTO this plain shape and injects it, mirroring ``cam_ids``/``overlay_cfg``
+    — crash-isolation / Pitfall 3). ``None`` defaults to the pinned ``CSEN_DISC_PROFILE`` so every
+    existing single-/triple-arg caller (and the legacy console form) stays green. ``sport`` selects
+    the valid-discipline list for the (Plan-02) ``/score-entry`` page (``disc_dog`` →
+    Toss&Fetch + Freestyle; ``agility`` → Agility only, D-06); it is inert for the route itself.
     """
     from flask import (
         Flask,
@@ -124,6 +191,13 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None):
         request,
         send_file,
     )
+
+    # Lazy/in-factory — score_calc is stdlib-only (no Flask, no config, no numpy), so this stays
+    # inside the crash-isolation allowlist (RBT-08 / Pitfall 1). The authoritative POST /score
+    # validates + recomputes against this profile; default is the pinned CSEN 2026 disc profile.
+    from . import score_calc
+
+    profile = profile or score_calc.CSEN_DISC_PROFILE
 
     cam_ids = frozenset(cam_ids)
     # Fold the caller's overlay_cfg over the console-palette defaults so the template never sees an
@@ -190,27 +264,54 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None):
         # cam_ids arg is no longer half-honoured (route only); the page derives its ids from it too.
         return render_template("console.html", cam_ids=sorted(cam_ids))
 
+    def _write_score_doc(doc) -> None:
+        # The ONE write path: score.json (structured, for the UI) AND overlay.txt (rendered, for
+        # OBS), then a gen-bump (NOT a run edge — running/started_at preserved, WR-03/Open Q1).
+        write_score(_path(_SCORE_FILE), doc)
+        atomic_write_text(_path(_OVERLAY_FILE), render_overlay_text(doc))
+        _bump_score_gen()
+
     @app.post("/score")
     def post_score():
-        form = request.form
-        # Whitelist the discipline against the closed Enum (T-05-05-01) — unknown → 400.
-        raw_discipline = form.get("discipline", Discipline.disc_tf.value)
+        # Phase 16 (SCC-01 / D-08): POST /score is the SOLE authority. A JSON body carries the
+        # structured RAW inputs (throws[] for T&F, the 4 categories + adjustment for Freestyle,
+        # time/SCT/faults-or-deductions + elimination for agility); the server validates RAW input
+        # FIRST and recomputes the total in Python (Decimal) before writing. The client can never
+        # air a client-computed total.
+        json_body = request.get_json(silent=True)
+        is_json = json_body is not None
+        raw = json_body if is_json else request.form
+
+        # Whitelist the discipline against the closed Enum (T-05-05-01 / T-16-02) — unknown → 400.
+        raw_discipline = raw.get("discipline", Discipline.disc_tf.value)
         try:
             discipline = Discipline(raw_discipline)
         except ValueError:
             return ("disciplina sconosciuta", 400)
-        # Everything else is the operator's free-form per-discipline field set (display-only).
-        # WR-05: drop EMPTY values so the hidden (display:none) fieldsets of the other disciplines —
-        # which FormData still serializes — do not sweep stray empty nome/timer/tempo/sct/faults
-        # keys into ScoreDoc.fields, the OBS overlay render, and every score.json write.
-        fields = {k: v for k, v in form.items() if k not in _NON_SCORE_KEYS and v.strip()}
-        doc = ScoreDoc(discipline=discipline, fields=fields)
-        # Write BOTH: score.json (structured, for the UI) AND overlay.txt (rendered, for OBS).
-        write_score(_path(_SCORE_FILE), doc)
-        atomic_write_text(_path(_OVERLAY_FILE), render_overlay_text(doc))
-        # NEW (D-02): a /score write advances gen so the overlay's ?t=<gen> nonce refreshes; it is
-        # NOT a run edge, so running/started_at are preserved (Open Q1).
-        _bump_score_gen()
+
+        # LEGACY back-compat branch — RETIRED IN P17 (Open Q1 (a)). The legacy console.html
+        # #form-score posts urlencoded flat display-only keys (prese/zona/totale, nome/timer,
+        # tempo/sct/faults) that do NOT match the score_calc structured contract. Keep them
+        # round-tripping (display-only, manual totale) until P17 retires the form. JSON bodies and
+        # any structured key bypass this branch into the authoritative path.
+        if _is_legacy_score_post(raw, is_json):
+            # WR-05: drop EMPTY values so the hidden fieldsets of the other disciplines (which
+            # FormData still serializes) do not sweep stray empty keys into ScoreDoc.fields.
+            fields = {
+                k: v for k, v in raw.items() if k not in _NON_SCORE_KEYS and str(v).strip()
+            }
+            _write_score_doc(ScoreDoc(discipline=discipline, fields=fields))
+            return ("", 204)
+
+        # AUTHORITATIVE path (SCC-01): validate-BEFORE-write → 400 + write NOTHING on any error
+        # (prev on-air score.json/overlay.txt stays byte-identical, D-05 / T-16-05) → Decimal
+        # recompute → atomic write.
+        fields = _parse_structured_inputs(discipline, raw, is_json)
+        errors = score_calc.validate(discipline, fields, profile)
+        if errors:
+            return (jsonify({"errors": errors}), 400)
+        computed = score_calc.compute(discipline, fields, profile)
+        _write_score_doc(ScoreDoc(discipline=discipline, fields=computed))
         return ("", 204)
 
     @app.post("/run")

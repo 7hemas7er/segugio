@@ -197,6 +197,12 @@ def validate(discipline, fields: dict, profile: ScoringProfile) -> list[dict]:
         throws = fields.get("throws")
         if not throws:
             errors.append({"field": "throws", "message": "Almeno un lancio è richiesto."})
+        elif not isinstance(throws, (list, tuple)):
+            # CR-02: a crafted authoritative POST {"throws": 42} (a number/bool/object) is truthy
+            # so it would reach enumerate(throws) and raise TypeError ('int' is not iterable) → an
+            # unhandled 500, bypassing the validate→400→write-nothing contract. Reject the shape
+            # instead so the route returns 400 + writes nothing (mirrored in score-calc.js / WR-01).
+            errors.append({"field": "throws", "message": "Formato lanci non valido."})
         else:
             for i, throw in enumerate(throws):
                 band = throw.get("zone") if isinstance(throw, dict) else None

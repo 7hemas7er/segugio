@@ -419,8 +419,11 @@
     const adjustment = _toDecimal(out.adjustment) || _ZERO();
     total = _decSub(total, adjustment);
 
-    if (!("nome" in out)) out.nome = out.nome || "";
-    if (!("timer" in out)) out.timer = out.timer || "";
+    // WR-03: direct mirror of Python out.setdefault("nome", out.get("nome", "")) — when the key is
+    // absent, set "". The old `|| out.nome` RHS read an always-undefined value (the guard already
+    // proved "nome" not in out), so it was misleading and easy to break; "" matches Python exactly.
+    if (!("nome" in out)) out.nome = "";
+    if (!("timer" in out)) out.timer = "";
     out.totale = _decToString(total);
     return out;
   }

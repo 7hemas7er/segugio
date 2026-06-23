@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <!-- Tablet viewport (mirrors console.html): the dedicated page is the calm operator entry
+       surface. The disable-zoom attributes are intentionally absent (iOS ignores them AND they
+       fail WCAG 1.4.4/1.4.10). Full tablet-first hardening (focus-trap, offline asset audit) is
+       Phase 17; here we simply reuse the console's already-≥16px input chrome. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Segugio — Inserimento punteggio</title>
+  <style>
+    /* === Reused from console.html (D-10) — same token set, NOT a new one ===
+       4px-multiple spacing scale: xs 4 / sm 8 / md 16 / lg 24 / xl 32 / 2xl 48.
+       Typography: exactly 4 sizes, weights 400 + 700 ONLY (no 500, no 600).
+       Palette recomputed vs #14161a: accent #2d6cdf / LIVE #34D399 / error #FF6B6B. */
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px;
+           background: #14161a; color: #e8e8e8;
+           touch-action: manipulation; }
+    h1 { font-size: 1.25rem; font-weight: 700; line-height: 1.2; margin: 0 0 16px; }
+    fieldset { border: 1px solid #333; border-radius: 8px; margin: 0 0 16px; padding: 16px; }
+    legend { font-weight: 700; padding: 0 4px; }
+    label { display: block; margin: 8px 0 4px; font-size: 0.875rem; font-weight: 700; color: #b9b9b9; }
+    /* Inputs/selects stay 1rem (≥16px) to block iOS focus-zoom — never below it. */
+    input, select { width: 100%; padding: 16px; font-size: 1rem; font-weight: 400; border-radius: 6px;
+                    border: 1px solid #444; background: #1d2026; color: #fff;
+                    min-height: 48px; touch-action: manipulation; }
+    input:focus, select:focus { outline: none; border-color: #2d6cdf; }
+    button { padding: 12px 16px; font-size: 1rem; font-weight: 400; border-radius: 6px; border: 0;
+             background: #2d6cdf; color: #fff; cursor: pointer; margin: 4px 4px 0 0;
+             min-height: 44px; touch-action: manipulation;
+             -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+             -webkit-tap-highlight-color: transparent; }
+    button:active { filter: brightness(0.82); }
+    button.secondary { background: #3a3f47; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+    .row > div { flex: 1 1 120px; }
+    .hidden { display: none; }
+    .hint { font-size: 0.75rem; font-weight: 400; color: #b9b9b9; margin: 4px 0 0; }
+    .tabular { font-variant-numeric: tabular-nums; }
+
+    /* --- New surfaces this phase contributes (reusing the tokens above) --- */
+    .page { max-width: 720px; margin: 0 auto; }
+    /* The repeatable throw list (D-01). Rows separated by a light divider, not a heavy box. */
+    .throw-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;
+                 padding: 8px 0; border-top: 1px solid #222; }
+    .throw-row:first-child { border-top: 0; }
+    .throw-row.muted { opacity: 0.55; }   /* not counted toward best-N (still fully editable) */
+    .throw-row .checkbox { flex: 0 1 auto; display: flex; align-items: center; gap: 4px; min-height: 48px; }
+    .throw-row .checkbox input { width: auto; min-height: 0; }
+    .throw-remove { flex: 0 0 auto; background: #3a3f47; min-width: 44px; min-height: 44px;
+                    display: inline-flex; align-items: center; justify-content: center; padding: 8px; }
+    .add-throw { background: #2d6cdf; width: 100%; margin-top: 8px; }
+    .empty-state { color: #b9b9b9; padding: 8px 0 4px; }
+    .empty-state .empty-title { font-weight: 700; }
+    /* Live advisory total — neutral, NOT authoritative-green (D-02). */
+    .total { margin: 16px 0; }
+    .total-value { font-size: 1.25rem; font-weight: 700; }
+    .total-caption { color: #b9b9b9; }   /* "non ufficiale / ricalcolato dal server" */
+    /* Per-field validation chip (on blur) — error red, redundant text channel. */
+    .field-error { font-size: 0.75rem; font-weight: 400; color: #FF6B6B;
+                   border-left: 2px solid #FF6B6B; padding-left: 8px; margin: 4px 0 0; }
+    /* Persistent publish banner (D-05) — not a transient toast. */
+    .banner { margin: 16px 0; padding: 12px 16px; border-radius: 6px; font-weight: 700;
+              border-left: 4px solid transparent; }
+    .banner.success { color: #34D399; border-left-color: #34D399; background: #14211c; }
+    .banner.error { color: #FF6B6B; border-left-color: #FF6B6B; background: #211616; }
+    .publish { margin-top: 16px; }
+    .publish button { background: #2d6cdf; width: 100%; min-height: 48px; font-weight: 700; }
+    .icon { width: 1em; height: 1em; vertical-align: -0.125em; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Inserimento punteggio</h1>
+
+    <!-- The active scoring profile + valid-discipline list, injected as decimal STRINGS (D-07).
+         The component reads it with JSON.parse(#score-cfg.textContent) — the cam_ids | tojson
+         inline-blob precedent. This is the ONLY data the page bakes in; no form/calc lives here. -->
+    <script type="application/json" id="score-cfg">{{ score_cfg | tojson }}</script>
+
+    <!-- The component mounts its entire field set here. The host carries NO <input> of its own. -->
+    <div id="score-entry-root"></div>
+
+    <!-- Persistent publish banner (D-05): "✓ In onda" on 2xx, server errors + "punteggio
+         precedente invariato" on 400. Stays until the next action. -->
+    <div id="publish-banner"></div>
+  </div>
+
+  <!-- Advisory calc port first (defines window.SEGUGIO_SCORE_CALC), then the component. -->
+  <script src="/static/score-calc.js"></script>
+  <script src="/static/score-entry.js"></script>
+</body>
+</html>

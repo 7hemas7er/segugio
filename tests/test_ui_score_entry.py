@@ -65,14 +65,38 @@ def test_dual_export_and_thin_host():
 # --- SCE-02: disciplines driven by the injected profile ----------------------- #
 
 
-@_PLAN_02
 def test_disciplines_from_profile():
     """disc-dog config → T&F + Freestyle; agility config → Agility only (D-06)."""
+    import json
+
     tmp = tempfile.mkdtemp()
+    # Default sport ("disc_dog") offers both disc disciplines.
     app = create_app(tmp, cam_ids=["cam_wide"])
     html = app.test_client().get("/score-entry").get_data(as_text=True)
-    # disc-dog default offers both disc disciplines.
     assert "disc_tf" in html and "disc_freestyle" in html
+    # The injected score-cfg blob carries the D-06 discipline list AND decimal-STRING numerics.
+    blob = html.split('id="score-cfg">', 1)[1].split("</script>", 1)[0]
+    cfg = json.loads(blob)
+    assert cfg["sport"] == "disc_dog"
+    assert cfg["disciplines"] == ["disc_tf", "disc_freestyle"]
+    # T-16-10: every profile numeric is a decimal STRING, never a float (e.g. 5.0).
+    assert cfg["profile"]["per_throw_cap"] == "5"
+    assert cfg["profile"]["zones"][0][1] == "1"
+    assert cfg["profile"]["bonuses"][0][1] == "0.5"
+    assert cfg["profile"]["freestyle_cats"][0][3] == "0.01"
+    assert cfg["profile"]["count_best_n"] == 5  # a count stays an int, not a string
+
+    # An agility config offers Agility only (D-06).
+    from segugio.ui import score_calc
+
+    tmp2 = tempfile.mkdtemp()
+    app2 = create_app(
+        tmp2, cam_ids=["cam_wide"], profile=score_calc.FCI_AGILITY_PROFILE, sport="agility"
+    )
+    html2 = app2.test_client().get("/score-entry").get_data(as_text=True)
+    cfg2 = json.loads(html2.split('id="score-cfg">', 1)[1].split("</script>", 1)[0])
+    assert cfg2["sport"] == "agility"
+    assert cfg2["disciplines"] == ["agility"]
 
 
 # --- SCE-02 / SCE-05: no innerHTML sink for operator values ------------------- #

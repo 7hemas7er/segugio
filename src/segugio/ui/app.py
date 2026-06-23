@@ -88,6 +88,54 @@ _STRUCTURED_KEYS = frozenset(
 )
 
 
+def _profile_to_json(profile) -> dict:
+    """Serialise a plain ``score_calc.ScoringProfile`` into a JSON-safe dict (D-07 / T-16-10).
+
+    EVERY numeric is emitted as a decimal STRING (``str(Decimal)`` → ``"5"``, ``"0.5"``, ``"40"`` —
+    never the float ``5.0``/``0.5``) so the inlined ``score-cfg`` blob round-trips byte-exact into
+    ``score-calc.js``'s BigInt-Decimal helper; a ``Number``-coerced ``0.1+0.2`` would drift the
+    advisory total away from the Python ``Decimal`` authority (Pitfall 1 / D-09). Mirrors the shape
+    of ``tests/_score_fixtures.PROFILE_JSON``. Pure stdlib — ``str()`` on a ``Decimal`` is
+    crash-isolation safe (no config/numpy import, RBT-08).
+
+      * ``zones``          → ``[[band, str(points)], ...]`` (band stays the int selector value)
+      * ``bonuses``        → ``[[key, str(value)], ...]``
+      * ``freestyle_cats`` → ``[[name, str(min), str(max), str(inc)], ...]``
+      * ``per_throw_cap``  → ``str(...)`` | ``None``
+      * ``freestyle_max``  → ``str(...)``
+      * ``count_best_n``   → ``int`` | ``None``  (a count, not a Decimal)
+      * ``agility_model`` / ``elimination_sentinel`` / ``units`` → ``str``
+    """
+    return {
+        "units": str(profile.units),
+        "zones": [[band, str(points)] for band, points in profile.zones],
+        "bonuses": [[key, str(value)] for key, value in profile.bonuses],
+        "per_throw_cap": None if profile.per_throw_cap is None else str(profile.per_throw_cap),
+        "count_best_n": profile.count_best_n,
+        "freestyle_cats": [
+            [name, str(cmin), str(cmax), str(inc)]
+            for name, cmin, cmax, inc in profile.freestyle_cats
+        ],
+        "freestyle_max": str(profile.freestyle_max),
+        "agility_model": str(profile.agility_model),
+        "time_fault_rate": str(profile.time_fault_rate),
+        "fault_value": str(profile.fault_value),
+        "elimination_sentinel": str(profile.elimination_sentinel),
+    }
+
+
+def _disciplines_for_sport(sport: str) -> list:
+    """The valid-discipline list the ``/score-entry`` page offers (D-06).
+
+    Derived from the configured sport (the active scoring profile), NOT a free 3-way selector:
+    a disc-dog config offers Toss & Fetch + Freestyle (both served by ``DiscDogProfile.scoring`` —
+    zones drive T&F, ``freestyle_cats`` drive Freestyle); an agility config offers Agility only
+    (``AgilityProfile.scoring``). The active profile therefore always matches the selected
+    discipline — no fallback profile, no "which profile for which discipline" ambiguity.
+    """
+    return ["disc_tf", "disc_freestyle"] if sport == "disc_dog" else ["agility"]
+
+
 def _is_legacy_score_post(raw, is_json: bool) -> bool:
     """True for a legacy console-form POST that must keep round-tripping until P17 (Open Q1).
 
@@ -197,6 +245,16 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
 
     profile = profile or score_calc.CSEN_DISC_PROFILE
 
+    # The /score-entry injection blob (D-07): the active sport, its valid-discipline list (D-06),
+    # and the profile as decimal STRINGS (T-16-10). Built ONCE at factory time (static config —
+    # like cam_ids/overlay_cfg) and inlined into the thin host via `score_cfg | tojson`. The
+    # component reads it with JSON.parse(#score-cfg.textContent) and renders the fields from it.
+    _score_cfg = {
+        "sport": sport,
+        "disciplines": _disciplines_for_sport(sport),
+        "profile": _profile_to_json(profile),
+    }
+
     cam_ids = frozenset(cam_ids)
     # Fold the caller's overlay_cfg over the console-palette defaults so the template never sees an
     # undefined branding var (a partial dict is fine — missing keys fall back to the defaults).
@@ -261,6 +319,16 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         # whitelist the preview-JPEG route honours (WR-01) so a non-default rig is fully wired — the
         # cam_ids arg is no longer half-honoured (route only); the page derives its ids from it too.
         return render_template("console.html", cam_ids=sorted(cam_ids))
+
+    @app.get("/score-entry")
+    def score_entry():
+        # SCE-01/02 (Plan 16-02): the dedicated full-screen score-entry page — a THIN Jinja host
+        # that inlines the static `score_cfg` blob (decimal strings, D-06 discipline list) and
+        # mounts the ONE shared `score-entry.js` component into #score-entry-root. The page carries
+        # NO <input>/calc logic of its own (the component builds every field from the injected
+        # profile); the same mount(root, cfg) module is re-mounted in the P17 console modal so drift
+        # is structurally impossible (the SCV-02 one-renderer-two-mounts lesson applied to a form).
+        return render_template("score-entry.html", score_cfg=_score_cfg)
 
     def _write_score_doc(doc) -> None:
         # The ONE write path: score.json (structured, for the UI) AND overlay.txt (rendered, for
@@ -455,15 +523,27 @@ if __name__ == "__main__":  # pragma: no cover - the production entrypoint
     # no config import leaks to the module top. Defaults to the console palette; env vars override
     # individual fields, and a SEGUGIO_CONFIG path seeds the rest from cfg.overlay.*.
     _overlay_cfg = dict(_OVERLAY_CFG_DEFAULTS)
+    # The active scoring profile + sport for the authoritative /score route and the /score-entry
+    # page (D-07/D-06). Resolved HERE only when a SEGUGIO_CONFIG path is given — adapt_scoring_profile
+    # lives in the HEAVY config tier, so it is imported LAZILY in __main__ ONLY (mirroring load_config)
+    # and the plain dataclass is injected; create_app NEVER imports the config layer (RBT-08/Pitfall 3).
+    # None/"disc_dog" defaults fall through to the pinned CSEN_DISC_PROFILE inside create_app.
+    _profile = None
+    _sport = "disc_dog"
     if _cam_env:
         _cam_ids = [c.strip() for c in _cam_env.split(",") if c.strip()]
     else:
         _cfg_path = os.environ.get("SEGUGIO_CONFIG", "").strip()
         if _cfg_path:
             from ..config.loader import load_config  # lazy: config import stays out of module top
+            from ..config.discipline import adapt_scoring_profile  # lazy: heavy-tier adapter
 
             _cfg = load_config(_cfg_path)
             _cam_ids = [cam.id for cam in _cfg.cameras]
+            # Adapt the pydantic scoring profile into the plain stdlib dataclass and read the sport
+            # off the discriminated-union field profile — both injected into create_app like cam_ids.
+            _profile = adapt_scoring_profile(_cfg.field.scoring)
+            _sport = _cfg.field.sport
             # Seed the overlay branding from cfg.overlay.* (the config is the source of truth when a
             # path is given). Env vars below still win over these so an operator can override per run.
             _ovl = _cfg.overlay
@@ -493,7 +573,9 @@ if __name__ == "__main__":  # pragma: no cover - the production entrypoint
         if _val is not None and _val.strip():
             _overlay_cfg[_cfg_key] = _val.strip()
 
-    app = create_app(_dir, cam_ids=_cam_ids, overlay_cfg=_overlay_cfg)
+    app = create_app(
+        _dir, cam_ids=_cam_ids, overlay_cfg=_overlay_cfg, profile=_profile, sport=_sport
+    )
     try:
         # OPTIONAL deploy extra (`pip install segugio[console]`). The import stays INSIDE the
         # entrypoint so the crash-isolation guard passes whether or not waitress is installed.

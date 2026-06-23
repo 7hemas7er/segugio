@@ -136,6 +136,14 @@ INVALID_FIXTURES = [
         "fields": {"throws": []},
         "error_field": "throws",
     },
+    # disc_tf — WR-01/CR-02: a non-list truthy `throws` (a number). Python would crash on
+    # enumerate(42) and JS would silently return [] (length undefined) WITHOUT the shape guards.
+    # Pins Python↔JS parity on the non-iterable path: both must reject with a `throws` error.
+    {
+        "discipline": "disc_tf",
+        "fields": {"throws": 42},
+        "error_field": "throws",
+    },
     # disc_freestyle — a category out of its 0–10 range.
     {
         "discipline": "disc_freestyle",

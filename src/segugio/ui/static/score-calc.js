@@ -252,6 +252,12 @@
       const throws = fields.throws;
       if (!throws || throws.length === 0) {
         errors.push({ field: "throws", message: "Almeno un lancio è richiesto." });
+      } else if (!Array.isArray(throws)) {
+        // WR-01: mirror the Python authority (score_calc.validate / CR-02). A non-array truthy
+        // throws (e.g. 42) has throws.length === undefined, so the for-loop below would never run
+        // and validate would WRONGLY return [] (valid) while Python rejects — a drift the
+        // byte-exact mirror invariant forbids. Push the same {field, message} so both agree.
+        errors.push({ field: "throws", message: "Formato lanci non valido." });
       } else {
         for (let i = 0; i < throws.length; i++) {
           const throwObj = throws[i];

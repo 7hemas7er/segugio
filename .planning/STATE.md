@@ -4,13 +4,13 @@ milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: executing
 stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-06-22T23:27:04.013Z"
-last_activity: 2026-06-22 — Phase 15 executed and completed
+last_updated: "2026-06-23T00:20:00.000Z"
+last_activity: 2026-06-23 -- Phase 16 Plan 01 executed (server-authoritative POST + advisory score-calc.js)
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 25
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** v1.3 "Gestione Punteggi Avanzata" — Phase 15 COMPLETE (3/3 plans, verification passed). Next: `/gsd-discuss-phase 16` or `/gsd-plan-phase 16` (Shared Entry Component, Dedicated Page & Server-Authoritative POST). Phase 16 wires `score_calc` into the `/score` route — re-check code-review CR-01 (string bonus-flag truthiness, now fixed) holds when real form data flows in.
+**Current focus:** Phase 16 — shared-entry-component-dedicated-page-server-authoritative-p
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-22 — Phase 15 executed and completed
+Phase: 16 (shared-entry-component-dedicated-page-server-authoritative-p) — EXECUTING
+Plan: 2 of 2 (Plan 01 complete — wave 1 of 2)
+Status: Executing Phase 16 (Plan 16-01 done; Plan 16-02 pending)
+Last activity: 2026-06-23 -- Phase 16 Plan 01 executed (server-authoritative POST + advisory score-calc.js)
 
 ## Performance Metrics
 

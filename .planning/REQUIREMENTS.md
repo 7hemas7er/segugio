@@ -23,9 +23,9 @@
 
 ### Calcolo & validazione autorevoli (SCC)
 
-- [ ] **SCC-01**: `POST /score` è **autorevole**: valida gli input grezzi (400 + niente scrittura su invalido), **ricalcola** i totali in Python (`decimal`), e solo allora scrive atomicamente `score.json` + `overlay.txt`
+- [x] **SCC-01**: `POST /score` è **autorevole**: valida gli input grezzi (400 + niente scrittura su invalido), **ricalcola** i totali in Python (`decimal`), e solo allora scrive atomicamente `score.json` + `overlay.txt` — *Plan 16-01: `post_score` riscritto (JSON body → `_parse_structured_inputs` → `score_calc.validate` 400-write-nothing → `compute` Decimal → atomic write + gen-bump WR-03); 4 gate SCC-01 verdi (400-write-nothing byte-identico, recompute, run-state, round-trip equality).*
 - [x] **SCC-02**: Modulo **puro** `score_calc` (solo stdlib, nessuna heavy dep) che incapsula calcolo + validazione, condiviso dal server e **aggiunto alla superficie import crash-isolated** (coperto dall'import-smoke gate) — *Plan 15-01: modulo puro stdlib costruito (import allowlist = decimal/re/dataclasses/enum + opcomm.records, zero `float(`). Plan 15-03: `segugio.ui.score_calc` aggiunto a `PHASE1_SURFACE` (parametrized heavy-deps-absent import) — chiuso.*
-- [ ] **SCC-03**: Port client `score-calc.js` per il calcolo advisory, con **drift-guard test** che ne garantisce la **parità** col modulo Python (no doppia verità)
+- [x] **SCC-03**: Port client `score-calc.js` per il calcolo advisory, con **drift-guard test** che ne garantisce la **parità** col modulo Python (no doppia verità) — *Plan 16-01: `score-calc.js` port byte-exact (helper Decimal coefficiente-BigInt+esponente, blocco `gsd:score-calc-mirror`, dual-export); drift-guard node-vs-Python `compute`/`validate` verde su tutte le discipline + casi limite (best-N, bonus 0.5, flag CR-01, cap freestyle, ceil/eliminazione agility).*
 - [x] **SCC-04**: **Totali auto-calcolati per disciplina** — disc T&F: somma lanci×zone (+ bonus); freestyle: somma criteri (giudice singolo); agility: modello configurabile (count-up faults *oppure* deduct) + time-faults vs SCT — *Plan 15-01: `score_calc.compute()` Decimal-exact per le 3 discipline, 11/11 unit test verdi vs tabelle CSEN pinnate.*
 - [ ] **SCC-05**: **Multi-lancio/round** con totale progressivo (disc T&F a N lanci); stato in-progress robusto (scrittura atomica; restore lato client su reload)
 
@@ -72,9 +72,9 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 | SCE-03 | Phase 16 | Pending |
 | SCE-04 | Phase 17 | Pending |
 | SCE-05 | Phase 16 | Pending |
-| SCC-01 | Phase 16 | Pending |
+| SCC-01 | Phase 16 | Complete (Plan 16-01) |
 | SCC-02 | Phase 15 | Complete (15-01 module; 15-03 import gate) |
-| SCC-03 | Phase 16 | Pending |
+| SCC-03 | Phase 16 | Complete (Plan 16-01) |
 | SCC-04 | Phase 15 | Complete (15-01) |
 | SCC-05 | Phase 17 | Pending |
 | SCP-01 | Phase 15 | Complete (15-02) |

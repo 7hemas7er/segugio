@@ -60,7 +60,7 @@
 Plans:
 **Wave 1**
 
-- [ ] 16-01-PLAN.md — Wave 1: authoritative `POST /score` (validate→400-write-nothing→Decimal recompute→atomic write) + byte-exact advisory `score-calc.js` + node drift-guard + legacy console-form back-compat (Open Q1) + all Wave 0 test scaffolds (SCC-01, SCC-03)
+- [x] 16-01-PLAN.md — Wave 1: authoritative `POST /score` (validate→400-write-nothing→Decimal recompute→atomic write) + byte-exact advisory `score-calc.js` + node drift-guard + legacy console-form back-compat (Open Q1) + all Wave 0 test scaffolds (SCC-01, SCC-03) — executed 2026-06-23 (pending phase verification)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -149,6 +149,6 @@
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete | 2026-06-16 |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
-| 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 0/2 | Planned | - |
+| 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 1/2 | Executing | - |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 0/? | Not started | - |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

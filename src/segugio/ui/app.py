@@ -372,6 +372,12 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
             fields = {
                 k: v for k, v in raw.items() if k not in _NON_SCORE_KEYS and str(v).strip()
             }
+            # WR-04: an all-empty legacy body (empty form, or only empty values) leaves fields == {}.
+            # Writing that would overwrite score.json, blank overlay.txt ("Prese:   Zona:   Totale: ")
+            # and bump gen — clobbering the on-air score, the OPPOSITE of the "previous score
+            # invariant". Treat an empty body as a no-op: write nothing, leave the on-air score intact.
+            if not fields:
+                return ("", 204)
             _write_score_doc(ScoreDoc(discipline=discipline, fields=fields))
             return ("", 204)
 

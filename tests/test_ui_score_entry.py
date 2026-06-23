@@ -30,9 +30,6 @@ _JS_PATH = os.path.join(
 _NODE = shutil.which("node")
 _requires_node = pytest.mark.skipif(_NODE is None, reason="node not available for behavior test")
 
-# Plan 16-02 builds score-entry.js / score-entry.html / GET /score-entry. Until then, skip.
-_PLAN_02 = pytest.mark.skip(reason="implemented in 16-02")
-
 
 def _read_file_js():
     with open(_JS_PATH, "r", encoding="utf-8") as fh:
@@ -50,7 +47,6 @@ def _read_served_js():
 # --- SCE-01: dual export + thin host ------------------------------------------ #
 
 
-@_PLAN_02
 def test_dual_export_and_thin_host():
     """score-entry.js exports mount on window AND module.exports; /score-entry host has no <input>."""
     js = _read_file_js()
@@ -102,7 +98,6 @@ def test_disciplines_from_profile():
 # --- SCE-02 / SCE-05: no innerHTML sink for operator values ------------------- #
 
 
-@_PLAN_02
 def test_no_innerhtml_sink():
     """T-16 / XSS — operator values via textContent, never an innerHTML sink."""
     js = _read_file_js()
@@ -114,7 +109,6 @@ def test_no_innerhtml_sink():
 # --- SCE-03: live advisory total updates in place ----------------------------- #
 
 
-@_PLAN_02
 @_requires_node
 def test_live_total_advisory():
     """The live advisory total recomputes IN PLACE on input (labeled non-authoritative)."""

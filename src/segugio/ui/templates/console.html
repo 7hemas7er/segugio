@@ -267,48 +267,19 @@
        beside the live (the bottom control-strip is gone). -->
   <div class="side-col">
 
-    <!-- Punteggio card — SCORE ENTRY: discipline selector + 3 per-discipline field sets (SCR-02). -->
-    <form id="form-score" method="post" action="/score">
-      <fieldset>
-        <legend>Punteggio</legend>
-        <label for="disciplina">Disciplina</label>
-        <select id="disciplina" name="discipline">
-          <option value="disc_tf">Disc — Toss &amp; Fetch</option>
-          <option value="disc_freestyle">Disc — Freestyle</option>
-          <option value="agility">Agility</option>
-        </select>
-
-        <!-- disc Toss & Fetch: prese / zona / totale -->
-        <div class="campi" data-disc="disc_tf">
-          <div class="row">
-            <div><label for="prese">Prese</label><input id="prese" name="prese" type="text" inputmode="numeric" enterkeyhint="next"></div>
-            <div><label for="zona">Zona</label><input id="zona" name="zona" type="text" enterkeyhint="next"></div>
-            <div><label for="totale">Totale</label><input id="totale" name="totale" type="text" inputmode="numeric" enterkeyhint="send"></div>
-          </div>
-        </div>
-
-        <!-- disc Freestyle: nome + timer -->
-        <div class="campi hidden" data-disc="disc_freestyle">
-          <div class="row">
-            <div><label for="nome">Nome</label><input id="nome" name="nome" type="text" enterkeyhint="next"></div>
-            <div><label for="timer">Timer</label><input id="timer" name="timer" type="text" inputmode="decimal" placeholder="mm:ss" enterkeyhint="send"></div>
-          </div>
-          <div class="hint">usa il punto (.) per i decimali</div>
-        </div>
-
-        <!-- agility: tempo vs SCT + faults -->
-        <div class="campi hidden" data-disc="agility">
-          <div class="row">
-            <div><label for="tempo">Tempo</label><input id="tempo" name="tempo" type="text" inputmode="decimal" enterkeyhint="next"></div>
-            <div><label for="sct">SCT</label><input id="sct" name="sct" type="text" inputmode="decimal" enterkeyhint="next"></div>
-            <div><label for="faults">Faults</label><input id="faults" name="faults" type="text" inputmode="numeric" enterkeyhint="send"></div>
-          </div>
-          <div class="hint">usa il punto (.) per i decimali</div>
-        </div>
-
-        <button type="submit">Aggiorna punteggio</button>
-      </fieldset>
-    </form>
+    <!-- Punteggio card (D-07/D-07a/D-11) — the legacy inline #form-score is RETIRED. The card now
+         shows a READ-ONLY on-air readout (discipline + total) polled from /overlay-json so the
+         operator never loses sight of what is airing, plus a button that opens the score-entry MODAL
+         (the native <dialog> below mounting the SAME shared component as the dedicated /score-entry
+         page). Score entry itself lives entirely in that modal — this card carries no <input>. -->
+    <section class="sidebar-block">
+      <h2>Punteggio in onda</h2>
+      <div id="onair-score">
+        <div>Disciplina: <span id="onair-discipline">—</span></div>
+        <div>Totale: <span id="onair-total" class="tabular">—</span></div>
+      </div>
+      <button type="button" id="open-score" style="margin-top: 16px;">Inserisci / modifica punteggio</button>
+    </section>
 
     <!-- Run + Rilascia: RUN START/STOP (D-09) + OVERRIDE undo (D-03) UNITED in one fieldset.
          The blind per-cam text force buttons are REMOVED; the whole tile is the force control.
@@ -340,16 +311,6 @@
   </dialog>
 
   <script>
-    // --- discipline selector toggles the matching field set (SCR-02) ---
-    const sel = document.getElementById("disciplina");
-    function showFields() {
-      document.querySelectorAll(".campi").forEach(el => {
-        el.classList.toggle("hidden", el.dataset.disc !== sel.value);
-      });
-    }
-    sel.addEventListener("change", showFields);
-    showFields();
-
     function post(url, data) {
       const body = new URLSearchParams(data);
       return fetch(url, { method: "POST", body,
@@ -377,18 +338,9 @@
       }
     }
 
-    // --- score form: post only the visible discipline's fields (WR-05) ---
-    document.getElementById("form-score").addEventListener("submit", e => {
-      e.preventDefault();
-      const data = { discipline: sel.value };
-      const visible = document.querySelector('.campi[data-disc="' + sel.value + '"]');
-      if (visible) {
-        visible.querySelectorAll("input, select").forEach(inp => {
-          if (inp.name) data[inp.name] = inp.value;
-        });
-      }
-      post("/score", data);
-    });
+    // --- D-09: the "Inserisci / modifica punteggio" button opens the score-entry modal ---
+    const openScoreBtn = document.getElementById("open-score");
+    if (openScoreBtn) openScoreBtn.addEventListener("click", openScoreDialog);
 
     // --- run start/stop (D-09) ---
     document.querySelectorAll(".run-btn").forEach(b =>
@@ -600,6 +552,7 @@
     let justResumed = false;
     const RESUME_DEFER_MS = 200;       // mid-band 150–250ms; Task-3 records the working 26.x value
     let previewTimer = null, statusTimer = null;   // NAMED interval handles (torn down on hide)
+    let overlayTimer = null;                        // NAMED handle for the on-air readout poll (D-07)
 
     // UXT-03 flicker-free + leak-free refresh (UI-SPEC §Flicker-free leak-free refresh, VERIFIED):
     // ONE persistent off-DOM Image() preloader PER TILE, created ONCE into `preloaders` — NEVER a
@@ -760,6 +713,36 @@
       document.getElementById("onair-cam").textContent = status.live_cam || "—";
     }
 
+    // --- D-07/D-07a read-only on-air readout poll: feed #onair-discipline + #onair-total from the
+    //     authoritative /overlay-json (the SAME data OBS renders). Safe-coast like pollStatus: on any
+    //     fetch/parse error or an absent/torn field, LEAVE the last value (never throw, never break
+    //     the page). textContent ONLY (T-17-06 — a crafted fields value renders as inert text, never
+    //     markup). After a 2xx publish from the modal the readout updates on the next poll tick (it
+    //     polls /overlay-json — no extra wiring). The total is the `totale` key the overlay renders;
+    //     count_up agility has no `totale` (it carries `faults`) → fall back to it, else leave last. ---
+    const DISC_LABEL = {
+      "disc_tf": "Disc — Toss & Fetch",
+      "disc_freestyle": "Disc — Freestyle",
+      "agility": "Agility",
+    };
+    async function pollOverlayJson() {
+      try {
+        const r = await fetch("/overlay-json");
+        const d = await r.json();
+        const discEl = document.getElementById("onair-discipline");
+        const totEl = document.getElementById("onair-total");
+        if (discEl && d && d.discipline) {
+          discEl.textContent = Object.prototype.hasOwnProperty.call(DISC_LABEL, d.discipline)
+            ? DISC_LABEL[d.discipline] : d.discipline;
+        }
+        const fields = (d && d.fields) || {};
+        // The on-air total: `totale` for disc/freestyle/deduct-agility; `faults` for count_up agility.
+        const total = fields.totale != null ? fields.totale
+          : (fields.faults != null ? fields.faults : null);
+        if (totEl && total != null && String(total) !== "") totEl.textContent = String(total);
+      } catch (e) { /* coast — a poll error never breaks the page (leave the last readout value) */ }
+    }
+
     // --- live status poll (D-11) ---
     async function pollStatus() {
       try {
@@ -792,10 +775,14 @@
       stopPolling();                       // idempotent: never stack two intervals
       previewTimer = setInterval(pollPreview, PUBLISH_MS);
       statusTimer = setInterval(pollStatus, 1000);
+      // D-07: the on-air readout polls /overlay-json on the same status cadence (1s) — one more
+      // same-origin GET on an already-polled-class endpoint (T-17-08 accepted: no new worker thread).
+      overlayTimer = setInterval(pollOverlayJson, 1000);
     }
     function stopPolling() {
       if (previewTimer) { clearInterval(previewTimer); previewTimer = null; }
       if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
+      if (overlayTimer) { clearInterval(overlayTimer); overlayTimer = null; }
     }
 
     // On HIDE (tab backgrounded / app-switched / device-locked): tear down the polls + record the
@@ -836,8 +823,9 @@
     // Wake Lock (Screen-Wake-Lock, Safari 16.4+) is OUT of strict scope — re-acquire on resume only
     // if a screen-on requirement is added later. Intentionally not wired here.
 
-    // Cold start: seed the status read + start the foreground poll loops.
+    // Cold start: seed the status read + the on-air readout, then start the foreground poll loops.
     pollStatus();
+    pollOverlayJson();   // D-07: paint the on-air readout immediately, not after the first interval
     startPolling();
   </script>
 </body>

@@ -15,7 +15,8 @@ do NOT add any second writer) and re-read — the last score is STILL there byte
 
 from __future__ import annotations
 
-from segugio.opcomm.records import Discipline, ScoreDoc
+from segugio.opcomm.channel import read_score
+from segugio.opcomm.records import Discipline
 from segugio.ui.app import create_app
 from segugio.ui.score_render import render_overlay_text
 
@@ -31,20 +32,27 @@ def test_overlay_txt_persists_last_score_after_simulated_death(file_channel):
     app = create_app(channel_dir, cam_ids=["cam_wide"])
     client = app.test_client()
 
-    # POST a real disc Toss & Fetch score through the SOLE writer (the route).
-    fields = {"discipline": Discipline.disc_tf.value, "prese": "12", "zona": "3", "totale": "7"}
-    resp = client.post("/score", data=fields)
+    # POST a real disc Toss & Fetch score through the SOLE writer (the route). P17 (D-11) retired
+    # the legacy flat-key path — post the AUTHORITATIVE structured body (two zone-4 throws); the
+    # server recomputes the total (zona=8, totale=8) and writes the rendered line.
+    resp = client.post(
+        "/score",
+        json={
+            "discipline": Discipline.disc_tf.value,
+            "throws": [{"zone": 4}, {"zone": 4}],
+        },
+    )
     assert resp.status_code == 204, f"/score returned {resp.status_code}, expected 204"
 
-    # The rendered line is on disk — compare byte-for-byte to the pure renderer for the same doc.
-    expected = render_overlay_text(
-        ScoreDoc(discipline=Discipline.disc_tf, fields={"prese": "12", "zona": "3", "totale": "7"})
-    )
+    # The rendered line is on disk — compare byte-for-byte to the pure renderer for the SERVER-
+    # computed doc (the route is authoritative; the overlay shows the recomputed fields verbatim).
+    written = read_score(str(file_channel["score"]))
+    expected = render_overlay_text(written)
     assert overlay_path.exists(), "overlay.txt must exist on disk after POST /score"
     on_disk_after_write = overlay_path.read_text(encoding="utf-8")
     assert on_disk_after_write == expected, "overlay.txt must hold the rendered last score"
-    # The operator-typed value is present in the aired line (sanity on the display path).
-    assert "12" in on_disk_after_write and "Prese" in on_disk_after_write
+    # The recomputed total is present in the aired line (sanity on the display path).
+    assert "Prese" in on_disk_after_write and written.fields.get("totale") in on_disk_after_write
 
     # --- SIMULATE A CONSOLE DEATH ---------------------------------------------------------
     # Drop the app/client: no further write, no orchestrator import, NO second writer. This

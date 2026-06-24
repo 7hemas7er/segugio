@@ -113,9 +113,12 @@ def test_index_serves_italian_console(client):
     # that opens the native <dialog> mounting the SAME shared score-entry partial as /score-entry.
     assert 'id="form-score"' not in html  # legacy form gone
     assert "Inserisci / modifica punteggio" in html  # the modal-open button
-    assert "_score-entry-form.html" not in html  # the include resolves (rendered, not literal)
     assert 'id="score-dialog"' in html  # the native dialog hosting the shared partial
-    assert 'id="score-entry-root"' in html  # the component mount target (from the included partial)
+    # The include resolved (rendered, not a literal {% include %} directive) — the partial's nodes
+    # are present, and exactly ONE #score-entry-root / #score-cfg (no per-host duplication).
+    assert "{% include" not in html
+    assert html.count('id="score-entry-root"') == 1  # the component mount target (from the partial)
+    assert html.count('id="score-cfg"') == 1
 
 
 def test_app_imports_nothing_heavy(monkeypatch, tmp_path):

@@ -320,15 +320,19 @@ def test_bbox_data_wired_from_preview(client):
 
 
 def test_scv01_score_inputs_touch_contract(client):
-    """Score inputs are type=text + inputmode, with enterkeyhint + decimal helper + ,/. acceptance."""
-    html = _html(client)
+    """Score inputs keep the tablet touch contract (type!=number + inputmode + decimal helper).
+
+    P17 (D-07/D-11) retired the legacy inline #form-score: the score inputs are now built by the
+    ONE shared score-entry component (served /static/score-entry.js) and mounted into both the
+    dedicated /score-entry page and the console modal. The touch contract therefore lives in the
+    component source, not in the static console HTML — assert it there (the single source of truth).
+    """
+    c, _ = client
+    js = c.get("/static/score-entry.js").get_data(as_text=True)
     # NEVER type="number" on score inputs (iOS Safari raises no numeric keypad).
-    assert 'type="number"' not in html
-    # inputmode present for both numeric and decimal field families.
-    assert 'inputmode="numeric"' in html
-    assert 'inputmode="decimal"' in html
-    # enterkeyhint on fields (next + send/done).
-    assert 'enterkeyhint="next"' in html
-    assert 'enterkeyhint="send"' in html or 'enterkeyhint="done"' in html
+    assert 'type: "number"' not in js and 'type="number"' not in js
+    # inputmode present for both numeric and decimal field families (the component sets them).
+    assert "numeric" in js
+    assert "decimal" in js
     # decimal helper copy.
-    assert "usa il punto (.) per i decimali" in html
+    assert "usa il punto (.) per i decimali" in js

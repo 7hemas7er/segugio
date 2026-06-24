@@ -52,7 +52,10 @@ def test_touch_action_and_targets(client):
     # switch-history → score form. The first four are scaffold containers (filled 09-03/09-04).
     for block_id in ('id="reason"', 'id="leaderboard"', 'id="auto-wants"', 'id="switch-history"'):
         assert block_id in html, block_id
-    assert 'id="form-score"' in html  # the score form moved into the sidebar
+    # P17 (D-07/D-11): the legacy inline #form-score was retired; the Punteggio card now carries the
+    # read-only on-air readout + the modal-open button (score entry lives in the shared modal).
+    assert 'id="onair-score"' in html  # the read-only on-air readout replaces the inline form
+    assert "Inserisci / modifica punteggio" in html  # the modal-open button
     # The two-region layout + reflow exist.
     assert 'class="layout"' in html
     assert "@media" in html
@@ -137,12 +140,23 @@ def test_bbox_svg_per_tile(client):
 
 
 def test_index_still_serves_italian_console(client):
-    """No regression: all existing Italian controls + the 3 per-discipline field sets remain."""
+    """No regression on the surviving Italian controls; P17 moved score entry into the modal.
+
+    P17 (D-07/D-11) retired the legacy inline #form-score (the discipline selector + the 3
+    per-discipline flat field sets: Prese/Zona, Nome, Tempo/SCT/Faults). Those fields now live in
+    the shared score-entry component built client-side inside the modal, so they are NOT in the
+    static console HTML. What remains on the page: the run/override controls, the live status, and
+    the new read-only on-air readout (Disciplina + Totale) + the modal-open button.
+    """
     html = _html(client)
-    assert "Disciplina" in html
     assert "Avvia run" in html and "Ferma run" in html
     assert "Rilascia" in html
     assert "Stato live" in html
-    assert "Prese" in html and "Zona" in html and "Totale" in html
-    assert "Nome" in html and "Timer" in html
-    assert "Tempo" in html and "SCT" in html and "Faults" in html
+    # The read-only on-air readout (D-07): discipline + total labels remain on the page.
+    assert "Punteggio in onda" in html
+    assert "Disciplina" in html and "Totale" in html
+    # The modal-open button replaces the inline form.
+    assert "Inserisci / modifica punteggio" in html
+    # The retired legacy inline form fields are gone from the static console HTML.
+    assert "Prese" not in html and "Zona" not in html
+    assert "Faults" not in html

@@ -88,15 +88,19 @@ def test_mirror_symbols_gone():
 def test_surviving_console_wiring_intact():
     """Load-bearing console wiring survives the mirror deletion (no over-deletion).
 
-    The score POST, the run start/stop buttons, and the per-discipline field toggler are
-    NOT part of the mirror and must remain after 12-03 strips the drift-guard — proving the
-    deletion removed only the mirror, not the operator controls.
+    The run start/stop buttons and the post() helper are NOT part of the mirror and must remain.
+    P17 (D-11) retired the legacy inline #form-score (and its showFields discipline toggle + the
+    direct post("/score") submit): score entry now lives in the shared modal component, opened by
+    the "Inserisci / modifica punteggio" button. This test proves the deletion removed only the
+    mirror + the retired legacy form, not the surviving operator controls.
     """
     html = _serve_console()
-    assert 'post("/score"' in html
+    assert "function post(" in html            # the post() helper survives (run controls reuse it)
     assert 'data-action="start"' in html
     assert 'data-action="stop"' in html
-    assert "function showFields" in html
+    assert "function showFields" not in html   # retired with the legacy #form-score (D-11)
+    assert 'id="form-score"' not in html       # legacy inline score form retired
+    assert "Inserisci / modifica punteggio" in html  # score entry moved into the shared modal
 
 
 def test_score_preview_route_removed():

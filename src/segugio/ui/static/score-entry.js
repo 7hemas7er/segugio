@@ -105,8 +105,33 @@
     // Clear any prior mount (re-mountable for the P17 modal) WITHOUT innerHTML.
     while (root.firstChild) root.removeChild(root.firstChild);
 
-    // In-session throw list for disc T&F (D-01a — in memory only, NO localStorage).
+    // Reload-safe in-progress throw list for disc T&F (P17 / SCC-05 / D-02/D-03/D-04).
+    // The persisted unit is the ONE flat best-5-of-N throw list (D-01) — no round entity,
+    // no per-run/per-discipline keying (Deferred Idea). One fixed key, one atomic setItem.
+    const DRAFT_KEY = "segugio.score.draft";
+    const lsAvailable = typeof localStorage !== "undefined" && localStorage !== null;
+
+    function saveDraft() {
+      // Serialize the current throw list as the flat D-01 shape. Atomic per setItem; the
+      // localStorage guard mirrors the existing `typeof document` guards for the node test.
+      if (!lsAvailable) return;
+      const flat = throwRows.map((r) => ({
+        zone: r.zoneSel.value,
+        midair: !!r.midair.checked,
+        corridor: !!r.corridor.checked,
+      }));
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(flat));
+      } catch (_e) {
+        /* quota/private-mode — a draft that cannot persist is a soft loss, never a crash */
+      }
+    }
+
+    // In-session throw list for disc T&F (now reload-safe via the draft above).
     const throwRows = []; // [{ row, zoneSel, midair, corridor }]
+    // The disc_tf list container + empty-state node, captured for the draft restore (D-03).
+    let discTfList = null;
+    let discTfEmpty = null;
     let active = disciplines[0];
 
     // --- 1. Discipline block (SCE-02 / D-06) -------------------------------
@@ -188,6 +213,34 @@
 
     showFields();
     recompute();
+    restoreDraft();
+
+    // ====================================================================
+    // Reload-safe draft restore (P17 / SCC-05 / D-02/D-03) — NEVER-RAISE reader,
+    // mirroring the autoMount cfg parse: a corrupt/absent/torn value → empty draft.
+    // Replays each saved throw via addThrowRow (silent — no prompt), then recompute()
+    // so the advisory best-5-of-N total matches pre-reload (no lost rows, no double-count).
+    // ====================================================================
+    function restoreDraft() {
+      if (!lsAvailable || !discTfList || !discTfEmpty) return;
+      let saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(DRAFT_KEY));
+      } catch (_e) {
+        return; // torn/corrupt value → empty draft, never throws (D-02)
+      }
+      if (!Array.isArray(saved) || saved.length === 0) return;
+      saved.forEach((t) => {
+        const row = addThrowRow(discTfList, discTfEmpty);
+        const entry = throwRows[throwRows.length - 1];
+        if (entry && t) {
+          if (t.zone !== undefined && t.zone !== null) entry.zoneSel.value = String(t.zone);
+          entry.midair.checked = !!t.midair;
+          entry.corridor.checked = !!t.corridor;
+        }
+      });
+      recompute();
+    }
 
     // ====================================================================
     // disc Toss & Fetch — repeatable throw list (D-01, the headline UX)
@@ -197,6 +250,7 @@
       wrap.appendChild(el("legend", { class: "section-legend" }, "Lanci"));
       const list = el("div", { class: "throw-list" });
       wrap.appendChild(list);
+      discTfList = list; // captured for the draft restore (D-03)
 
       const empty = el("div", { class: "empty-state" });
       empty.appendChild(el("div", { class: "empty-title" }, "Nessun lancio"));
@@ -204,6 +258,7 @@
         el("div", null, "Aggiungi il primo lancio per iniziare a calcolare il punteggio.")
       );
       wrap.appendChild(empty);
+      discTfEmpty = empty; // captured for the draft restore (D-03)
 
       const addBtn = el("button", { type: "button", class: "add-throw" });
       addBtn.appendChild(staticIcon("plus"));
@@ -211,6 +266,7 @@
       addBtn.addEventListener("click", () => {
         addThrowRow(list, empty);
         recompute();
+        saveDraft();
       });
       wrap.appendChild(addBtn);
 
@@ -253,6 +309,7 @@
         list.removeChild(row);
         empty.classList.toggle("hidden", throwRows.length > 0);
         recompute();
+        saveDraft();
       });
 
       row.appendChild(zoneCell);
@@ -260,8 +317,13 @@
       row.appendChild(corridorCell);
       row.appendChild(removeBtn);
 
-      // Live recompute on any change; the zone is also validated on blur.
-      [zoneSel, midair, corridor].forEach((c) => c.addEventListener("input", recompute));
+      // Live recompute + draft-save on any change; the zone is also validated on blur.
+      [zoneSel, midair, corridor].forEach((c) =>
+        c.addEventListener("input", () => {
+          recompute();
+          saveDraft();
+        })
+      );
       zoneSel.addEventListener("blur", () => validateOnBlur());
 
       list.appendChild(row);
@@ -507,6 +569,15 @@
           if (resp.ok) {
             // 2xx (204) → persistent success banner (stays until next action, D-05).
             setBanner("✓ In onda", "success");
+            // Clear the draft ONLY on a successful publish (D-04). The 400 and .catch()
+            // branches below intentionally KEEP it — nothing is lost on a rejected/failed POST.
+            if (lsAvailable) {
+              try {
+                localStorage.removeItem(DRAFT_KEY);
+              } catch (_e) {
+                /* removal failure is harmless — the next 2xx clears it */
+              }
+            }
             return null;
           }
           // 400 → read the server's per-field errors (the AUTHORITATIVE source, D-05a).

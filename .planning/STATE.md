@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: verifying
-stopped_at: Phase 17 context gathered
-last_updated: "2026-06-24T20:24:01.679Z"
-last_activity: 2026-06-24 -- Phase 17 execution started
+stopped_at: Phase 17 plans complete; awaiting human UAT (5 items)
+last_updated: "2026-06-24T20:42:44.000Z"
+last_activity: 2026-06-24 -- Phase 17 plans executed; verification returned human_needed (UAT pending)
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 2
   total_plans: 7
   completed_plans: 7
-  percent: 75
+  percent: 50
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 17 (console-modal-multi-throw-state-tablet-ux) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-06-24 -- Phase 17 execution started
+Phase: 17 (console-modal-multi-throw-state-tablet-ux) — AWAITING UAT
+Plan: 2 of 2 (both complete)
+Status: Plans complete; human verification (UAT) pending — see 17-UAT.md, then /gsd-verify-work 17
+Last activity: 2026-06-24 -- Phase 17 plans executed; verification returned human_needed (UAT pending)
 
 ## Performance Metrics
 

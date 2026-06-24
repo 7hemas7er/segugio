@@ -158,5 +158,5 @@ Plans:
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete    | 2026-06-23 |
-| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete   | 2026-06-24 |
+| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Testing     | -          |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

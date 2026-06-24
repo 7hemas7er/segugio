@@ -10,8 +10,10 @@ Clones the served-JS / node helper machinery from ``tests/test_ui_overlay_render
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
+import subprocess
 import tempfile
 
 import pytest
@@ -114,3 +116,261 @@ def test_live_total_advisory():
     """The live advisory total recomputes IN PLACE on input (labeled non-authoritative)."""
     js = _read_file_js()
     assert "SEGUGIO_SCORE_CALC" in js or "compute" in js
+
+
+# ============================================================================ #
+# Phase-17 behaviors — node fake-DOM harness                                   #
+# ============================================================================ #
+#
+# mount(root, cfg) needs a DOM, localStorage, timers and fetch. We run the served
+# module under a minimal hand-rolled fake DOM in node (the MEMORY "node fake-DOM"
+# precedent for /overlay bugs) so the Phase-17 component behaviors are exercised
+# end-to-end without a browser. The shim is intentionally tiny — only what mount()
+# touches: element tree, classList, value/checked, querySelector*, getElementById,
+# event dispatch, a real in-memory localStorage, recorded setTimeout, and a fetch
+# stub whose response the driver controls.
+
+
+def _run_node(driver_src: str) -> str:
+    with tempfile.NamedTemporaryFile("w", suffix=".cjs", delete=False, encoding="utf-8") as fh:
+        fh.write(driver_src)
+        path = fh.name
+    try:
+        proc = subprocess.run([_NODE, path], capture_output=True, timeout=30)
+        stderr = proc.stderr.decode("utf-8", errors="replace")
+        assert proc.returncode == 0, f"node failed: {stderr}"
+        return proc.stdout.decode("utf-8")
+    finally:
+        os.unlink(path)
+
+
+# A self-contained fake DOM + globals, prepended to the served module per driver.
+_FAKE_DOM = r"""
+'use strict';
+function FakeClassList(node){ this._set=new Set(); this._node=node; }
+FakeClassList.prototype.add=function(){ for(const c of arguments) this._set.add(c); this._sync(); };
+FakeClassList.prototype.remove=function(){ for(const c of arguments) this._set.delete(c); this._sync(); };
+FakeClassList.prototype.toggle=function(c,force){
+  const want = (force===undefined) ? !this._set.has(c) : !!force;
+  if(want) this._set.add(c); else this._set.delete(c); this._sync(); return want;
+};
+FakeClassList.prototype.contains=function(c){ return this._set.has(c); };
+FakeClassList.prototype._sync=function(){ this._node._className=Array.from(this._set).join(' '); };
+
+function FakeNode(tag, ns){
+  this.tagName=(tag||'').toUpperCase(); this.ns=ns||null;
+  this.children=[]; this.parentNode=null; this.attrs={};
+  this._listeners={}; this._text=''; this._className='';
+  this.classList=new FakeClassList(this);
+  this.value=''; this.checked=false; this.type=''; this.id='';
+}
+Object.defineProperty(FakeNode.prototype,'firstChild',{get:function(){return this.children[0]||null;}});
+Object.defineProperty(FakeNode.prototype,'className',{
+  get:function(){return this._className;},
+  set:function(v){ this._className=v; this.classList._set=new Set(String(v).split(/\s+/).filter(Boolean)); }
+});
+Object.defineProperty(FakeNode.prototype,'textContent',{
+  get:function(){
+    if(this.children.length===0) return this._text;
+    return this.children.map(c=>c.textContent).join('');
+  },
+  set:function(v){ this.children=[]; this._text=String(v); }
+});
+FakeNode.prototype.appendChild=function(c){ c.parentNode=this; this.children.push(c); return c; };
+FakeNode.prototype.removeChild=function(c){
+  const i=this.children.indexOf(c); if(i>=0) this.children.splice(i,1); c.parentNode=null; return c;
+};
+FakeNode.prototype.setAttribute=function(k,v){
+  this.attrs[k]=String(v);
+  if(k==='id') this.id=String(v);
+  if(k==='type') this.type=String(v);
+  if(k==='class') this.className=String(v);
+  if(k==='value') this.value=String(v);
+};
+FakeNode.prototype.getAttribute=function(k){ return (k in this.attrs)?this.attrs[k]:null; };
+FakeNode.prototype.addEventListener=function(ev,fn){ (this._listeners[ev]=this._listeners[ev]||[]).push(fn); };
+FakeNode.prototype.dispatch=function(ev,obj){
+  (this._listeners[ev]||[]).forEach(fn=>fn(obj||{target:this,preventDefault:function(){}}));
+};
+function _walk(node,acc){ acc.push(node); node.children.forEach(c=>_walk(c,acc)); return acc; }
+function _matchSel(node,sel){
+  if(sel.charAt(0)==='.') return node.classList.contains(sel.slice(1));
+  const m=sel.match(/^\[([^=\]]+)(?:=["']?([^"'\]]*)["']?)?\]$/);
+  if(m){ const a=node.getAttribute(m[1]); return m[2]===undefined ? a!==null : a===m[2]; }
+  return node.tagName===sel.toUpperCase();
+}
+function _matchAll(node,sel){
+  // supports a single compound '.a.b' or '[attr="v"]' or tag — enough for this component
+  const parts=sel.match(/\.[^.\[\]]+|\[[^\]]+\]|^[a-zA-Z]+/g)||[sel];
+  return parts.every(p=>_matchSel(node,p));
+}
+FakeNode.prototype.querySelectorAll=function(sel){
+  return _walk(this,[]).filter(n=>n!==this && _matchAll(n,sel));
+};
+FakeNode.prototype.querySelector=function(sel){ return this.querySelectorAll(sel)[0]||null; };
+
+const _byId={};
+const document={
+  createElement:function(t){ return new FakeNode(t,null); },
+  createElementNS:function(ns,t){ return new FakeNode(t,ns); },
+  getElementById:function(id){ return _byId[id]||null; },
+  _register:function(node){ if(node.id) _byId[node.id]=node; }
+};
+// patch setAttribute to register ids on the document (so getElementById('publish-banner') works)
+const _origSet=FakeNode.prototype.setAttribute;
+FakeNode.prototype.setAttribute=function(k,v){ _origSet.call(this,k,v); if(k==='id') document._register(this); };
+
+const _store={};
+const localStorage={
+  getItem:function(k){ return (k in _store)?_store[k]:null; },
+  setItem:function(k,v){ _store[k]=String(v); },
+  removeItem:function(k){ delete _store[k]; }
+};
+
+let _fetchResp={ok:true,status:204,json:function(){return Promise.resolve({});}};
+function _setFetchResp(r){ _fetchResp=r; }
+let _fetchCalls=0;
+function fetch(){ _fetchCalls++; return Promise.resolve(_fetchResp); }
+
+const _timers=[];
+function setTimeout(fn,ms){ const id=_timers.length; _timers.push({fn:fn,ms:ms,cleared:false}); return id; }
+function clearTimeout(id){ if(_timers[id]) _timers[id].cleared=true; }
+function _fireTimers(){ _timers.forEach(t=>{ if(!t.cleared) t.fn(); }); }
+
+const window={};
+// `module` / `module.exports` are provided by node's CJS wrapper — do not redeclare.
+"""
+
+
+def _disc_cfg():
+    """The cfg blob a disc_tf host receives, as a JS literal source string."""
+    tmp = tempfile.mkdtemp()
+    app = create_app(tmp, cam_ids=["cam_wide"])
+    html = app.test_client().get("/score-entry").get_data(as_text=True)
+    blob = html.split('id="score-cfg">', 1)[1].split("</script>", 1)[0]
+    cfg = json.loads(blob)
+    # Force a single discipline (disc_tf) so the throw list is the active surface.
+    cfg["disciplines"] = ["disc_tf"]
+    return json.dumps(cfg)
+
+
+_DRAFT_KEY = "segugio.score.draft"
+
+
+@_requires_node
+def test_draft_persists_and_restores_throw_list():
+    """SCC-05 / D-02/D-03: adding throws writes a draft; a fresh mount restores them."""
+    js = _read_file_js()
+    cfg = _disc_cfg()
+    driver = (
+        _FAKE_DOM
+        + js
+        + r"""
+const api = module.exports;
+const cfg = """ + cfg + r""";
+// First mount: add two throws with zone values, then read what the draft stored.
+const root1 = document.createElement('div');
+const h1 = api.mount(root1, cfg);
+const addBtn = root1.querySelectorAll('.add-throw')[0];
+addBtn.dispatch('click');
+addBtn.dispatch('click');
+const rows1 = root1.querySelectorAll('.throw-row');
+rows1[0].querySelector('.throw-zone').value = '2';
+rows1[0].querySelector('.throw-zone').dispatch('input');
+rows1[1].querySelector('.throw-zone').value = '3';
+rows1[1].querySelector('.throw-midair').checked = true;
+rows1[1].querySelector('.throw-midair').dispatch('input');
+const draftAfter = localStorage.getItem('""" + _DRAFT_KEY + r"""');
+
+// Second mount (simulate reload) into a FRESH root, same draft in localStorage.
+const root2 = document.createElement('div');
+const h2 = api.mount(root2, cfg);
+const rows2 = root2.querySelectorAll('.throw-row');
+process.stdout.write(JSON.stringify({
+  draftWritten: draftAfter !== null,
+  restoredCount: rows2.length,
+  zone0: rows2[0] ? rows2[0].querySelector('.throw-zone').value : null,
+  zone1: rows2[1] ? rows2[1].querySelector('.throw-zone').value : null,
+  midair1: rows2[1] ? rows2[1].querySelector('.throw-midair').checked : null,
+}));
+"""
+    )
+    out = json.loads(_run_node(driver))
+    assert out["draftWritten"] is True, "a draft must be written on throw mutation"
+    assert out["restoredCount"] == 2, "both throws must be restored on a fresh mount"
+    assert out["zone0"] == "2"
+    assert out["zone1"] == "3"
+    assert out["midair1"] is True, "the midair flag must survive the reload"
+
+
+@_requires_node
+def test_corrupt_draft_yields_empty_never_throws():
+    """SCC-05 / D-02: a torn localStorage value → empty draft, mount never raises."""
+    js = _read_file_js()
+    cfg = _disc_cfg()
+    driver = (
+        _FAKE_DOM
+        + js
+        + r"""
+const api = module.exports;
+const cfg = """ + cfg + r""";
+localStorage.setItem('""" + _DRAFT_KEY + r"""', '{');  // corrupt JSON
+let threw = false;
+let rowCount = -1;
+try {
+  const root = document.createElement('div');
+  api.mount(root, cfg);
+  rowCount = root.querySelectorAll('.throw-row').length;
+} catch (e) { threw = true; }
+process.stdout.write(JSON.stringify({ threw: threw, rowCount: rowCount }));
+"""
+    )
+    out = json.loads(_run_node(driver))
+    assert out["threw"] is False, "a corrupt draft must never raise out of mount()"
+    assert out["rowCount"] == 0, "a corrupt draft yields an empty throw list"
+
+
+@_requires_node
+def test_draft_cleared_only_on_2xx_publish():
+    """SCC-05 / D-04: a 2xx publish clears the draft; a 400 keeps it."""
+    js = _read_file_js()
+    cfg = _disc_cfg()
+    driver = (
+        _FAKE_DOM
+        + js
+        + r"""
+const api = module.exports;
+const cfg = """ + cfg + r""";
+
+function addOneThrow(root){
+  root.querySelectorAll('.add-throw')[0].dispatch('click');
+  const r = root.querySelectorAll('.throw-row')[0];
+  r.querySelector('.throw-zone').value = '2';
+  r.querySelector('.throw-zone').dispatch('input');
+}
+
+// --- 400 keeps the draft ---
+const rootA = document.createElement('div');
+const hA = api.mount(rootA, cfg);
+addOneThrow(rootA);
+_setFetchResp({ ok:false, status:400, json:function(){return Promise.resolve({errors:[]});} });
+hA.submit();
+setImmediate(function(){
+  const keptAfter400 = localStorage.getItem('""" + _DRAFT_KEY + r"""') !== null;
+
+  // --- 2xx clears the draft ---
+  _setFetchResp({ ok:true, status:204, json:function(){return Promise.resolve({});} });
+  hA.submit();
+  setImmediate(function(){
+    const clearedAfter2xx = localStorage.getItem('""" + _DRAFT_KEY + r"""') === null;
+    process.stdout.write(JSON.stringify({
+      keptAfter400: keptAfter400,
+      clearedAfter2xx: clearedAfter2xx,
+    }));
+  });
+});
+"""
+    )
+    out = json.loads(_run_node(driver))
+    assert out["keptAfter400"] is True, "a 400 must KEEP the draft (nothing lost, D-04)"
+    assert out["clearedAfter2xx"] is True, "a 2xx publish must CLEAR the draft"

@@ -85,7 +85,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-  - [ ] 17-02-PLAN.md — Wave 2: console read-only on-air readout (poll /overlay-json) + native <dialog> modal mounting the shared partial (D-07..D-10); retire legacy #form-score + _is_legacy_score_post branch (D-11); update crash-isolation POST gate
+  - [x] 17-02-PLAN.md — Wave 2: console read-only on-air readout (poll /overlay-json) + native <dialog> modal mounting the shared partial (D-07..D-10); retire legacy #form-score + _is_legacy_score_post branch (D-11); update crash-isolation POST gate
 
 **UI hint**: yes
 
@@ -158,5 +158,5 @@ Plans:
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete    | 2026-06-23 |
-| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 1/2 | In Progress|  |
+| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete   | 2026-06-24 |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

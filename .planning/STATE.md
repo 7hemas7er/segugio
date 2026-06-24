@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: executing
+status: verifying
 stopped_at: Phase 17 context gathered
-last_updated: "2026-06-24T15:39:25.326Z"
+last_updated: "2026-06-24T20:24:01.679Z"
 last_activity: 2026-06-24 -- Phase 17 execution started
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
-  percent: 50
+  completed_plans: 7
+  percent: 75
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 Phase: 17 (console-modal-multi-throw-state-tablet-ux) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-24 -- Phase 17 execution started
 
 ## Performance Metrics
@@ -121,6 +121,7 @@ Last activity: 2026-06-24 -- Phase 17 execution started
 | Phase 15 P03 | 6min | 1 task | 1 files |
 | Phase 16 P16-02 | 20min | 3 tasks | 4 files |
 | Phase 17 P17-01 | 9min | 3 tasks | 4 files |
+| Phase 17 P17-02 | 16min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -238,6 +239,7 @@ Recent decisions affecting current work:
 - [Phase 14 / 14-02]: RBT-06 per-criterion named gates + on-rig HUMAN-UAT (D-03/D-02). THREE new gate files, one per success criterion so a single-criterion regression names itself even where the underlying logic already passes. SC#1 tests/test_overlay_fallback_gate.py (Flask test_client): POST /score writes overlay.txt, then a SIMULATED console death (drop the app/client — NO orchestrator import, NO direct file write, NO second writer) leaves the rendered last score on disk byte-for-byte == render_overlay_text(ScoreDoc(...)) — single-writer coexistence proven (the property under test is exactly "no second writer clears it"). SC#3 tests/test_overlay_poll_storm.py: the test_preview_concurrency.py live_server fixture (make_server("127.0.0.1", 0, app, threaded=True) on a daemon thread) + _get/_post_command helpers COPIED VERBATIM (Pitfall 2: test_client does NOT exercise WSGI threading → false green), the 8 concurrent GETs retargeted from /preview/<cam>.jpg to /overlay-json; asserts POST /command returns 204 in < 1.0s AND read_command(...).force_cam == "cam_long" (the override actually written, not just acked). SC#4 tests/test_overlay_html_sink_gate.py: pure-source assert that overlay-render.js uses textContent and NO innerHTML variant (innerHTML =, innerHTML=, innerHTML  =, .innerHTML all absent) + a Jinja regression — create_app(tmp, overlay_cfg={"event_name":"<script>x</script>"}) then GET /overlay asserts the served HTML carries &lt;script&gt;x&lt;/script&gt; and NOT the raw tag (autoescape on at the #identity sink). 14-HUMAN-UAT.md authored into the phase dir: three physical scenarios (console-death browser auto-hide within DEAD_MS no frozen score; LAN-drop timer-stop + restart gen re-anchor with no phantom jump; overlay.txt read-from-file keeps the last score) + the D-06 simplified Score Text reveal + the D-08 exact-ndi_source-name gotcha + a pre-flight + sign-off, explicitly marked DEFERRED/non-blocking (D-02 — Phase 14 closes when the automation gate is green AND this checklist is written). All three gates + test_imports.py (RBT-07) green per task; no-regression on the copied-from harnesses (test_preview_concurrency.py, test_ui_overlay_render.py) confirmed (43 green). Zero runtime surface touched (tests+docs only); crash-isolation allowlist preserved. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha). 14-03 owns the docs (obs-setup.md D-06 simplified reveal + D-08 note).
 - [Phase 14 / 14-03]: Operator-facing consistency fixes (D-06/D-08/SC#4), docs+config only. (1) D-08: config.example.yaml cam_wide ndi_source aligned from the LOCALHOST drift to the canonical "PHONE-WIDE (NDI HX3)" (the scene JSON + agility config + the other 3 cams were already canonical — direction NOT flipped, RESEARCH A2/Pitfall 4). tests/test_scene_template.py gained a parametrized test_config_ndi_source_matches_scene_collection asserting every example-config ndi_source byte-matches a scene ndi_source_name (over both configs) — the permanent T-14-ndidrift guard against "OBS sees it but console blank"; reused the existing json/yaml parse helpers, no new dep. (2) D-06: docs/obs-setup.md coexistence section rewritten — the operator's ONLY manual step on a browser death is revealing Score Text; the redundant Phase-13 "also hide Score Overlay" step is REMOVED because the browser overlay auto-hides via the 14-01 DEAD_MS (~3s) threshold; the Score-Text-visible:false-while-alive note + read-from-file fallback + "no auto-reveal" guarantee kept. A byte-match NDI-name note (D-08) added near the NDI setup step citing "PHONE-WIDE (NDI HX3)" + the "OBS sees it but console blank" gotcha. (3) docs/security.md gained a new one-paragraph "HTML-sink output encoding re-affirmed (SC#4, Phase 14)" section: score values sink via textContent (never innerHTML), event_name/logo_path are Jinja-autoescaped, gated by the 14-02 SC#4 test (the Phase-13 paragraph covered only the textContent half → non-duplicating addition). No code touched (RBT-07 import surface unaffected); test_scene_template.py (9) + test_imports.py green. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha). All 3 Phase-14 plans now executed.
 - [Phase 16 / 16-02]: ONE shared `score-entry.js` `mount(root, cfg)` component (dual export `window.SEGUGIO_SCORE_ENTRY` + `module.exports`, cfg read from `JSON.parse(#score-cfg.textContent)` NOT a window global — so the SAME module re-mounts in the P17 console modal, the SCV-02 drift-free proof applied to a form) proven on the thin Jinja `/score-entry` host. Renders per-discipline rich fields from the injected active profile: disc-T&F repeatable IN-SESSION throw list (`+ Aggiungi lancio` / per-row `×`, `Zona`/`Al volo`/`Corridoio`, NO localStorage — D-01a) with best-5-of-N reflected in the LIVE advisory `Totale (provvisorio)` (updated IN PLACE via `textContent`, "non ufficiale" caption); freestyle categories + free-text `nome`; agility fields per `cfg.profile.agility_model`. `input` → recompute via `SEGUGIO_SCORE_CALC.compute`; `blur` → per-field error chips via `.validate`; submit (button ALWAYS enabled, D-04) POSTs RAW structured inputs (`throws[]`/cats/agility raw) as JSON to the authoritative `/score` — never a client total (T-16-08); persistent `#publish-banner` = `✓ In onda` on 2xx, server per-field errors + `Errore — punteggio precedente invariato` on 400 (D-05). `app.py` gained stdlib `_profile_to_json` (every Decimal as `str(...)` so the JS BigInt-Decimal total never float-drifts — T-16-10), the D-06 discipline derivation (`disc_dog`→T&F+Freestyle, else Agility), the `GET /score-entry` route, and the LAZY `adapt_scoring_profile`/`cfg.field.sport` resolution in `__main__` (crash-isolation green — T-16-09). All operator/echoed values via `textContent`; only static icon SVG via innerHTML (T-16-07). Task 3 (manual UX checkpoint, the one manual item in 16-VALIDATION.md) APPROVED by the operator. Gate tests re-confirmed green: `test_ui_score_entry.py` 4 passed; the 16-0x set (entry+authoritative+calc_js+score+imports+overlay_json) 62 passed / 0 failed / 0 skipped. SCE-01/02/03/05 complete. NOTE: gsd-tools resolved via the node shim (`gsd-tools.cjs`) for STATE/ROADMAP/REQUIREMENTS updates; phase-level [x] + Complete sign-off DEFERRED to /gsd-verify-work (orchestrator's job).
+- [Phase ?]: 17-02: console modal reuses the ONE shared partial + component (SCV-02 drift-free); legacy #form-score + _is_legacy_score_post retired, authoritative JSON is the sole /score path
 
 ### Pending Todos
 
@@ -302,7 +304,7 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-24T12:46:30.405Z
+Last session: 2026-06-24T20:23:34.143Z
 Stopped at: Phase 17 context gathered
 Resume file: .planning/phases/17-console-modal-multi-throw-state-tablet-ux/17-CONTEXT.md
 

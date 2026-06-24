@@ -57,7 +57,8 @@
 
 **Plans**: 2 plans
 **UI hint**: yes
-Plans:
+
+Plans:
 **Wave 1**
 
 - [x] 16-01-PLAN.md — Wave 1: authoritative `POST /score` (validate→400-write-nothing→Decimal recompute→atomic write) + byte-exact advisory `score-calc.js` + node drift-guard + legacy console-form back-compat (Open Q1) + all Wave 0 test scaffolds (SCC-01, SCC-03) — executed 2026-06-23 (pending phase verification)
@@ -78,7 +79,11 @@
   3. Publishing to air is a deliberate, visually distinct action — a casual tap or Enter cannot put a half-entered score on air.
   4. The new page and modal load with ZERO external/CDN assets, all inputs are ≥16px (no iOS focus-zoom), and the modal traps focus and survives sleep/wake — code-time tablet contract met (real-iPad rig UAT deferred, non-blocking).
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+  - [ ] 17-01-PLAN.md — Wave 1: extract the shared Jinja form partial + dedicated page include; add localStorage reload-safe draft (SCC-05/D-01..D-04), two-step danger-styled publish confirm + Enter-suppression (SCE-04/D-05/D-06) inside the one score-entry.js module
+  - [ ] 17-02-PLAN.md — Wave 2: console read-only on-air readout (poll /overlay-json) + native <dialog> modal mounting the shared partial (D-07..D-10); retire legacy #form-score + _is_legacy_score_post branch (D-11); update crash-isolation POST gate
+
 **UI hint**: yes
 
 ### Phase 18: Rich Data Model & Overlay-Continuity Regression

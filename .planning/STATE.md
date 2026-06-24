@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: ready
-stopped_at: Phase 16 complete (verified, passed)
-last_updated: "2026-06-23T09:17:29.239Z"
-last_activity: 2026-06-23
+status: verifying
+stopped_at: Phase 17 context gathered
+last_updated: "2026-06-24T12:46:30.427Z"
+last_activity: 2026-06-23 — Phase 16 executed, code-review-fixed, and verified
 progress:
   total_phases: 4
   completed_phases: 2
@@ -301,9 +301,9 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-23T08:03:07.755Z
-Stopped at: Phase 16 UI-SPEC approved
-Resume file: .planning/phases/16-shared-entry-component-dedicated-page-server-authoritative-p/16-UI-SPEC.md
+Last session: 2026-06-24T12:46:30.405Z
+Stopped at: Phase 17 context gathered
+Resume file: .planning/phases/17-console-modal-multi-throw-state-tablet-ux/17-CONTEXT.md
 
 ## Operator Next Steps
 

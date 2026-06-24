@@ -78,10 +78,13 @@ Plans:
   2. For multi-throw disc T&F the operator adds/edits throws across N rounds and sees a correct progressive running total; reloading the tablet mid-run restores the in-progress entry (no lost throws), and any persisted in-progress state is written atomically with a never-raise reader.
   3. Publishing to air is a deliberate, visually distinct action — a casual tap or Enter cannot put a half-entered score on air.
   4. The new page and modal load with ZERO external/CDN assets, all inputs are ≥16px (no iOS focus-zoom), and the modal traps focus and survives sleep/wake — code-time tablet contract met (real-iPad rig UAT deferred, non-blocking).
-
-**Plans**: 2 plans
+**Plans**: 2 plans
+**Wave 1**
 
   - [ ] 17-01-PLAN.md — Wave 1: extract the shared Jinja form partial + dedicated page include; add localStorage reload-safe draft (SCC-05/D-01..D-04), two-step danger-styled publish confirm + Enter-suppression (SCE-04/D-05/D-06) inside the one score-entry.js module
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
   - [ ] 17-02-PLAN.md — Wave 2: console read-only on-air readout (poll /overlay-json) + native <dialog> modal mounting the shared partial (D-07..D-10); retire legacy #form-score + _is_legacy_score_post branch (D-11); update crash-isolation POST gate
 
 **UI hint**: yes

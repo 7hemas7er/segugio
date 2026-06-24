@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: verifying
+status: executing
 stopped_at: Phase 17 context gathered
-last_updated: "2026-06-24T12:46:30.427Z"
+last_updated: "2026-06-24T14:37:10.837Z"
 last_activity: 2026-06-23 — Phase 16 executed, code-review-fixed, and verified
 progress:
   total_phases: 4
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 Phase: 17
 Plan: Not started
-Status: Phase 16 complete & verified (passed); ready for Phase 17
+Status: Ready to execute
 Last activity: 2026-06-23 — Phase 16 executed, code-review-fixed, and verified
 
 ## Performance Metrics

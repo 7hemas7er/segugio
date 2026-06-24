@@ -199,13 +199,27 @@ function _matchSel(node,sel){
   if(m){ const a=node.getAttribute(m[1]); return m[2]===undefined ? a!==null : a===m[2]; }
   return node.tagName===sel.toUpperCase();
 }
-function _matchAll(node,sel){
+function _matchCompound(node,compound){
   // supports a single compound '.a.b' or '[attr="v"]' or tag — enough for this component
-  const parts=sel.match(/\.[^.\[\]]+|\[[^\]]+\]|^[a-zA-Z]+/g)||[sel];
+  const parts=compound.match(/\.[^.\[\]\s]+|\[[^\]]+\]|[a-zA-Z]+/g)||[compound];
   return parts.every(p=>_matchSel(node,p));
 }
+function _hasAncestor(node,compound){
+  let p=node.parentNode;
+  while(p){ if(_matchCompound(p,compound)) return true; p=p.parentNode; }
+  return false;
+}
 FakeNode.prototype.querySelectorAll=function(sel){
-  return _walk(this,[]).filter(n=>n!==this && _matchAll(n,sel));
+  // descendant combinator support: 'A B' → B that has an ancestor matching A
+  const self=this;
+  const compounds=sel.trim().split(/\s+/);
+  const target=compounds[compounds.length-1];
+  const ancestors=compounds.slice(0,-1);
+  return _walk(this,[]).filter(function(n){
+    if(n===self) return false;
+    if(!_matchCompound(n,target)) return false;
+    return ancestors.every(a=>_hasAncestor(n,a));
+  });
 };
 FakeNode.prototype.querySelector=function(sel){ return this.querySelectorAll(sel)[0]||null; };
 
@@ -374,3 +388,127 @@ setImmediate(function(){
     out = json.loads(_run_node(driver))
     assert out["keptAfter400"] is True, "a 400 must KEEP the draft (nothing lost, D-04)"
     assert out["clearedAfter2xx"] is True, "a 2xx publish must CLEAR the draft"
+
+
+# --- SCE-04 / D-05: two-step danger-styled publish confirm -------------------- #
+
+
+@_requires_node
+def test_publish_two_step_confirm():
+    """SCE-04 / D-05: first tap arms a red 'Conferma invio' (no POST); second tap POSTs."""
+    js = _read_file_js()
+    cfg = _disc_cfg()
+    driver = (
+        _FAKE_DOM
+        + js
+        + r"""
+const api = module.exports;
+const cfg = """ + cfg + r""";
+const root = document.createElement('div');
+api.mount(root, cfg);
+const btn = root.querySelectorAll('.publish button')[0];
+const labelBefore = btn.textContent;
+// First tap: arms, morphs to danger 'Conferma invio', does NOT POST.
+btn.dispatch('click');
+const armedLabel = btn.textContent;
+const armedDanger = btn.classList.contains('danger');
+const callsAfterArm = _fetchCalls;
+// Second tap (while armed): POSTs, then reverts/disarms.
+btn.dispatch('click');
+const callsAfterConfirm = _fetchCalls;
+const labelAfterConfirm = btn.textContent;
+const dangerAfterConfirm = btn.classList.contains('danger');
+process.stdout.write(JSON.stringify({
+  labelBefore: labelBefore,
+  armedLabel: armedLabel,
+  armedDanger: armedDanger,
+  callsAfterArm: callsAfterArm,
+  callsAfterConfirm: callsAfterConfirm,
+  labelAfterConfirm: labelAfterConfirm,
+  dangerAfterConfirm: dangerAfterConfirm,
+}));
+"""
+    )
+    out = json.loads(_run_node(driver))
+    assert out["labelBefore"] == "Manda in onda"
+    assert out["armedLabel"] == "Conferma invio", "first tap must morph the label"
+    assert out["armedDanger"] is True, "first tap must add the danger class"
+    assert out["callsAfterArm"] == 0, "first tap must NOT POST"
+    assert out["callsAfterConfirm"] == 1, "second tap must POST exactly once"
+    assert out["labelAfterConfirm"] == "Manda in onda", "confirm must revert the label"
+    assert out["dangerAfterConfirm"] is False, "confirm must drop the danger class"
+
+
+@_requires_node
+def test_publish_auto_reverts_when_not_confirmed():
+    """SCE-04 / D-05: an armed-but-unconfirmed button auto-reverts, no POST fired."""
+    js = _read_file_js()
+    cfg = _disc_cfg()
+    driver = (
+        _FAKE_DOM
+        + js
+        + r"""
+const api = module.exports;
+const cfg = """ + cfg + r""";
+const root = document.createElement('div');
+api.mount(root, cfg);
+const btn = root.querySelectorAll('.publish button')[0];
+btn.dispatch('click');           // arm
+_fireTimers();                   // let the auto-revert window elapse
+process.stdout.write(JSON.stringify({
+  label: btn.textContent,
+  danger: btn.classList.contains('danger'),
+  calls: _fetchCalls,
+}));
+"""
+    )
+    out = json.loads(_run_node(driver))
+    assert out["label"] == "Manda in onda", "auto-revert must restore the label"
+    assert out["danger"] is False, "auto-revert must drop the danger class"
+    assert out["calls"] == 0, "auto-revert must never POST"
+
+
+@_requires_node
+def test_publish_never_disabled():
+    """SCE-04 / Phase-16 D-04: the publish button is never set disabled (confirm is the gate)."""
+    js = _read_file_js()
+    body = "\n".join(
+        l for l in js.splitlines() if not l.lstrip().startswith("//")
+    )
+    assert "publishBtn.disabled = true" not in body
+    assert ".disabled = true" not in body
+
+
+# --- SCE-04 / D-06: Enter never publishes ------------------------------------- #
+
+
+@_requires_node
+def test_enter_never_publishes():
+    """SCE-04 / D-06: Enter never arms, never confirms, never POSTs."""
+    js = _read_file_js()
+    cfg = _disc_cfg()
+    driver = (
+        _FAKE_DOM
+        + js
+        + r"""
+const api = module.exports;
+const cfg = """ + cfg + r""";
+const root = document.createElement('div');
+api.mount(root, cfg);
+const btn = root.querySelectorAll('.publish button')[0];
+let prevented = false;
+// Fire Enter on the root (capturing field inputs) — must never reach the publish path.
+root.dispatch('keydown', { key: 'Enter', preventDefault: function(){ prevented = true; }, target: root });
+process.stdout.write(JSON.stringify({
+  prevented: prevented,
+  armedLabel: btn.textContent,   // must still read "Manda in onda" — Enter never arms
+  danger: btn.classList.contains('danger'),
+  calls: _fetchCalls,            // must be 0 — Enter never POSTs
+}));
+"""
+    )
+    out = json.loads(_run_node(driver))
+    assert out["prevented"] is True, "Enter must be preventDefault()'d"
+    assert out["armedLabel"] == "Manda in onda", "Enter must NOT arm the confirm"
+    assert out["danger"] is False, "Enter must NOT add the danger class"
+    assert out["calls"] == 0, "Enter must NEVER POST"

@@ -205,16 +205,26 @@ def test_overlay_json_non_dict_fields_safe_defaulted(client):
 
 
 def test_overlay_json_fields_verbatim(client):
-    """fields echoes operator-typed keys+values with NO server-side alias resolution (D-08)."""
-    c, _ = client
-    # An operator types an alias-cased key (SCT) + a sibling lowercase key (sct). The contract
-    # echoes BOTH verbatim — the renderer (client) resolves aliases, never the console.
-    c.post("/score", data={"discipline": "agility", "SCT": "42.0", "faults": "5"})
-    resp = c.get("/overlay-json")
-    assert resp.status_code == 200
-    fields = resp.get_json()["fields"]
-    assert fields.get("SCT") == "42.0"
-    assert fields.get("faults") == "5"
+    """fields echoes the SERVER-computed score dict verbatim (D-08 — no further server transform).
+
+    P17 (D-11) retired the legacy flat display-only echo; the authoritative path computes the score
+    fields (Decimal recompute) and writes them, and /overlay-json then echoes THAT dict verbatim
+    (the route applies no alias resolution / transform — the renderer client owns layout). Post a
+    valid agility body and assert the computed fields round-trip byte-for-byte through the contract.
+    """
+    from segugio.opcomm.channel import read_score
+
+    c, ch = client
+    resp = c.post(
+        "/score",
+        json={"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "5"},
+    )
+    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
+    written = read_score(str(ch["score"])).fields
+    fields = c.get("/overlay-json").get_json()["fields"]
+    # /overlay-json echoes the on-disk computed fields verbatim (same keys, same values).
+    assert fields == written
+    assert fields.get("faults") == "10"  # count_up: 5 time-faults (ceil 4.5) + 5 course faults
 
 
 def test_server_now_and_gen_present(client):
@@ -236,7 +246,8 @@ def test_gen_bumps_on_run_and_score(client):
     c.post("/run", data={"action": "start"})
     gen1 = c.get("/overlay-json").get_json()["gen"]
     assert gen1 > gen0
-    c.post("/score", data={"discipline": "disc_tf", "points": "10"})
+    # P17 (D-11): /score takes the authoritative structured body now (a valid disc_tf throw).
+    c.post("/score", json={"discipline": "disc_tf", "throws": [{"zone": 2}]})
     gen2 = c.get("/overlay-json").get_json()["gen"]
     assert gen2 > gen1
 
@@ -274,7 +285,8 @@ def test_score_gen_bump_preserves_live_run_when_disk_torn(client):
     assert started is not None
     # Torn/clobbered sidecar window (e.g. an external touch between the run edge and /score).
     ch["overlay_run"].write_text("{torn", encoding="utf-8")
-    c.post("/score", data={"discipline": "disc_tf", "points": "10"})
+    # P17 (D-11): /score takes the authoritative structured body now (a valid disc_tf throw).
+    c.post("/score", json={"discipline": "disc_tf", "throws": [{"zone": 2}]})
     data = c.get("/overlay-json").get_json()
     # The /score gen-bump re-persisted the LIVE run state from memory, not the torn disk default.
     assert data["running"] is True

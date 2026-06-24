@@ -77,17 +77,6 @@ _OVERLAY_RUN_FILE = "overlay_run.json"
 _PREVIEW_SUBDIR = "preview"
 _PREVIEW_FILE = "preview/preview.json"
 
-# Fields posted by the operator that are NOT score values (don't leak into ScoreDoc.fields).
-_NON_SCORE_KEYS = frozenset({"discipline"})
-
-# Structured keys the AUTHORITATIVE path consumes (throws[] + per-discipline raw inputs, D-08).
-# A urlencoded POST carrying ANY of these opts into validate-before-recompute; everything else
-# urlencoded is the legacy display-only round-trip (the pre-Phase-16 #form-score wire shape).
-_STRUCTURED_KEYS = frozenset(
-    {"throws", "course_faults", "course_deductions", "eliminated", "adjustment"}
-)
-
-
 def _profile_to_json(profile) -> dict:
     """Serialise a plain ``score_calc.ScoringProfile`` into a JSON-safe dict (D-07 / T-16-10).
 
@@ -134,23 +123,6 @@ def _disciplines_for_sport(sport: str) -> list:
     discipline — no fallback profile, no "which profile for which discipline" ambiguity.
     """
     return ["disc_tf", "disc_freestyle"] if sport == "disc_dog" else ["agility"]
-
-
-def _is_legacy_score_post(raw, is_json: bool) -> bool:
-    """True for a legacy console-form POST that must keep round-tripping until P17 (Open Q1).
-
-    The legacy console.html #form-score posts urlencoded FLAT display-only keys (``prese``/
-    ``zona``/``totale``, ``nome``/``timer``, ``tempo``/``sct``/``faults``, and any other manual
-    value) — the pre-Phase-16 wire shape that does NOT match the ``score_calc`` structured
-    contract. Route ANY urlencoded body to this back-compat branch UNLESS it carries a structured
-    key (``throws``/``course_faults``/…) — those, and ALL JSON bodies, are the authoritative path.
-    Keeping the default-urlencoded case legacy preserves every pre-Phase-16 display-only round-trip
-    (T-16 / Open Q1 (a)); P17 retires the branch when it retires the form.
-    """
-    if is_json:
-        return False
-    keys = set(raw.keys()) - _NON_SCORE_KEYS
-    return not (keys & _STRUCTURED_KEYS)
 
 
 def _parse_structured_inputs(discipline, raw, is_json: bool) -> dict:
@@ -349,8 +321,9 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         # for a non-object JSON body (e.g. [1,2,3], 42, true, "x"), all of which are non-None. Use
         # isinstance(..., dict) so a non-object JSON body is NOT treated as a structured body (which
         # would then crash on raw.get(...)); it falls through to the form path (an empty
-        # ImmutableMultiDict → legacy branch → harmless), honouring the validate→400/no-crash
-        # contract ("nessun crash ammesso") instead of raising an unhandled 500.
+        # ImmutableMultiDict), which the authoritative parser handles as empty inputs → validate
+        # returns errors → 400, honouring the validate→400/no-crash contract ("nessun crash
+        # ammesso") instead of raising an unhandled 500.
         is_json = isinstance(json_body, dict)
         raw = json_body if is_json else request.form
 
@@ -361,27 +334,10 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         except ValueError:
             return ("disciplina sconosciuta", 400)
 
-        # LEGACY back-compat branch — RETIRED IN P17 (Open Q1 (a)). The legacy console.html
-        # #form-score posts urlencoded flat display-only keys (prese/zona/totale, nome/timer,
-        # tempo/sct/faults) that do NOT match the score_calc structured contract. Keep them
-        # round-tripping (display-only, manual totale) until P17 retires the form. JSON bodies and
-        # any structured key bypass this branch into the authoritative path.
-        if _is_legacy_score_post(raw, is_json):
-            # WR-05: drop EMPTY values so the hidden fieldsets of the other disciplines (which
-            # FormData still serializes) do not sweep stray empty keys into ScoreDoc.fields.
-            fields = {
-                k: v for k, v in raw.items() if k not in _NON_SCORE_KEYS and str(v).strip()
-            }
-            # WR-04: an all-empty legacy body (empty form, or only empty values) leaves fields == {}.
-            # Writing that would overwrite score.json, blank overlay.txt ("Prese:   Zona:   Totale: ")
-            # and bump gen — clobbering the on-air score, the OPPOSITE of the "previous score
-            # invariant". Treat an empty body as a no-op: write nothing, leave the on-air score intact.
-            if not fields:
-                return ("", 204)
-            _write_score_doc(ScoreDoc(discipline=discipline, fields=fields))
-            return ("", 204)
-
-        # AUTHORITATIVE path (SCC-01): validate-BEFORE-write → 400 + write NOTHING on any error
+        # AUTHORITATIVE path (SCC-01): the SOLE write path (the legacy urlencoded display-only
+        # back-compat branch was retired in P17 once the console #form-score was removed — Open Q1
+        # (a) / D-11; no producer posts the flat shape anymore). validate-BEFORE-write → 400 + write
+        # NOTHING on any error
         # (prev on-air score.json/overlay.txt stays byte-identical, D-05 / T-16-05) → Decimal
         # recompute → atomic write.
         fields = _parse_structured_inputs(discipline, raw, is_json)

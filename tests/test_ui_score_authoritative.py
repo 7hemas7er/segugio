@@ -128,23 +128,25 @@ def test_round_trip_total_equality(client):
     assert resp.get_json()["fields"]["totale"] == total
 
 
-# --- Open Q1 acceptance: legacy flat-key console form still round-trips -------- #
+# --- P17 (D-11): the legacy flat-key path is RETIRED — the authoritative path is the only one - #
 
 
-def test_legacy_flat_keys_still_round_trip(client):
+def test_legacy_flat_keys_now_rejected(client):
     c, ch = client
-    # The legacy console.html #form-score posts urlencoded FLAT keys (prese/zona/totale) — these
-    # do NOT match the score_calc structured contract. They must still round-trip via the thin
-    # back-compat branch (Open Q1 (a)) until P17 retires the form: write happens, NO 400.
+    # P17 retired the legacy back-compat branch (D-11): the old console.html #form-score posted
+    # urlencoded FLAT keys (prese/zona/totale) that do NOT match the score_calc structured contract.
+    # With the branch gone, such a body has NO valid `throws` for disc_tf → the authoritative path
+    # validates it, finds no throws, and returns 400 + writes NOTHING (no producer posts this shape
+    # anymore; a direct LAN POST of the flat shape is now correctly rejected, not silently aired).
     resp = c.post(
         "/score",
         data={"discipline": "disc_tf", "prese": "5", "zona": "3", "totale": "12"},
     )
-    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
-    doc = read_score(str(ch["score"]))
-    assert doc.fields.get("totale") == "12"  # legacy display-only total round-trips verbatim
-    overlay = ch["overlay"].read_text(encoding="utf-8")
-    assert "12" in overlay
+    assert resp.status_code == 400, resp.get_data(as_text=True)
+    body = resp.get_json()
+    assert body is not None and "errors" in body and body["errors"]
+    # Nothing was written — the on-air score is untouched.
+    assert not ch["score"].exists()
 
 
 # --- validate parity helper for invalid fixtures (server gate) ----------------- #

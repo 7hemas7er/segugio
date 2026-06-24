@@ -31,47 +31,59 @@ def client(file_channel):
 
 def test_post_score_disc_tf(client):
     c, ch = client
+    # P17 (D-11): the legacy flat-key path is retired — POST the AUTHORITATIVE structured JSON body
+    # (one zone-3 throw with a midair bonus → 3 + 0.5 = 3.5 recomputed by the server).
     resp = c.post(
         "/score",
-        data={"discipline": "disc_tf", "prese": "5", "zona": "3", "totale": "12"},
+        json={"discipline": "disc_tf", "throws": [{"zone": 3, "midair": "on", "corridor": "false"}]},
     )
-    assert resp.status_code in (200, 204)
-    # score.json holds the structured operator input.
+    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
+    # score.json holds the SERVER-recomputed total (never a client-supplied one).
     doc = read_score(str(ch["score"]))
     assert doc.discipline == Discipline.disc_tf
-    assert doc.fields.get("prese") == "5"
-    assert doc.fields.get("totale") == "12"
-    # overlay.txt holds the rendered Italian line for OBS (values verbatim).
+    assert doc.fields.get("totale") == "3.5"
+    # overlay.txt holds the rendered Italian line for OBS (the recomputed total verbatim).
     overlay = ch["overlay"].read_text(encoding="utf-8")
-    assert "5" in overlay and "12" in overlay and "Prese" in overlay
+    assert "3.5" in overlay and "Prese" in overlay
 
 
 def test_post_score_freestyle(client):
     c, ch = client
     resp = c.post(
         "/score",
-        data={"discipline": "disc_freestyle", "nome": "Rex & Anna", "timer": "01:30"},
+        json={
+            "discipline": "disc_freestyle",
+            "team": "10",
+            "dog": "10",
+            "player": "10",
+            "catch": "10",
+            "adjustment": "0",
+            "nome": "Rex & Anna",
+        },
     )
-    assert resp.status_code in (200, 204)
+    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
     doc = read_score(str(ch["score"]))
     assert doc.discipline == Discipline.disc_freestyle
-    assert doc.fields.get("nome") == "Rex & Anna"
-    overlay = ch["overlay"].read_text(encoding="utf-8")
-    assert "Rex & Anna" in overlay and "01:30" in overlay
+    # Four maxed categories sum to exactly freestyle_max (40, quantized to the 0.01 grid) — recomputed.
+    assert doc.fields.get("totale") == "40.00"
 
 
 def test_post_score_agility(client):
     c, ch = client
     resp = c.post(
         "/score",
-        data={"discipline": "agility", "tempo": "34.5", "sct": "40.0", "faults": "5"},
+        json={
+            "discipline": "agility",
+            "tempo": "00:34.50",
+            "sct": "00:30.00",
+            "course_faults": "5",
+        },
     )
-    assert resp.status_code in (200, 204)
+    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
     doc = read_score(str(ch["score"]))
     assert doc.discipline == Discipline.agility
-    assert doc.fields.get("tempo") == "34.5"
-    overlay = ch["overlay"].read_text(encoding="utf-8")
-    assert "34.5" in overlay and "40.0" in overlay
+    # count_up: over SCT by 4.5s → ceil = 5 time-faults; + 5 course faults = 10 (server-recomputed).
+    assert doc.fields.get("faults") == "10"
 
 
 def test_post_score_unknown_discipline_rejected(client):
@@ -92,16 +104,18 @@ def test_index_serves_italian_console(client):
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
     # Italian console controls (D-04 four concerns on one page).
-    assert "Disciplina" in html
     assert "Avvia run" in html and "Ferma run" in html
     # MVW-04 (Phase 9 / 09-02): the blind "Forza {cam}" text buttons were REMOVED — the whole tile
     # is now the force control (asserted in test_ui_tablet_layout.py). "Rilascia (auto)" stays.
     assert "Rilascia" in html
-    assert "Stato live" in html
-    # the 3 per-discipline field labels (SCR-02)
-    assert "Prese" in html and "Zona" in html and "Totale" in html
-    assert "Nome" in html and "Timer" in html
-    assert "Tempo" in html and "SCT" in html and "Faults" in html
+    # P17 (D-07/D-08/D-11): the legacy inline #form-score (discipline selector + flat field labels)
+    # is RETIRED. The Punteggio card now carries a read-only on-air readout + a modal-open button
+    # that opens the native <dialog> mounting the SAME shared score-entry partial as /score-entry.
+    assert 'id="form-score"' not in html  # legacy form gone
+    assert "Inserisci / modifica punteggio" in html  # the modal-open button
+    assert "_score-entry-form.html" not in html  # the include resolves (rendered, not literal)
+    assert 'id="score-dialog"' in html  # the native dialog hosting the shared partial
+    assert 'id="score-entry-root"' in html  # the component mount target (from the included partial)
 
 
 def test_app_imports_nothing_heavy(monkeypatch, tmp_path):

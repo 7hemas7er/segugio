@@ -195,11 +195,53 @@
     root.appendChild(totalBlock);
 
     // --- 7. Publish action (button ALWAYS enabled, D-04) ------------------
+    // P17 / SCE-04 / D-05: a casual tap can never air a half-entered score. The button is a
+    // two-step arm→confirm gate — the first tap morphs it into a danger-styled "Conferma invio"
+    // and arms a short auto-revert timer; ONLY a second deliberate tap (while armed) calls
+    // submit(). The button is NEVER disabled (Phase-16 D-04) — the confirm IS the gate.
     const publishBlock = el("div", { class: "publish" });
     const publishBtn = el("button", { type: "button" }, "Manda in onda");
-    publishBtn.addEventListener("click", submit);
+    const CONFIRM_WINDOW_MS = 4000;
+    let armed = false;
+    let armTimer = null;
+
+    function disarm() {
+      armed = false;
+      if (armTimer !== null) {
+        if (typeof clearTimeout !== "undefined") clearTimeout(armTimer);
+        armTimer = null;
+      }
+      publishBtn.textContent = "Manda in onda";
+      publishBtn.classList.remove("danger");
+    }
+
+    publishBtn.addEventListener("click", () => {
+      if (!armed) {
+        // First tap: arm + morph to the danger-styled confirm (textContent/classList — no innerHTML).
+        armed = true;
+        publishBtn.textContent = "Conferma invio";
+        publishBtn.classList.add("danger");
+        if (typeof setTimeout !== "undefined") {
+          armTimer = setTimeout(disarm, CONFIRM_WINDOW_MS);
+        }
+        return; // a stray first tap NEVER POSTs
+      }
+      // Second deliberate tap (while armed): publish, then revert/disarm.
+      disarm();
+      submit();
+    });
     publishBlock.appendChild(publishBtn);
     root.appendChild(publishBlock);
+
+    // P17 / SCE-04 / D-06: Enter never publishes. A single keydown guard on `root` swallows
+    // Enter (preventDefault) and returns WITHOUT touching the arm/confirm/submit path — the
+    // only route to air is the two deliberate taps above. Additive (no prior Enter handler).
+    root.addEventListener("keydown", (e) => {
+      if (e && e.key === "Enter") {
+        if (typeof e.preventDefault === "function") e.preventDefault();
+        // Intentionally no arm/confirm/submit — Enter can never air a score.
+      }
+    });
 
     // The persistent banner lives OUTSIDE the root if the host provides #publish-banner,
     // else inside the component (re-mountable modal has no host banner).

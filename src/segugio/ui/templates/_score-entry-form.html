@@ -1,0 +1,22 @@
+<!-- _score-entry-form.html — the ONE shared score-entry host markup partial (D-08).
+     The anti-drift spine: BOTH the dedicated /score-entry page AND the console dialog
+     modal Jinja-include this exact partial, so the page and the modal carry byte-for-byte
+     identical host markup + script tags (the SCV-02 one-renderer rule applied to a form).
+     It carries ONLY the four host nodes + two script tags — page-specific chrome (style,
+     h1, .page wrapper) stays on each host. ZERO new external/CDN asset (D-10). -->
+
+<!-- The active scoring profile + valid-discipline list, injected as decimal STRINGS (D-07).
+     The component reads it with JSON.parse(#score-cfg.textContent) — the cam_ids | tojson
+     inline-blob precedent. This is the ONLY data the host bakes in; no form/calc lives here. -->
+<script type="application/json" id="score-cfg">{{ score_cfg | tojson }}</script>
+
+<!-- The component mounts its entire field set here. The host carries no form field of its own. -->
+<div id="score-entry-root"></div>
+
+<!-- Persistent publish banner (D-05): "✓ In onda" on 2xx, server errors + "punteggio
+     precedente invariato" on 400. Stays until the next action. -->
+<div id="publish-banner"></div>
+
+<!-- Advisory calc port first (defines window.SEGUGIO_SCORE_CALC), then the component. -->
+<script src="/static/score-calc.js"></script>
+<script src="/static/score-entry.js"></script>

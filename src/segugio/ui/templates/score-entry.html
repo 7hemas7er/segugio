@@ -75,21 +75,10 @@
   <div class="page">
     <h1>Inserimento punteggio</h1>
 
-    <!-- The active scoring profile + valid-discipline list, injected as decimal STRINGS (D-07).
-         The component reads it with JSON.parse(#score-cfg.textContent) — the cam_ids | tojson
-         inline-blob precedent. This is the ONLY data the page bakes in; no form/calc lives here. -->
-    <script type="application/json" id="score-cfg">{{ score_cfg | tojson }}</script>
-
-    <!-- The component mounts its entire field set here. The host carries no form field of its own. -->
-    <div id="score-entry-root"></div>
-
-    <!-- Persistent publish banner (D-05): "✓ In onda" on 2xx, server errors + "punteggio
-         precedente invariato" on 400. Stays until the next action. -->
-    <div id="publish-banner"></div>
+    <!-- The shared host markup (#score-cfg blob + #score-entry-root + #publish-banner + the
+         score-calc.js/score-entry.js script tags) lives in ONE partial so this page and the
+         Phase-17 console dialog are byte-for-byte identical (D-08, the anti-drift spine). -->
+    {% include "_score-entry-form.html" %}
   </div>
-
-  <!-- Advisory calc port first (defines window.SEGUGIO_SCORE_CALC), then the component. -->
-  <script src="/static/score-calc.js"></script>
-  <script src="/static/score-entry.js"></script>
 </body>
 </html>

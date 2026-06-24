@@ -290,7 +290,12 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         # Render the multiview tiles, force buttons, and the JS CAMS list from the SAME configured
         # whitelist the preview-JPEG route honours (WR-01) so a non-default rig is fully wired — the
         # cam_ids arg is no longer half-honoured (route only); the page derives its ids from it too.
-        return render_template("console.html", cam_ids=sorted(cam_ids))
+        # D-08 (P17): inject the SAME factory-time _score_cfg blob /score-entry gets so the console
+        # <dialog>'s included shared partial resolves with NO per-host divergence (one markup source,
+        # one component). Pure stdlib str(Decimal) injection — adds no heavy import (crash-isolation).
+        return render_template(
+            "console.html", cam_ids=sorted(cam_ids), score_cfg=_score_cfg
+        )
 
     @app.get("/score-entry")
     def score_entry():

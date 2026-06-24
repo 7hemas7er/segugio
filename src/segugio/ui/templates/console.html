@@ -184,6 +184,15 @@
     /* Rilascia (auto) = the large always-visible undo for an accidental tap-to-force (≥48px).
        The safe-area padding that used to wrap this cluster now lives on .control-strip. */
     #rilascia { min-height: 48px; min-width: 48px; font-size: 1rem; margin-top: 16px; }
+
+    /* D-08/D-10 score-entry modal: the native <dialog> inherits the page's dark tokens + the ≥16px
+       input / button.danger contract (no new external asset). showModal() gives the focus-trap +
+       Escape; ::backdrop dims the console behind it. Sized for a tablet (caps at the viewport). */
+    dialog#score-dialog { width: min(640px, 92vw); max-height: 90vh; overflow: auto;
+                          background: #14161a; color: #e8e8e8; border: 1px solid #333;
+                          border-radius: 8px; padding: 16px; }
+    dialog#score-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+    .dialog-close-row { display: flex; justify-content: flex-end; margin: 0 0 8px; }
   </style>
 </head>
 <body>
@@ -317,6 +326,19 @@
   </div>
   <!-- /live-row -->
 
+  <!-- D-08/D-09/D-10 — the score-entry MODAL. A native dialog whose body is the ONE shared
+       Jinja partial (the exact same include the dedicated /score-entry page uses), so the page and
+       the modal carry byte-for-byte identical host markup + script tags (SCV-02 anti-drift). The
+       component is mounted on dialog-OPEN (not auto-mounted into a hidden dialog on load), and
+       dialog.showModal() provides the focus-trap + Escape for free — NO hand-rolled trap (D-10).
+       The included score-cfg blob resolves from the score_cfg that index() now injects. -->
+  <dialog id="score-dialog" aria-label="Inserisci o modifica punteggio">
+    <form method="dialog" class="dialog-close-row">
+      <button type="submit" class="secondary" value="close">Chiudi</button>
+    </form>
+    {% include "_score-entry-form.html" %}
+  </dialog>
+
   <script>
     // --- discipline selector toggles the matching field set (SCR-02) ---
     const sel = document.getElementById("disciplina");
@@ -332,6 +354,27 @@
       const body = new URLSearchParams(data);
       return fetch(url, { method: "POST", body,
         headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    }
+
+    // --- D-09/D-10 score-entry modal: open the native <dialog> + mount the SAME shared component
+    //     ON OPEN (not auto-mounted into a hidden dialog on load). dialog.showModal() gives the
+    //     focus-trap + Escape for free — NO hand-rolled trap. mount() clears+rebuilds the dialog's
+    //     #score-entry-root (re-mountable), restoring the localStorage draft each open (Plan 01). ---
+    const scoreDialog = document.getElementById("score-dialog");
+    function openScoreDialog() {
+      if (!scoreDialog) return;
+      // showModal FIRST so the included root is laid out + focusable when the component mounts.
+      if (typeof scoreDialog.showModal === "function") scoreDialog.showModal();
+      else scoreDialog.setAttribute("open", "");   // ancient-engine fallback (no focus-trap)
+      // Resolve the dialog's OWN root + cfg blob (the included partial's nodes) and mount the one
+      // shared component into them — the SAME mount(root, cfg) the dedicated page uses (anti-drift).
+      const root = scoreDialog.querySelector("#score-entry-root");
+      const cfgEl = scoreDialog.querySelector("#score-cfg");
+      if (root && cfgEl && window.SEGUGIO_SCORE_ENTRY) {
+        let cfg = {};
+        try { cfg = JSON.parse(cfgEl.textContent); } catch (_e) { cfg = {}; }
+        window.SEGUGIO_SCORE_ENTRY.mount(root, cfg);
+      }
     }
 
     // --- score form: post only the visible discipline's fields (WR-05) ---

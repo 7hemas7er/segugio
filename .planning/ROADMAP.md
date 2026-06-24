@@ -81,7 +81,7 @@ Plans:
 **Plans**: 2 plans
 **Wave 1**
 
-  - [ ] 17-01-PLAN.md — Wave 1: extract the shared Jinja form partial + dedicated page include; add localStorage reload-safe draft (SCC-05/D-01..D-04), two-step danger-styled publish confirm + Enter-suppression (SCE-04/D-05/D-06) inside the one score-entry.js module
+  - [x] 17-01-PLAN.md — Wave 1: extract the shared Jinja form partial + dedicated page include; add localStorage reload-safe draft (SCC-05/D-01..D-04), two-step danger-styled publish confirm + Enter-suppression (SCE-04/D-05/D-06) inside the one score-entry.js module
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -158,5 +158,5 @@ Plans:
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete    | 2026-06-23 |
-| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 0/? | Not started | - |
+| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 1/2 | In Progress|  |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

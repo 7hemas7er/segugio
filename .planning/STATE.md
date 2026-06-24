@@ -4,13 +4,13 @@ milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: executing
 stopped_at: Phase 17 context gathered
-last_updated: "2026-06-24T14:37:10.837Z"
-last_activity: 2026-06-23 — Phase 16 executed, code-review-fixed, and verified
+last_updated: "2026-06-24T15:39:25.326Z"
+last_activity: 2026-06-24 -- Phase 17 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
   percent: 50
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** v1.3 "Gestione Punteggi Avanzata" — Phase 16 COMPLETE (2/2 plans, verification passed; code-review BLOCKERs CR-01/CR-02 fixed in-phase). Next: Phase 17 (Console Modal, Multi-throw State & Tablet UX) — reuses the same `score-entry.js` in a native `<dialog>` modal.
+**Current focus:** Phase 17 — console-modal-multi-throw-state-tablet-ux
 
 ## Current Position
 
-Phase: 17
-Plan: Not started
+Phase: 17 (console-modal-multi-throw-state-tablet-ux) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-23 — Phase 16 executed, code-review-fixed, and verified
+Last activity: 2026-06-24 -- Phase 17 execution started
 
 ## Performance Metrics
 
@@ -120,6 +120,7 @@ Last activity: 2026-06-23 — Phase 16 executed, code-review-fixed, and verified
 | Phase 15 P02 | ~20min | 3 tasks | 5 files |
 | Phase 15 P03 | 6min | 1 task | 1 files |
 | Phase 16 P16-02 | 20min | 3 tasks | 4 files |
+| Phase 17 P17-01 | 9min | 3 tasks | 4 files |
 
 ## Accumulated Context
 

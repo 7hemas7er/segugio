@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: verifying
-stopped_at: Phase 17 plans complete; awaiting human UAT (5 items)
-last_updated: "2026-06-24T20:42:44.000Z"
-last_activity: 2026-06-24 -- Phase 17 plans executed; verification returned human_needed (UAT pending)
+stopped_at: Phase 17 UAT passed (5/5); security review (/gsd-secure-phase 17) required before completion
+last_updated: "2026-06-26T21:18:09.000Z"
+last_activity: 2026-06-26 -- Phase 17 UAT 5/5 passed via automated browser UAT; verification=passed; security gate pending
 progress:
   total_phases: 4
   completed_phases: 2
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 17 (console-modal-multi-throw-state-tablet-ux) — AWAITING UAT
+Phase: 17 (console-modal-multi-throw-state-tablet-ux) — UAT PASSED, security gate pending
 Plan: 2 of 2 (both complete)
-Status: Plans complete; human verification (UAT) pending — see 17-UAT.md, then /gsd-verify-work 17
-Last activity: 2026-06-24 -- Phase 17 plans executed; verification returned human_needed (UAT pending)
+Status: Verification passed (4/4 code + 5/5 UAT). Security enforcement is ON and no 17-SECURITY.md exists — run /gsd-secure-phase 17 before the phase is marked complete.
+Last activity: 2026-06-26 -- Phase 17 UAT 5/5 passed via automated browser UAT; verification=passed; security gate pending
 
 ## Performance Metrics
 

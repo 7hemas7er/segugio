@@ -1,8 +1,10 @@
 ---
 phase: 17-console-modal-multi-throw-state-tablet-ux
 verified: 2026-06-24T00:00:00Z
-status: human_needed
-score: 4/4 truths verified (all roadmap success criteria met at code level)
+status: passed
+uat_confirmed: 2026-06-26T21:18:09Z
+status_history: [human_needed @2026-06-24, passed @2026-06-26 after automated browser UAT]
+score: 4/4 truths verified (code level); 5/5 human-verification items confirmed via automated browser UAT
 overrides_applied: 0
 human_verification:
   - test: "Open the console (localhost:8080), click 'Inserisci / modifica punteggio' and interact with the score modal"
@@ -149,5 +151,26 @@ The 5 test failures in the full suite are exactly the 5 pre-existing known failu
 
 ---
 
-_Verified: 2026-06-24_
-_Verifier: Claude (gsd-verifier)_
+## Automated UAT Confirmation (2026-06-26)
+
+All 5 human-verification items were subsequently confirmed via **automated browser UAT** (Playwright,
+msedge headless) driving an **isolated sandbox** at `127.0.0.1:8099` (scratch opcomm dir) — never any
+live `:8080` director. Full results recorded in `17-UAT.md` (status: complete, 5/5 pass).
+
+| # | Item | Result | Key evidence |
+|---|------|--------|--------------|
+| 1 | Console modal open/mount/close/re-open (WR-01) | PASS | 1 `#score-entry-root`; clean re-mount (1 discipline-block/1 root/1 publish on re-open); on-air readout polled `/overlay-json` 3×; no real errors. **WR-01 is benign** — hidden mount on load, but `mount()` clears the root + fresh closures ⇒ no doubling/double-count. |
+| 2 | Reload-safe draft restore | PASS | 2 throws (zone 2 midair / zone 3 corridor), total 6.0; after hard reload rows + total restored identically; no errors. |
+| 3 | Corrupt draft → clean mount | PASS | `segugio.score.draft="{"` → 0 rows, empty-state visible, never-raise reader caught it, no exception. |
+| 4 | Two-step publish auto-revert | PASS | first tap → "Conferma invio"/.danger; after 4.6 s reverted; **0 POSTs** to `/score`. |
+| 5 | Enter never publishes/arms | PASS | Enter on select/select/text input + modal input → button stays "Manda in onda"; **0 POSTs**. |
+
+**Broadcast integrity proven:** total POSTs to `/score` observed across the entire UAT run = **0**.
+
+Only remaining deferred (non-blocking) item: real-iPad rig ergonomics / OS virtual-keyboard / sleep-wake —
+the code-time tablet contract (success criterion 4) is met; physical-device UAT is explicitly deferred per the roadmap.
+
+---
+
+_Verified: 2026-06-24 (code) · UAT confirmed: 2026-06-26 (automated browser)_
+_Verifier: Claude (gsd-verifier) · UAT: Claude (gsd-verify-work, Playwright)_

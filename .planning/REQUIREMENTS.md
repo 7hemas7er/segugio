@@ -18,7 +18,7 @@
 - [x] **SCE-01**: L'operatore inserisce il punteggio sia da una **pagina dedicata** sia da un **popup/modal** nella console, entrambi che montano lo **stesso** componente vanilla-JS condiviso → nessun drift (niente mirror byte-exact ri-introdotto, niente iframe per il form interattivo; lezione SCV-02 applicata a un form)
 - [x] **SCE-02**: Il componente mostra i **campi strutturati ricchi** della disciplina selezionata (disc Toss&Fetch, disc freestyle, agility), guidati dal profilo di scoring
 - [x] **SCE-03**: **Calcolo live advisory** lato client — il totale si aggiorna mentre l'operatore digita (feedback immediato), esplicitamente *non autorevole*
-- [ ] **SCE-04**: **Pubblicazione esplicita** — un'azione chiara "manda in onda" il punteggio (nessuna messa in onda accidentale); UX tablet-first (input ≥16px anti-zoom iOS, focus-trap nel modal, **asset offline/no-CDN** per il rig senza internet)
+- [x] **SCE-04**: **Pubblicazione esplicita** — un'azione chiara "manda in onda" il punteggio (nessuna messa in onda accidentale); UX tablet-first (input ≥16px anti-zoom iOS, focus-trap nel modal, **asset offline/no-CDN** per il rig senza internet)
 - [x] **SCE-05**: Gli **errori di validazione** sono mostrati per campo all'operatore prima/della pubblicazione
 
 ### Calcolo & validazione autorevoli (SCC)
@@ -27,7 +27,7 @@
 - [x] **SCC-02**: Modulo **puro** `score_calc` (solo stdlib, nessuna heavy dep) che incapsula calcolo + validazione, condiviso dal server e **aggiunto alla superficie import crash-isolated** (coperto dall'import-smoke gate) — *Plan 15-01: modulo puro stdlib costruito (import allowlist = decimal/re/dataclasses/enum + opcomm.records, zero `float(`). Plan 15-03: `segugio.ui.score_calc` aggiunto a `PHASE1_SURFACE` (parametrized heavy-deps-absent import) — chiuso.*
 - [x] **SCC-03**: Port client `score-calc.js` per il calcolo advisory, con **drift-guard test** che ne garantisce la **parità** col modulo Python (no doppia verità) — *Plan 16-01: `score-calc.js` port byte-exact (helper Decimal coefficiente-BigInt+esponente, blocco `gsd:score-calc-mirror`, dual-export); drift-guard node-vs-Python `compute`/`validate` verde su tutte le discipline + casi limite (best-N, bonus 0.5, flag CR-01, cap freestyle, ceil/eliminazione agility).*
 - [x] **SCC-04**: **Totali auto-calcolati per disciplina** — disc T&F: somma lanci×zone (+ bonus); freestyle: somma criteri (giudice singolo); agility: modello configurabile (count-up faults *oppure* deduct) + time-faults vs SCT — *Plan 15-01: `score_calc.compute()` Decimal-exact per le 3 discipline, 11/11 unit test verdi vs tabelle CSEN pinnate.*
-- [ ] **SCC-05**: **Multi-lancio/round** con totale progressivo (disc T&F a N lanci); stato in-progress robusto (scrittura atomica; restore lato client su reload)
+- [x] **SCC-05**: **Multi-lancio/round** con totale progressivo (disc T&F a N lanci); stato in-progress robusto (scrittura atomica; restore lato client su reload)
 
 ### Profili di scoring config-driven (SCP)
 
@@ -70,13 +70,13 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 | SCE-01 | Phase 16 | Complete |
 | SCE-02 | Phase 16 | Complete |
 | SCE-03 | Phase 16 | Complete |
-| SCE-04 | Phase 17 | Pending |
+| SCE-04 | Phase 17 | Complete |
 | SCE-05 | Phase 16 | Complete |
 | SCC-01 | Phase 16 | Complete (Plan 16-01) |
 | SCC-02 | Phase 15 | Complete (15-01 module; 15-03 import gate) |
 | SCC-03 | Phase 16 | Complete (Plan 16-01) |
 | SCC-04 | Phase 15 | Complete (15-01) |
-| SCC-05 | Phase 17 | Pending |
+| SCC-05 | Phase 17 | Complete |
 | SCP-01 | Phase 15 | Complete (15-02) |
 | SCP-02 | Phase 15 | Complete (15-02) |
 | RBT-08 | Phase 15 | Complete (15-03) |

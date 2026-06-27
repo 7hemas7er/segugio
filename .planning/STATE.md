@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: verifying
-stopped_at: Phase 17 UAT passed (5/5); security review (/gsd-secure-phase 17) required before completion
-last_updated: "2026-06-26T21:18:09.000Z"
-last_activity: 2026-06-26 -- Phase 17 UAT 5/5 passed via automated browser UAT; verification=passed; security gate pending
+status: ready
+stopped_at: Phase 17 complete (verification passed + security SECURED); ready to plan Phase 18
+last_updated: "2026-06-27T06:55:24.838Z"
+last_activity: 2026-06-27 — Phase 17 completed (UAT 5/5, security threats_open 0); advanced to Phase 18
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
   completed_plans: 7
-  percent: 50
+  percent: 75
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 17 — console-modal-multi-throw-state-tablet-ux
+**Current focus:** Phase 18 — rich-data-model-&-overlay-continuity-regression
 
 ## Current Position
 
-Phase: 17 (console-modal-multi-throw-state-tablet-ux) — UAT PASSED, security gate pending
-Plan: 2 of 2 (both complete)
-Status: Verification passed (4/4 code + 5/5 UAT). Security enforcement is ON and no 17-SECURITY.md exists — run /gsd-secure-phase 17 before the phase is marked complete.
-Last activity: 2026-06-26 -- Phase 17 UAT 5/5 passed via automated browser UAT; verification=passed; security gate pending
+Phase: 18
+Plan: Not started
+Status: Ready to plan. Phase 17 complete — verification passed (4/4 code + 5/5 UAT) and security SECURED (threats_open 0).
+Last activity: 2026-06-27 — Phase 17 completed and advanced to Phase 18
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 44
+- Total plans completed: 46
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -55,6 +55,7 @@ Last activity: 2026-06-26 -- Phase 17 UAT 5/5 passed via automated browser UAT; 
 | 14 | 3 | - | - |
 | 15 | 3 | - | - |
 | 16 | 2 | - | - |
+| 17 | 2 | - | - |
 
 **Recent Trend:**
 

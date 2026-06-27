@@ -15,7 +15,7 @@
 
 - [x] **Phase 15: Pure Calc + Validation Core & Scoring Profiles** — the stdlib-only `score_calc` authority (validate + compute for disc T&F / freestyle / agility) + config-driven scoring profiles, added to the crash-isolation import gate before any UI consumes it (completed 2026-06-22)
 - [x] **Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST** — the ONE vanilla-JS score-entry component proven on the dedicated `/score-entry` page, advisory client calc with a drift-guard, and `POST /score` made authoritative (validate→400 / recompute→atomic write) (completed 2026-06-23)
-- [ ] **Phase 17: Console Modal, Multi-throw State & Tablet UX** — the same component mounted in a native `<dialog>` modal (single Jinja partial), multi-throw/round progressive total with reload-safe in-progress state, explicit publish action + offline-asset/≥16px/focus-trap tablet contract
+- [x] **Phase 17: Console Modal, Multi-throw State & Tablet UX** — the same component mounted in a native `<dialog>` modal (single Jinja partial), multi-throw/round progressive total with reload-safe in-progress state, explicit publish action + offline-asset/≥16px/focus-trap tablet contract (completed 2026-06-27)
 - [ ] **Phase 18: Rich Data Model & Overlay-Continuity Regression** — structured `fields` (throws[]/criteria{}/faults_breakdown{}) carried additively through the write path + `/overlay-json`, with `overlay.txt` / `/overlay` / OBS fallback and the XSS sink verified unchanged
 
 ## Phase Details
@@ -158,5 +158,5 @@ Plans:
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete    | 2026-06-23 |
-| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Testing     | -          |
+| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete    | 2026-06-27 |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |

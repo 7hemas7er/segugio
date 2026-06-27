@@ -101,6 +101,23 @@ def test_csen_tf_string_truthy_flags_add_bonus():
     assert out["totale"] == "2.0"
 
 
+def test_disc_tf_per_throw_score_subkey():
+    """D-03: each throw carries an ADDITIVE per-throw ``score`` Decimal STRING co-located on the
+    throw dict, ALONGSIDE the byte-identical raw ``{zone, midair, corridor}`` keys (D-04). A
+    ``{zone:4, midair:True, corridor:False}`` throw scores 4 + 0.5 = ``"4.5"``; the raw keys survive."""
+    throws = [{"zone": 4, "midair": True, "corridor": False}]
+    out = compute(Discipline.disc_tf, {"throws": throws}, CSEN_DISC_PROFILE)
+    assert out["throws"][0]["score"] == "4.5"
+    # raw keys preserved byte-identical on the same throw dict (additive, not mutated).
+    assert out["throws"][0]["zone"] == 4
+    assert out["throws"][0]["midair"] is True
+    assert out["throws"][0]["corridor"] is False
+    # the score subkey is a STRING (str(Decimal)), never a raw Decimal (Pitfall 1).
+    assert isinstance(out["throws"][0]["score"], str)
+    # flat keys still emitted byte-identical.
+    assert out["totale"] == "4.5"
+
+
 # --------------------------------------------------------------------------------------
 # Disc Freestyle (CSEN D-03/D-08): 4 categories 0-10 on 0.01 grid, sum (max 40) minus adjustment
 # --------------------------------------------------------------------------------------
@@ -138,6 +155,28 @@ def test_csen_freestyle_adjustment():
     # 40.00 - 2.50 = 37.50
     out = compute(Discipline.disc_freestyle, fields, CSEN_DISC_PROFILE)
     assert out["totale"] == "37.50"
+
+
+def test_freestyle_criteria_subkey():
+    """D-03: freestyle emits an ADDITIVE top-level ``criteria{}`` mapping each category name to its
+    0.01-snapped Decimal STRING, ALONGSIDE the byte-identical ``totale`` (D-04). ``team:"8.5"`` snaps
+    to ``"8.50"`` on the 0.01 grid."""
+    fields = {
+        "nome": "Rex",
+        "timer": "1:45",
+        "team": "8.5",
+        "dog": "7.25",
+        "player": "6.00",
+        "catch": "9.10",
+        "adjustment": "0",
+    }
+    out = compute(Discipline.disc_freestyle, fields, CSEN_DISC_PROFILE)
+    assert out["criteria"]["team"] == "8.50"
+    assert out["criteria"]["catch"] == "9.10"
+    # every criteria value is a STRING (str(Decimal)), never a raw Decimal (Pitfall 1).
+    assert all(isinstance(v, str) for v in out["criteria"].values())
+    # flat total byte-identical: 8.50 + 7.25 + 6.00 + 9.10 = 30.85
+    assert out["totale"] == "30.85"
 
 
 # --------------------------------------------------------------------------------------
@@ -186,6 +225,28 @@ def test_agility_elimination():
     assert isinstance(out["result"], str)
     # the numeric faults sum must NOT have been computed into a number that airs
     assert out.get("faults") != "8"
+
+
+def test_agility_faults_breakdown_subkey():
+    """D-03: count_up emits an ADDITIVE ``faults_breakdown{course,time}`` (both Decimal STRINGS),
+    ALONGSIDE the byte-identical flat ``faults`` total (D-04). tempo 00:34.50 / sct 00:30.00 → over
+    4.5s → ceil 5 time-faults; course_faults 5 → faults_breakdown {course:"5", time:"5"}, faults "10"."""
+    fields = {"course_faults": "5", "tempo": "00:34.50", "sct": "00:30.00"}
+    out = compute(Discipline.agility, fields, FCI_AGILITY_PROFILE)
+    assert out["faults_breakdown"] == {"course": "5", "time": "5"}
+    assert out["faults"] == "10"
+    # both breakdown values are STRINGS (str(Decimal)/str(int)), never raw Decimal (Pitfall 1).
+    assert all(isinstance(v, str) for v in out["faults_breakdown"].values())
+
+
+def test_agility_elimination_omits_breakdown():
+    """D-03 open item PINNED: the elimination short-circuit OMITS faults_breakdown entirely (no run →
+    no course/time split), keeping the D-05 snapshot deterministic."""
+    fields = {"eliminated": True, "course_faults": "5", "tempo": "00:34.50", "sct": "00:30.00"}
+    out = compute(Discipline.agility, fields, FCI_AGILITY_PROFILE)
+    assert out["result"] == "E"
+    assert out["totale"] == "E"
+    assert "faults_breakdown" not in out
 
 
 # --------------------------------------------------------------------------------------

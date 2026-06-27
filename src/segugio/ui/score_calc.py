@@ -289,6 +289,7 @@ def _compute_disc_tf(out: dict, profile: ScoringProfile) -> dict:
     """Disc Toss & Fetch (CSEN D-02): per-throw = zone_points + exact bonuses, capped, best-N sum."""
     throws = out.get("throws") or []
     per_throw: list[Decimal] = []
+    new_throws: list[dict] = []  # rebuilt throws carrying the additive per-throw `score` (D-03)
     band_total = Decimal("0")
     for throw in throws:
         zone_points = _zone_points(profile, throw.get("zone")) or Decimal("0")
@@ -302,6 +303,10 @@ def _compute_disc_tf(out: dict, profile: ScoringProfile) -> dict:
         if profile.per_throw_cap is not None:
             score = min(score, profile.per_throw_cap)
         per_throw.append(score)
+        # ADDITIVE subkey (D-03): co-locate the per-throw score as a Decimal STRING on a REBUILT
+        # throw dict (shallow-copy each entry — never mutate the input throws in place). The raw
+        # {zone, midair, corridor} keys survive byte-identical; `score` is str(Decimal) (Pitfall 1).
+        new_throws.append({**throw, "score": str(score)})
 
     if profile.count_best_n is not None:
         counted = sorted(per_throw, reverse=True)[: profile.count_best_n]
@@ -309,6 +314,7 @@ def _compute_disc_tf(out: dict, profile: ScoringProfile) -> dict:
         counted = per_throw
     total = sum(counted, Decimal("0"))
 
+    out["throws"] = new_throws
     out["prese"] = str(len(throws))
     out["zona"] = str(band_total)
     out["totale"] = str(total)
@@ -318,9 +324,11 @@ def _compute_disc_tf(out: dict, profile: ScoringProfile) -> dict:
 def _compute_freestyle(out: dict, profile: ScoringProfile) -> dict:
     """Disc Freestyle (CSEN D-03/D-08): snap each category to its 0.01 grid, sum (max), minus adj."""
     total = Decimal("0")
+    criteria: dict = {}  # ADDITIVE per-category snapped values as Decimal STRINGS (D-03)
     for name, _cmin, _cmax, inc in profile.freestyle_cats:
         value = _to_decimal(out.get(name)) or Decimal("0")
         snapped = value.quantize(inc, rounding=ROUND_HALF_UP) if inc != 0 else value
+        criteria[name] = str(snapped)  # str(Decimal), never a raw Decimal (Pitfall 1)
         total += snapped
     if profile.freestyle_max is not None and total > profile.freestyle_max:
         total = profile.freestyle_max
@@ -329,6 +337,7 @@ def _compute_freestyle(out: dict, profile: ScoringProfile) -> dict:
 
     out.setdefault("nome", out.get("nome", ""))
     out.setdefault("timer", out.get("timer", ""))
+    out["criteria"] = criteria
     out["totale"] = str(total)
     return out
 
@@ -350,12 +359,17 @@ def _compute_agility(out: dict, profile: ScoringProfile) -> dict:
         course_faults = _to_decimal(out.get("course_faults")) or Decimal("0")
         faults = int(course_faults) + time_faults
         out["faults"] = str(faults)
+        # ADDITIVE subkey (D-03): split the flat `faults` total into its course/time components as
+        # Decimal STRINGS (Pitfall 1). count_up course = the integer course-faults string.
+        out["faults_breakdown"] = {"course": str(int(course_faults)), "time": str(time_faults)}
     else:  # deduct_from_100
         course_deductions = _to_decimal(out.get("course_deductions")) or Decimal("0")
         result = Decimal("100") - course_deductions - Decimal(time_faults)
         out["result"] = str(result)
         out["totale"] = str(result)
         out["faults"] = str(time_faults)
+        # ADDITIVE subkey (D-03): deduct course = the course_deductions string (Pitfall 1).
+        out["faults_breakdown"] = {"course": str(course_deductions), "time": str(time_faults)}
 
     # tempo / sct pass through verbatim as the renderer's flat keys.
     out["tempo"] = str(out.get("tempo", ""))

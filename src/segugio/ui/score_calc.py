@@ -70,6 +70,13 @@ _TIME_RX = re.compile(r"^(\d{1,2}):([0-5]\d)(?:\.(\d{2}))?$")
 # extreme-exponent input like "1E999999999" (default context Emax=999999), re-introducing the 500.
 _MAX_FIELD_ADJ_EXP = 7  # reject |value| >= 1e7
 
+# Companion PRECISION bound: ``adjusted()`` bounds magnitude but NOT significant-digit count, so a
+# small-magnitude ultra-high-precision value (e.g. "9." + 5000 nines, adjusted()==0) would slip the
+# magnitude bound and — on the agility deduct_from_100 model — be stored verbatim into the
+# ``faults_breakdown.course`` subkey, bloating score.json / /overlay-json. ``len(d.as_tuple().digits)``
+# is a trap-free metadata read of the coefficient digit count; no legitimate score needs >15 figures.
+_MAX_FIELD_DIGITS = 15
+
 
 @dataclass(frozen=True)
 class ScoringProfile:
@@ -255,7 +262,7 @@ def validate(discipline, fields: dict, profile: ScoringProfile) -> list[dict]:
             adj_d = _to_decimal(adj)
             if adj_d is None:
                 errors.append({"field": "adjustment", "message": "Aggiustamento non valido."})
-            elif adj_d.adjusted() >= _MAX_FIELD_ADJ_EXP:
+            elif adj_d.adjusted() >= _MAX_FIELD_ADJ_EXP or len(adj_d.as_tuple().digits) > _MAX_FIELD_DIGITS:
                 errors.append({"field": "adjustment", "message": "Aggiustamento fuori scala."})
 
     elif discipline == Discipline.agility:
@@ -283,7 +290,7 @@ def validate(discipline, fields: dict, profile: ScoringProfile) -> list[dict]:
                 errors.append(
                     {"field": fault_field, "message": f"'{fault_field}' non può essere negativo."}
                 )
-            elif value.adjusted() >= _MAX_FIELD_ADJ_EXP:
+            elif value.adjusted() >= _MAX_FIELD_ADJ_EXP or len(value.as_tuple().digits) > _MAX_FIELD_DIGITS:
                 errors.append(
                     {"field": fault_field, "message": f"'{fault_field}' fuori scala."}
                 )

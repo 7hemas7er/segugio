@@ -119,7 +119,43 @@ _MAGNITUDE_CASES = [
     ("freestyle adjustment=1E999999999", {"discipline": "disc_freestyle", "team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "1E999999999"}, "adjustment"),
     ("agility course_faults=1e1000", {"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "1e1000"}, "course_faults"),
     ("agility course_faults=1E100000", {"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "1E100000"}, "course_faults"),
+    # Precision sibling: small magnitude (adjusted()==0) but absurd significant-digit count. On the
+    # deduct_from_100 model this slipped the magnitude bound and wrote str(course_deductions) — a
+    # 5002-char numeric — into the faults_breakdown.course subkey of score.json / /overlay-json.
+    ("agility count_up course_faults=high-precision", {"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "9." + "9" * 5000}, "course_faults"),
 ]
+
+
+def test_high_precision_deduct_rejected_no_garbage_subkey(file_channel):
+    """deduct_from_100 must reject an ultra-high-precision course_deductions (digit-count bound).
+
+    Uses a deduct_from_100 profile so the agility fault field is `course_deductions`, whose
+    faults_breakdown.course is the str(Decimal) path (the count_up branch int-coerces and was already
+    safe). A "9."+5000-nines value (magnitude ~10, but 5001 sig digits) must 400 + write nothing —
+    no multi-thousand-digit string ever reaches score.json / /overlay-json. (Sec audit T-16-02.)
+    """
+    import dataclasses
+
+    from segugio.ui.app import create_app
+    from segugio.ui import score_calc
+
+    deduct_profile = dataclasses.replace(
+        score_calc.FCI_AGILITY_PROFILE, agility_model="deduct_from_100"
+    )
+    assert str(deduct_profile.agility_model) in ("deduct_from_100", "AgilityModel.deduct_from_100")
+    app = create_app(str(file_channel["dir"]), profile=deduct_profile, sport="agility")
+    app.config.update(TESTING=True)
+    c = app.test_client()
+
+    resp = c.post(
+        "/score",
+        json={"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_deductions": "9." + "9" * 5000},
+    )
+    assert resp.status_code == 400, resp.get_data(as_text=True)
+    assert any(e.get("field") == "course_deductions" for e in resp.get_json()["errors"])
+    # No bloated component was written anywhere on the on-air surface.
+    assert not file_channel["score"].exists() or len(file_channel["score"].read_bytes()) < 2000
+    assert not file_channel["overlay"].exists() or len(file_channel["overlay"].read_bytes()) < 2000
 
 
 @pytest.mark.parametrize("label,body,error_field", _MAGNITUDE_CASES, ids=[c[0] for c in _MAGNITUDE_CASES])

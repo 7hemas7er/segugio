@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: verifying
-stopped_at: Completed 18-01-PLAN.md
+status: complete
+stopped_at: Phase 18 complete — verification passed (4/4); milestone v1.3 complete
 last_updated: "2026-06-27T12:41:11.556Z"
 last_activity: 2026-06-27
 progress:
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 18 — rich-data-model-overlay-continuity-regression
+**Current focus:** Milestone v1.3 "Gestione Punteggi Avanzata" complete (Phases 15–18) — ready to archive or start the next milestone.
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-06-27
+Phase: 18 (complete — last phase of v1.3)
+Plan: 2/2 complete
+Status: Phase 18 verified (4/4 must-haves, 86/86 phase-target tests green); RBT-09 Complete. Milestone v1.3 software-complete. Next: /gsd-complete-milestone (archive v1.3) or /gsd-new-milestone.
+Last activity: 2026-06-27 — Phase 18 executed, verified, and signed off
 
 ## Performance Metrics
 

@@ -130,9 +130,17 @@ def _to_decimal(value: object) -> Decimal | None:
     if text == "":
         return None
     try:
-        return Decimal(text)
+        d = Decimal(text)
     except (InvalidOperation, ValueError):
         return None
+    # Reject non-finite values: Decimal("NaN")/"sNaN"/"Infinity"/"inf" construct WITHOUT raising,
+    # then either signal InvalidOperation at the un-wrapped ordered/equality comparisons in
+    # validate()/_zone_points (an unhandled HTTP 500 — "nessun crash ammesso") OR pass validate()
+    # and air a literal "NaN"/"-Infinity" total to score.json/overlay.txt (a broadcast-integrity
+    # breach). Treat them as invalid so the caller raises a clean per-field 400 (D-09/D-11).
+    if not d.is_finite():
+        return None
+    return d
 
 
 def _zone_points(profile: ScoringProfile, band: object) -> Decimal | None:

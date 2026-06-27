@@ -312,3 +312,40 @@ def test_module_imports_stdlib_only():
     assert hasattr(score_calc, "compute")
     assert isinstance(CSEN_DISC_PROFILE, ScoringProfile)
     assert isinstance(FCI_AGILITY_PROFILE, ScoringProfile)
+
+
+@pytest.mark.parametrize("text", ["NaN", "nan", "sNaN", "snan", "Infinity", "inf", "-inf", "-Infinity"])
+def test_to_decimal_rejects_non_finite(text):
+    """_to_decimal returns None for non-finite Decimals.
+
+    Decimal("NaN")/"sNaN"/"Infinity" CONSTRUCT without raising; without the is_finite() guard they
+    would either signal InvalidOperation at the un-wrapped validate() comparisons (an unhandled 500)
+    or be folded into a written total and AIR a literal "NaN"/"-Infinity" (a broadcast-integrity
+    breach). The guard turns them into the per-field-error None contract. (Security audit T-16-01.)
+    """
+    assert score_calc._to_decimal(text) is None
+
+
+def test_validate_rejects_non_finite_per_discipline():
+    """A non-finite numeric in any discipline is a clean per-field validation error, not a crash."""
+    # freestyle adjustment (pre-fix this PASSED validate and aired "NaN" to the overlay) + category
+    adj_errs = validate(
+        Discipline.disc_freestyle,
+        {"team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "NaN"},
+        CSEN_DISC_PROFILE,
+    )
+    assert any(e["field"] == "adjustment" for e in adj_errs)
+    assert validate(
+        Discipline.disc_freestyle,
+        {"team": "Infinity", "dog": "5", "player": "5", "catch": "5"},
+        CSEN_DISC_PROFILE,
+    )
+    # agility fault field + disc_tf zone (signalling sNaN raised on '==' pre-fix)
+    assert validate(
+        Discipline.agility,
+        {"tempo": "00:34.50", "sct": "00:30.00", "course_faults": "nan"},
+        CSEN_DISC_PROFILE,
+    )
+    assert validate(
+        Discipline.disc_tf, {"throws": [{"zone": "sNaN"}]}, CSEN_DISC_PROFILE
+    )

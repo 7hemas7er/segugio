@@ -68,6 +68,47 @@ def test_invalid_post_400_writes_nothing(client):
     assert ch["overlay"].read_bytes() == overlay_before
 
 
+# Non-finite Decimal strings ("NaN"/"sNaN"/"Infinity"/"inf") construct WITHOUT raising, so the
+# pre-fix _to_decimal returned a non-finite Decimal: it either signalled InvalidOperation at the
+# un-wrapped validate() comparisons (an unhandled HTTP 500 — "nessun crash ammesso") OR, for the
+# freestyle `adjustment` field, PASSED validate and aired a literal "NaN"/"-Infinity" total to
+# score.json + overlay.txt (a broadcast-integrity breach). The _to_decimal is_finite() guard turns
+# every non-finite field into the contracted per-field 400 + write-nothing. (Sec audit T-16-01/02/11.)
+_NON_FINITE_CASES = [
+    ("disc_freestyle team=NaN", {"discipline": "disc_freestyle", "team": "NaN", "dog": "5", "player": "5", "catch": "5"}, "team"),
+    ("disc_freestyle team=sNaN", {"discipline": "disc_freestyle", "team": "sNaN", "dog": "5", "player": "5", "catch": "5"}, "team"),
+    # The escalated case: an otherwise-valid freestyle whose `adjustment` is non-finite must 400
+    # (pre-fix this returned 204 and aired totale="NaN"/"-Infinity").
+    ("disc_freestyle adjustment=NaN", {"discipline": "disc_freestyle", "team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "NaN"}, "adjustment"),
+    ("disc_freestyle adjustment=Infinity", {"discipline": "disc_freestyle", "team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "Infinity"}, "adjustment"),
+    ("agility course_faults=NaN", {"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "NaN"}, "course_faults"),
+    ("agility course_faults=inf", {"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "inf"}, "course_faults"),
+    ("disc_tf zone=NaN", {"discipline": "disc_tf", "throws": [{"zone": "NaN"}]}, "throws[0].zone"),
+    ("disc_tf zone=sNaN", {"discipline": "disc_tf", "throws": [{"zone": "sNaN"}]}, "throws[0].zone"),
+]
+
+
+@pytest.mark.parametrize("label,body,error_field", _NON_FINITE_CASES, ids=[c[0] for c in _NON_FINITE_CASES])
+def test_non_finite_inputs_rejected_400_writes_nothing(client, label, body, error_field):
+    c, ch = client
+    _seed_valid_score(c)  # prior on-air state to protect
+    score_before = ch["score"].read_bytes()
+    overlay_before = ch["overlay"].read_bytes()
+
+    resp = c.post("/score", json=body)
+
+    # Contracted 400 — never a 500 ("nessun crash ammesso"), never a 204 that airs garbage.
+    assert resp.status_code == 400, f"{label}: expected 400, got {resp.status_code}: {resp.get_data(as_text=True)}"
+    payload = resp.get_json()
+    assert payload is not None and payload.get("errors"), f"{label}: expected an errors body"
+    assert any(e.get("field") == error_field for e in payload["errors"]), (
+        f"{label}: expected a '{error_field}' field error, got {payload['errors']}"
+    )
+    # The on-air files are BYTE-identical — no malformed total was written or aired.
+    assert ch["score"].read_bytes() == score_before, f"{label}: score.json was mutated on reject"
+    assert ch["overlay"].read_bytes() == overlay_before, f"{label}: overlay.txt was mutated on reject"
+
+
 # --- SCC-01: valid → server recomputes Decimal total → atomic write ----------- #
 
 

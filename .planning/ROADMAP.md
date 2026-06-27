@@ -109,7 +109,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 18-02-PLAN.md — Renderer/form identity wiring + D-07a/b XSS inertness proof + D-06 overlay.txt single-line & thin /overlay regression + D-08 rig checklist (Wave 2)
+- [x] 18-02-PLAN.md — Renderer/form identity wiring + D-07a/b XSS inertness proof + D-06 overlay.txt single-line & thin /overlay regression + D-08 rig checklist (Wave 2)
 
 **UI hint**: yes
 
@@ -168,4 +168,4 @@ Plans:
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete    | 2026-06-23 |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete    | 2026-06-27 |
-| 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 1/2 | In Progress|  |
+| 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 2/2 | Complete   | 2026-06-27 |

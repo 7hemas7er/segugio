@@ -57,6 +57,19 @@ class AgilityModel(str, Enum):
 # digits when present. A non-match is a per-field error in validate() — NEVER a coerced 0.
 _TIME_RX = re.compile(r"^(\d{1,2}):([0-5]\d)(?:\.(\d{2}))?$")
 
+# Generous technical sanity ceiling for the free-form numeric fields validate() does NOT otherwise
+# range-bound (freestyle `adjustment`, agility `course_faults`/`course_deductions`). Far above any
+# real disc-dog / agility value, it rejects absurd FINITE magnitudes (e.g. "1e1000") that would
+# otherwise air a nonsense multi-thousand-digit total or overflow Decimal/int arithmetic in
+# compute() — the finite-input sibling of the non-finite guard in _to_decimal (security audit
+# T-16-01/02). This is a robustness sanity bound, NOT a competition rule.
+#
+# The bound is checked via ``Decimal.adjusted()`` (the base-10 exponent of the most-significant
+# digit, ``adjusted() >= 7`` ⟺ ``|value| >= 1e7``), a pure-metadata read that NEVER triggers a
+# context trap. A direct ``abs(d) >= Decimal("1e7")`` would itself raise decimal.Overflow for an
+# extreme-exponent input like "1E999999999" (default context Emax=999999), re-introducing the 500.
+_MAX_FIELD_ADJ_EXP = 7  # reject |value| >= 1e7
+
 
 @dataclass(frozen=True)
 class ScoringProfile:
@@ -238,8 +251,12 @@ def validate(discipline, fields: dict, profile: ScoringProfile) -> list[dict]:
                     {"field": name, "message": f"'{name}' non è un multiplo di {inc}."}
                 )
         adj = fields.get("adjustment")
-        if adj is not None and adj != "" and _to_decimal(adj) is None:
-            errors.append({"field": "adjustment", "message": "Aggiustamento non valido."})
+        if adj is not None and adj != "":
+            adj_d = _to_decimal(adj)
+            if adj_d is None:
+                errors.append({"field": "adjustment", "message": "Aggiustamento non valido."})
+            elif adj_d.adjusted() >= _MAX_FIELD_ADJ_EXP:
+                errors.append({"field": "adjustment", "message": "Aggiustamento fuori scala."})
 
     elif discipline == Discipline.agility:
         # Elimination short-circuits the numeric requirements — an eliminated run needs no times.
@@ -265,6 +282,10 @@ def validate(discipline, fields: dict, profile: ScoringProfile) -> list[dict]:
             elif value < 0:
                 errors.append(
                     {"field": fault_field, "message": f"'{fault_field}' non può essere negativo."}
+                )
+            elif value.adjusted() >= _MAX_FIELD_ADJ_EXP:
+                errors.append(
+                    {"field": fault_field, "message": f"'{fault_field}' fuori scala."}
                 )
 
     return errors

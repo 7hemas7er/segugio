@@ -109,6 +109,40 @@ def test_non_finite_inputs_rejected_400_writes_nothing(client, label, body, erro
     assert ch["overlay"].read_bytes() == overlay_before, f"{label}: overlay.txt was mutated on reject"
 
 
+# Finite-but-astronomical magnitudes are the non-finite sibling: the fields validate() only
+# null/sign-checks (freestyle `adjustment`, agility `course_faults`/`course_deductions`) had no
+# upper bound, so "1E999999999" overflowed Decimal arithmetic in compute() (HTTP 500) and "1e1000"
+# passed validate and AIRED a 1001-digit total (HTTP 204). A magnitude bound in validate()
+# (_MAX_FIELD_MAGNITUDE) plus a route-level compute() try/except both close it. (Sec audit T-16-01/02.)
+_MAGNITUDE_CASES = [
+    ("freestyle adjustment=1e1000", {"discipline": "disc_freestyle", "team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "1e1000"}, "adjustment"),
+    ("freestyle adjustment=1E999999999", {"discipline": "disc_freestyle", "team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "1E999999999"}, "adjustment"),
+    ("agility course_faults=1e1000", {"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "1e1000"}, "course_faults"),
+    ("agility course_faults=1E100000", {"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "1E100000"}, "course_faults"),
+]
+
+
+@pytest.mark.parametrize("label,body,error_field", _MAGNITUDE_CASES, ids=[c[0] for c in _MAGNITUDE_CASES])
+def test_astronomical_magnitude_rejected_400_writes_nothing(client, label, body, error_field):
+    c, ch = client
+    _seed_valid_score(c)
+    score_before = ch["score"].read_bytes()
+    overlay_before = ch["overlay"].read_bytes()
+
+    resp = c.post("/score", json=body)
+
+    # Contracted 400 — never a 500 (Decimal.Overflow / huge-int ValueError) and never a 204 that
+    # airs a multi-thousand-digit total.
+    assert resp.status_code == 400, f"{label}: expected 400, got {resp.status_code}: {resp.get_data(as_text=True)}"
+    payload = resp.get_json()
+    assert payload is not None and payload.get("errors"), f"{label}: expected an errors body"
+    assert any(e.get("field") == error_field for e in payload["errors"]), (
+        f"{label}: expected a '{error_field}' field error, got {payload['errors']}"
+    )
+    assert ch["score"].read_bytes() == score_before, f"{label}: score.json was mutated on reject"
+    assert ch["overlay"].read_bytes() == overlay_before, f"{label}: overlay.txt was mutated on reject"
+
+
 # --- SCC-01: valid → server recomputes Decimal total → atomic write ----------- #
 
 

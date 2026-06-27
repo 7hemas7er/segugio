@@ -349,3 +349,36 @@ def test_validate_rejects_non_finite_per_discipline():
     assert validate(
         Discipline.disc_tf, {"throws": [{"zone": "sNaN"}]}, CSEN_DISC_PROFILE
     )
+
+
+def test_validate_rejects_astronomical_magnitude():
+    """Finite-but-absurd magnitudes on the otherwise-unbounded fields are a per-field error.
+
+    adjustment / course_faults / course_deductions are only null/sign-checked; without the
+    _MAX_FIELD_MAGNITUDE bound a value like "1e1000" passes validate() and then overflows Decimal
+    arithmetic (500) or airs a 1001-digit total (204). The bound turns it into a clean 400.
+    (Security audit T-16-01/02 magnitude sibling.)
+    """
+    adj_errs = validate(
+        Discipline.disc_freestyle,
+        {"team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "1e1000"},
+        CSEN_DISC_PROFILE,
+    )
+    assert any(e["field"] == "adjustment" for e in adj_errs)
+    faults_errs = validate(
+        Discipline.agility,
+        {"tempo": "00:34.50", "sct": "00:30.00", "course_faults": "1E100000"},
+        CSEN_DISC_PROFILE,
+    )
+    assert any(e["field"] == "course_faults" for e in faults_errs)
+    # A real, in-range adjustment / faults value still validates clean (the bound is generous).
+    assert validate(
+        Discipline.disc_freestyle,
+        {"team": "5", "dog": "5", "player": "5", "catch": "5", "adjustment": "1.5"},
+        CSEN_DISC_PROFILE,
+    ) == []
+    assert validate(
+        Discipline.agility,
+        {"tempo": "00:34.50", "sct": "00:30.00", "course_faults": "5"},
+        CSEN_DISC_PROFILE,
+    ) == []

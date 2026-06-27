@@ -356,7 +356,15 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         errors = score_calc.validate(discipline, fields, profile)
         if errors:
             return (jsonify({"errors": errors}), 400)
-        computed = score_calc.compute(discipline, fields, profile)
+        # Defense-in-depth (security audit T-16-01/02): validate() already bounds every numeric input
+        # (non-finite via _to_decimal, absurd magnitude via _MAX_FIELD_MAGNITUDE), so compute() should
+        # never raise. But if any arithmetic still overflows/raises (decimal.Overflow subclasses
+        # ArithmeticError; an over-limit int(...) str-conversion raises ValueError), return the
+        # contracted 400 + write NOTHING rather than an unhandled 500 ("nessun crash ammesso").
+        try:
+            computed = score_calc.compute(discipline, fields, profile)
+        except (ArithmeticError, ValueError):
+            return (jsonify({"errors": [{"field": "_", "message": "Errore di calcolo del punteggio."}]}), 400)
         _write_score_doc(ScoreDoc(discipline=discipline, fields=computed))
         return ("", 204)
 

@@ -78,7 +78,8 @@ Plans:
   2. For multi-throw disc T&F the operator adds/edits throws across N rounds and sees a correct progressive running total; reloading the tablet mid-run restores the in-progress entry (no lost throws), and any persisted in-progress state is written atomically with a never-raise reader.
   3. Publishing to air is a deliberate, visually distinct action — a casual tap or Enter cannot put a half-entered score on air.
   4. The new page and modal load with ZERO external/CDN assets, all inputs are ≥16px (no iOS focus-zoom), and the modal traps focus and survives sleep/wake — code-time tablet contract met (real-iPad rig UAT deferred, non-blocking).
-**Plans**: 2 plans
+
+**Plans**: 2 plans
 **Wave 1**
 
   - [x] 17-01-PLAN.md — Wave 1: extract the shared Jinja form partial + dedicated page include; add localStorage reload-safe draft (SCC-05/D-01..D-04), two-step danger-styled publish confirm + Enter-suppression (SCE-04/D-05/D-06) inside the one score-entry.js module
@@ -101,7 +102,15 @@ Plans:
   3. The `/overlay` graphical renderer still displays the score from the flat keys, and the host page bakes in NO score data (stays thin/poll-only).
   4. New free-text fields (dog/handler name, judges) are HTML-escaped at the sink — no `innerHTML`, no `| safe`; a crafted `<script>` name renders as inert escaped text both on the overlay and in any form preview.
 
-**Plans**: TBD
+**Plans**: 2 plansPlans:
+**Wave 1**
+
+- [ ] 18-01-PLAN.md — Additive Decimal-string subkeys in compute() + free-text identity passthrough + D-05 golden snapshot + crash-isolation rich-POST (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 18-02-PLAN.md — Renderer/form identity wiring + D-07a/b XSS inertness proof + D-06 overlay.txt single-line & thin /overlay regression + D-08 rig checklist (Wave 2)
+
 **UI hint**: yes
 
 <details>

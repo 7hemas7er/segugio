@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: planning
 stopped_at: Phase 18 context gathered
-last_updated: "2026-06-27T10:37:11.930Z"
+last_updated: "2026-06-27T11:10:41.279Z"
 last_activity: 2026-06-27 — Phase 17 completed and advanced to Phase 18
 progress:
   total_phases: 4

@@ -161,6 +161,32 @@ atomic overlay file (`overlay.txt`).
   `set_input_settings`, which is identical across text-source kinds (Pitfall 5). The
   read-from-file source is the steady-state path; `set_overlay_text` is for one-shots only.
 
+## Phase 18 — rich-POST overlay.txt rig check (NON-BLOCKING)
+
+> **This checklist does NOT gate phase sign-off.** Sign-off is gated by the automated tests
+> (`tests/test_overlay_fallback_gate.py::test_overlay_txt_single_line_after_rich_post` and the
+> `/overlay`-thin / XSS-sink gates), per RBT-09 / D-08. This is an optional confidence pass on a
+> real OBS rig — record the outcome in the phase docs; it never blocks the release.
+
+Phase 18 enriched the score data model (additive `throws[].score` / `criteria{}` /
+`faults_breakdown{}` subkeys + free-text `cane`/`conduttore`/`giudici` identity). The
+read-from-file `overlay.txt` fallback reads only flat scalar keys, so a **rich** POST must still
+air a single current line. To confirm on the physical OBS box:
+
+1. Add (or reuse) the **`Score Text`** OBS Text source with **Read from file** pointed at the
+   orchestrator's `overlay.txt` (see the read-from-file fallback section below). Make it visible.
+2. Fire a **rich** `POST /score` for **each discipline** from the console / score-entry form:
+   - **disc Toss & Fetch** — a multi-throw entry (so `throws[].score` subkeys are produced) plus
+     `cane`/`conduttore` identity.
+   - **disc Freestyle** — the four category values (so `criteria{}` is produced) plus identity.
+   - **Agility** — a count_up run over SCT (so `faults_breakdown{}` is produced) plus identity.
+3. After each POST, confirm the live `Score Text` source updates to a **single current line** (no
+   second line, no truncated/overflowing text, no stale value) — the recomputed flat fields only
+   (e.g. `Prese: … Zona: … Totale: …`), never the rich subkeys or the identity free-text.
+
+Symptom of a regression (caught automatically by the gate, surfaced here for the operator): a
+multi-line `Score Text` source, an empty line, or an overflowed value after a rich POST.
+
 ## PIP / MULTIVIEW — manual / idle-only in v1
 
 The controller builds the PIP machinery (it caches the numeric `sceneItemId` of each PIP source

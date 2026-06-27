@@ -156,6 +156,41 @@ def test_overlay_event_name_is_autoescaped() -> None:
     assert "&lt;script&gt;" in html
 
 
+def test_overlay_bakes_no_score_after_rich_post(file_channel) -> None:
+    """A rich POST /score must NOT bake any score/identity value into GET /overlay HTML (SC#3 / D-06).
+
+    The 18-01 enrichment grew the score doc (subkeys + free-text identity), but the ``/overlay``
+    host page stays THIN / poll-only: it serves static branding + the renderer bootstrap and reads
+    NO score state. POST a rich score (with sentinel identity values), then GET ``/overlay`` on the
+    SAME app and assert none of the posted values leak into the served HTML, and the page is still
+    poll-only with ``Cache-Control: no-store`` (T-18-04 — no live data baked into the served page).
+    """
+    from segugio.ui.app import create_app
+
+    app = create_app(str(file_channel["dir"]), cam_ids=["cam_wide"], overlay_cfg=_CFG)
+    client = app.test_client()
+    resp = client.post(
+        "/score",
+        json={
+            "discipline": "disc_tf",
+            "throws": [{"zone": 4, "midair": "on", "corridor": "false"}],
+            "cane": "RexSentinel",
+            "conduttore": "AnnaSentinel",
+            "giudici": "GiudiceSentinel",
+        },
+    )
+    assert resp.status_code == 204, f"/score returned {resp.status_code}, expected 204"
+
+    page = client.get("/overlay")
+    html = page.get_data(as_text=True)
+    # No posted identity (or recomputed score) value is baked into the thin host page.
+    for needle in ("RexSentinel", "AnnaSentinel", "GiudiceSentinel"):
+        assert needle not in html, f"/overlay baked in a posted score value: {needle}"
+    # Still poll-only (references the renderer script) and no-store (the page never caches state).
+    assert '<script src="/static/overlay-render.js">' in html
+    assert page.headers.get("Cache-Control") == "no-store"
+
+
 # ---------------------------------------------------------------------------
 # Phase-12 preview=1 page contract (plan 12-01, RED-by-design until 12-02)
 # ---------------------------------------------------------------------------

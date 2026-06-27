@@ -122,16 +122,32 @@ def test_console_resolves_with_heavy_stack_and_numpy_absent(
         payload = resp.get_json()
         assert "gen" in payload and "server_now" in payload
 
-        # RBT-08 (Phase 15/16/17): a POST /score round-trip must RESOLVE with the heavy stack
+        # RBT-08 (Phase 15/16/17/18): a POST /score round-trip must RESOLVE with the heavy stack
         # absent. P17 retired the legacy urlencoded display-only back-compat branch (D-11), so the
-        # AUTHORITATIVE structured JSON path is the only path — post a valid disc_tf body (one
-        # zone-2 throw) so validate passes and the route recomputes + writes (204). The assertion
-        # tolerates 200/204; the GOAL is unchanged — the route resolves heavy-free without a 500.
+        # AUTHORITATIVE structured JSON path is the only path. Phase 18 (D-09): post a RICH body —
+        # a subkey-producing disc_tf throw PLUS the new free-text identity keys cane/conduttore/
+        # giudici — proving the additive subkeys (str(Decimal), Pitfall 1) + identity passthrough
+        # need NO new import and never 500 on json.dumps under the forced-absent heavy stack.
         resp = client.post(
             "/score",
-            json={"discipline": "disc_tf", "throws": [{"zone": 2, "midair": True, "corridor": False}]},
+            json={
+                "discipline": "disc_tf",
+                "throws": [{"zone": 2, "midair": True, "corridor": False}],
+                "cane": "Rex",
+                "conduttore": "Anna",
+                "giudici": "G1",
+            },
         )
         assert resp.status_code in (204, 200)
+
+        # The rich POST round-trips heavy-free: GET /overlay-json must echo the additive per-throw
+        # `score` subkey AND the identity keys verbatim, proving Pitfall 1 (no raw Decimal hits
+        # json.dumps) holds under the heavy-absent block.
+        fields = client.get("/overlay-json").get_json()["fields"]
+        assert fields["throws"][0]["score"] == "2.5"  # zone-2 (+0.5 midair) throw
+        assert fields["cane"] == "Rex"
+        assert fields["conduttore"] == "Anna"
+        assert fields["giudici"] == "G1"
 
         # RBT-07 (Phase 11) — the NEW GET /overlay host page must also register and resolve under
         # the heavy-absent block: building create_app + the overlay_cfg injection must add no

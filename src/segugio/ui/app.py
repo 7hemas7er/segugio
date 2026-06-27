@@ -154,6 +154,13 @@ def _parse_structured_inputs(discipline, raw, is_json: bool) -> dict:
         ):
             if key in raw:
                 fields[key] = raw.get(key)
+    # Free-text identity keys (D-01) flow through on ALL THREE disciplines, display-only (never
+    # validated, never recomputed). NOT `dog` — that collides with the freestyle `dog` category key.
+    # Plain dict copies: compute() carries them verbatim via `out = dict(fields)` and the route
+    # echoes them, so no new import and no edit to compute()/validate()/get_overlay_json (D-09).
+    for key in ("cane", "conduttore", "giudici"):
+        if key in raw:
+            fields[key] = raw.get(key)
     return fields
 
 

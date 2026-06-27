@@ -105,7 +105,7 @@ Plans:
 **Plans**: 2 plansPlans:
 **Wave 1**
 
-- [ ] 18-01-PLAN.md — Additive Decimal-string subkeys in compute() + free-text identity passthrough + D-05 golden snapshot + crash-isolation rich-POST (Wave 1)
+- [x] 18-01-PLAN.md — Additive Decimal-string subkeys in compute() + free-text identity passthrough + D-05 golden snapshot + crash-isolation rich-POST (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -168,4 +168,4 @@ Plans:
 | 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete    | 2026-06-23 |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete    | 2026-06-27 |
-| 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 0/? | Not started | - |
+| 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 1/2 | In Progress|  |

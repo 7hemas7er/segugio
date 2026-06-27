@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: planning
-stopped_at: Phase 18 context gathered
-last_updated: "2026-06-27T11:10:41.279Z"
-last_activity: 2026-06-27 — Phase 17 completed and advanced to Phase 18
+status: executing
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-06-27T12:03:03.932Z"
+last_activity: 2026-06-27 -- Phase 18 execution started
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
   percent: 75
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Phase 18 — rich-data-model-&-overlay-continuity-regression
+**Current focus:** Phase 18 — rich-data-model-overlay-continuity-regression
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
-Status: Ready to plan. Phase 17 complete — verification passed (4/4 code + 5/5 UAT) and security SECURED (threats_open 0).
-Last activity: 2026-06-27 — Phase 17 completed and advanced to Phase 18
+Phase: 18 (rich-data-model-overlay-continuity-regression) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-06-27 -- Phase 18 execution started
 
 ## Performance Metrics
 
@@ -123,6 +123,7 @@ Last activity: 2026-06-27 — Phase 17 completed and advanced to Phase 18
 | Phase 16 P16-02 | 20min | 3 tasks | 4 files |
 | Phase 17 P17-01 | 9min | 3 tasks | 4 files |
 | Phase 17 P17-02 | 16min | 3 tasks | 10 files |
+| Phase 18 P01 | 11min | 3 tasks tasks | 5 files files |
 
 ## Accumulated Context
 
@@ -241,6 +242,7 @@ Recent decisions affecting current work:
 - [Phase 14 / 14-03]: Operator-facing consistency fixes (D-06/D-08/SC#4), docs+config only. (1) D-08: config.example.yaml cam_wide ndi_source aligned from the LOCALHOST drift to the canonical "PHONE-WIDE (NDI HX3)" (the scene JSON + agility config + the other 3 cams were already canonical — direction NOT flipped, RESEARCH A2/Pitfall 4). tests/test_scene_template.py gained a parametrized test_config_ndi_source_matches_scene_collection asserting every example-config ndi_source byte-matches a scene ndi_source_name (over both configs) — the permanent T-14-ndidrift guard against "OBS sees it but console blank"; reused the existing json/yaml parse helpers, no new dep. (2) D-06: docs/obs-setup.md coexistence section rewritten — the operator's ONLY manual step on a browser death is revealing Score Text; the redundant Phase-13 "also hide Score Overlay" step is REMOVED because the browser overlay auto-hides via the 14-01 DEAD_MS (~3s) threshold; the Score-Text-visible:false-while-alive note + read-from-file fallback + "no auto-reveal" guarantee kept. A byte-match NDI-name note (D-08) added near the NDI setup step citing "PHONE-WIDE (NDI HX3)" + the "OBS sees it but console blank" gotcha. (3) docs/security.md gained a new one-paragraph "HTML-sink output encoding re-affirmed (SC#4, Phase 14)" section: score values sink via textContent (never innerHTML), event_name/logo_path are Jinja-autoescaped, gated by the 14-02 SC#4 test (the Phase-13 paragraph covered only the textContent half → non-duplicating addition). No code touched (RBT-07 import surface unaffected); test_scene_template.py (9) + test_imports.py green. NOTE: gsd-tools not on PATH — STATE/ROADMAP hand-edited; phase-level [x] + RBT-06 Complete sign-off DEFERRED to /gsd-verify-work (env gotcha). All 3 Phase-14 plans now executed.
 - [Phase 16 / 16-02]: ONE shared `score-entry.js` `mount(root, cfg)` component (dual export `window.SEGUGIO_SCORE_ENTRY` + `module.exports`, cfg read from `JSON.parse(#score-cfg.textContent)` NOT a window global — so the SAME module re-mounts in the P17 console modal, the SCV-02 drift-free proof applied to a form) proven on the thin Jinja `/score-entry` host. Renders per-discipline rich fields from the injected active profile: disc-T&F repeatable IN-SESSION throw list (`+ Aggiungi lancio` / per-row `×`, `Zona`/`Al volo`/`Corridoio`, NO localStorage — D-01a) with best-5-of-N reflected in the LIVE advisory `Totale (provvisorio)` (updated IN PLACE via `textContent`, "non ufficiale" caption); freestyle categories + free-text `nome`; agility fields per `cfg.profile.agility_model`. `input` → recompute via `SEGUGIO_SCORE_CALC.compute`; `blur` → per-field error chips via `.validate`; submit (button ALWAYS enabled, D-04) POSTs RAW structured inputs (`throws[]`/cats/agility raw) as JSON to the authoritative `/score` — never a client total (T-16-08); persistent `#publish-banner` = `✓ In onda` on 2xx, server per-field errors + `Errore — punteggio precedente invariato` on 400 (D-05). `app.py` gained stdlib `_profile_to_json` (every Decimal as `str(...)` so the JS BigInt-Decimal total never float-drifts — T-16-10), the D-06 discipline derivation (`disc_dog`→T&F+Freestyle, else Agility), the `GET /score-entry` route, and the LAZY `adapt_scoring_profile`/`cfg.field.sport` resolution in `__main__` (crash-isolation green — T-16-09). All operator/echoed values via `textContent`; only static icon SVG via innerHTML (T-16-07). Task 3 (manual UX checkpoint, the one manual item in 16-VALIDATION.md) APPROVED by the operator. Gate tests re-confirmed green: `test_ui_score_entry.py` 4 passed; the 16-0x set (entry+authoritative+calc_js+score+imports+overlay_json) 62 passed / 0 failed / 0 skipped. SCE-01/02/03/05 complete. NOTE: gsd-tools resolved via the node shim (`gsd-tools.cjs`) for STATE/ROADMAP/REQUIREMENTS updates; phase-level [x] + Complete sign-off DEFERRED to /gsd-verify-work (orchestrator's job).
 - [Phase ?]: 17-02: console modal reuses the ONE shared partial + component (SCV-02 drift-free); legacy #form-score + _is_legacy_score_post retired, authoritative JSON is the sole /score path
+- [Phase ?]: [Phase 18 / 18-01]: compute() grew three ADDITIVE Decimal-STRING subkeys beside the byte-identical flat keys — disc_tf per-throw `score` (co-located on rebuilt throw dicts), freestyle top-level `criteria{}`, agility `faults_breakdown{course,time}` on count_up+deduct (OMITTED on elimination). Identity free-text keys cane/conduttore/giudici pass through _parse_structured_inputs on ALL THREE disciplines (NOT `dog` — freestyle collision), plain dict copies, no new import (D-09). D-05 golden snapshot freezes the 6-key /overlay-json envelope (==) + per-discipline legacy flat keys (subset <=, additive growth allowed). Full suite green incl. Phase-16 round-trip equality. RBT-09 data-model half closed; render half is 18-02; phase-level sign-off deferred to verifier.
 
 ### Pending Todos
 
@@ -305,8 +307,8 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-27T10:37:11.913Z
-Stopped at: Phase 18 context gathered
+Last session: 2026-06-27T12:02:50.978Z
+Stopped at: Completed 18-01-PLAN.md
 Resume file: .planning/phases/18-rich-data-model-overlay-continuity-regression/18-CONTEXT.md
 
 ## Operator Next Steps

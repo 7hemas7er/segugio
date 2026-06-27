@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: ready
-stopped_at: Phase 17 complete (verification passed + security SECURED); ready to plan Phase 18
-last_updated: "2026-06-27T06:55:24.838Z"
-last_activity: 2026-06-27 — Phase 17 completed (UAT 5/5, security threats_open 0); advanced to Phase 18
+status: planning
+stopped_at: Phase 18 context gathered
+last_updated: "2026-06-27T10:37:11.930Z"
+last_activity: 2026-06-27 — Phase 17 completed and advanced to Phase 18
 progress:
   total_phases: 4
   completed_phases: 3
@@ -305,9 +305,9 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 
 ## Session Continuity
 
-Last session: 2026-06-24T20:23:34.143Z
-Stopped at: Phase 17 context gathered
-Resume file: .planning/phases/17-console-modal-multi-throw-state-tablet-ux/17-CONTEXT.md
+Last session: 2026-06-27T10:37:11.913Z
+Stopped at: Phase 18 context gathered
+Resume file: .planning/phases/18-rich-data-model-overlay-continuity-regression/18-CONTEXT.md
 
 ## Operator Next Steps
 

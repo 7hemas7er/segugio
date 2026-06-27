@@ -37,7 +37,7 @@
 ### Continuità & robustezza (RBT)
 
 - [x] **RBT-08**: La **crash-isolation è preservata e ri-verificata** — la console importa solo `Flask + segugio.opcomm` + `score_calc` (puro); l'import-smoke test è esteso ai nuovi moduli/route e `POST /score` risponde anche con lo stack pesante assente (torch/cv2/ultralytics/numpy/cyndilib/obsws) — *Plan 15-03: `test_console_resolves_with_heavy_stack_and_numpy_absent` esteso con `import segugio.ui.score_calc` + round-trip `POST /score` (200/204) sotto il blocco heavy+numpy+cv2 forced-absent.*
-- [ ] **RBT-09**: Il **fallback degradato `overlay.txt`** e i contratti **`/overlay` + `/overlay-json`** restano invariati (regressione verificata); i nuovi campi free-text (es. nome cane/handler, giudici) sono **HTML-escaped al sink** dell'overlay
+- [x] **RBT-09**: Il **fallback degradato `overlay.txt`** e i contratti **`/overlay` + `/overlay-json`** restano invariati (regressione verificata); i nuovi campi free-text (es. nome cane/handler, giudici) sono **HTML-escaped al sink** dell'overlay
 
 ## Future Requirements
 
@@ -80,7 +80,7 @@ Quali fasi coprono quali requisiti. Popolata durante la creazione della roadmap.
 | SCP-01 | Phase 15 | Complete (15-02) |
 | SCP-02 | Phase 15 | Complete (15-02) |
 | RBT-08 | Phase 15 | Complete (15-03) |
-| RBT-09 | Phase 18 | Pending |
+| RBT-09 | Phase 18 | Complete |
 
 **Coverage:**
 

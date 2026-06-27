@@ -307,3 +307,82 @@ def test_started_at_persists_across_restart(client):
     data = c2.get("/overlay-json").get_json()
     assert data["running"] is True
     assert data["started_at"] == started
+
+
+# --- D-05 golden snapshot: freeze the legacy /overlay-json key set --------------- #
+#
+# The legacy per-discipline FLAT key set frozen by CI (D-05/SC#1). A future rename or removal of
+# any of these keys fails the snapshot; the SUBSET (`<=`) form (Open Question 1 resolution) does NOT
+# block future ADDITIVE keys — matching D-04 "strictly additive". The 6-key envelope is asserted
+# with `==` (a NEW top-level envelope key is never allowed).
+LEGACY_FLAT_KEYS = {
+    "disc_tf": {"throws", "prese", "zona", "totale"},
+    "disc_freestyle": {"nome", "timer", "totale"},
+    "agility_count_up": {"tempo", "sct", "faults"},
+}
+
+_ENVELOPE_KEYS = {"discipline", "fields", "running", "started_at", "server_now", "gen"}
+
+
+def test_overlay_json_envelope_frozen(client):
+    """The /overlay-json envelope is EXACTLY the 6 frozen keys — never a new top-level key (D-05)."""
+    c, _ = client
+    data = c.get("/overlay-json").get_json()
+    assert set(data) == _ENVELOPE_KEYS
+
+
+def test_disc_tf_legacy_keys_preserved_and_subkey_added(client):
+    """POST a rich disc_tf body → /overlay-json fields keep the legacy flat key set (subset) AND
+    carry the NEW additive per-throw `score` alongside the byte-identical raw throw keys (D-05/D-04)."""
+    c, _ = client
+    resp = c.post(
+        "/score",
+        json={"discipline": "disc_tf", "throws": [{"zone": 4, "midair": True, "corridor": False}]},
+    )
+    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
+    fields = c.get("/overlay-json").get_json()["fields"]
+    # legacy flat keys frozen (a rename/removal of throws/prese/zona/totale fails CI).
+    assert LEGACY_FLAT_KEYS["disc_tf"] <= set(fields)
+    # raw throw key preserved byte-identical.
+    assert fields["throws"][0]["zone"] == 4
+    # NEW additive subkey present as a Decimal STRING (4 + 0.5 midair).
+    assert fields["throws"][0]["score"] == "4.5"
+    assert isinstance(fields["throws"][0]["score"], str)
+
+
+def test_freestyle_legacy_keys_preserved_and_criteria_added(client):
+    """POST a freestyle body → legacy flat keys frozen (subset) AND the additive `criteria{}` present."""
+    c, _ = client
+    resp = c.post(
+        "/score",
+        json={
+            "discipline": "disc_freestyle",
+            "nome": "Rex",
+            "timer": "1:45",
+            "team": "8.5",
+            "dog": "7.25",
+            "player": "6.00",
+            "catch": "9.10",
+            "adjustment": "0",
+        },
+    )
+    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
+    fields = c.get("/overlay-json").get_json()["fields"]
+    assert LEGACY_FLAT_KEYS["disc_freestyle"] <= set(fields)
+    assert "criteria" in fields
+    assert fields["criteria"]["team"] == "8.50"  # stringified, 0.01-snapped
+    assert isinstance(fields["criteria"]["team"], str)
+
+
+def test_agility_legacy_keys_preserved_and_breakdown_added(client):
+    """POST an agility count_up body → legacy flat keys frozen (subset) AND `faults_breakdown{}` present."""
+    c, _ = client
+    resp = c.post(
+        "/score",
+        json={"discipline": "agility", "tempo": "00:34.50", "sct": "00:30.00", "course_faults": "5"},
+    )
+    assert resp.status_code in (200, 204), resp.get_data(as_text=True)
+    fields = c.get("/overlay-json").get_json()["fields"]
+    assert LEGACY_FLAT_KEYS["agility_count_up"] <= set(fields)
+    assert fields["faults_breakdown"] == {"course": "5", "time": "5"}
+    assert all(isinstance(v, str) for v in fields["faults_breakdown"].values())

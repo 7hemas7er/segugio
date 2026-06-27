@@ -135,15 +135,25 @@
     return anyChanged;
   }
 
-  // Identity line (D-08 / BRD-02): "{competitor} · {event}". Competitor = verbatim
-  // `nome` from the free fields dict for ALL disciplines (zero data-model change).
-  // The event half is STATIC page branding (baked into #identity[data-event] by
-  // Jinja) — it is NOT read from /overlay-json. Empty competitor → just the event;
-  // both empty → the line is hidden (#identity:empty { display: none } in 11-02).
+  // Identity line (D-08 / BRD-02 / D-01): "{competitor} · {event}". Competitor is built
+  // from the free-text identity fields for ALL disciplines: cane + " / " + conduttore when
+  // both are present, otherwise whichever is present, falling back to the freestyle routine
+  // `nome` (zero data-model change). The event half is STATIC page branding (baked into
+  // #identity[data-event] by Jinja) — it is NOT read from /overlay-json. Empty competitor →
+  // just the event; both empty → the line is hidden (#identity:empty { display: none } in
+  // 11-02). The judges field is data-only and is deliberately NEVER read/rendered here (D-01).
   function renderIdentity(identityEl, fields) {
     if (!identityEl) return;
     const event = identityEl.getAttribute("data-event") || "";
-    const competitor = scvGet(fields, "nome");
+    // Combine the sanitized identity values (scvGet already cleanField-sanitizes each), then
+    // append via createTextNode below — never innerHTML/insertAdjacentHTML (Pitfall 4).
+    const cane = scvGet(fields, "cane");
+    const conduttore = scvGet(fields, "conduttore");
+    let competitor;
+    if (cane && conduttore) competitor = cane + " / " + conduttore;
+    else if (cane) competitor = cane;
+    else if (conduttore) competitor = conduttore;
+    else competitor = scvGet(fields, "nome");
     // Rebuild the small identity line with textContent-only nodes (a <span class="sep">
     // separator between the two halves). No innerHTML — every value is textContent.
     while (identityEl.firstChild) identityEl.removeChild(identityEl.firstChild);

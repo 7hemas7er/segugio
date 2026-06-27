@@ -159,6 +159,47 @@
     }
     root.appendChild(discBlock);
 
+    // --- universal identity block (D-01) -----------------------------------
+    // Free-text identity inputs shown for ALL disciplines (built once in mount, NOT inside a
+    // per-discipline buildX). cane/conduttore feed the broadcast lower-third competitor line;
+    // giudici is data-only (carried to the server, never rendered on the lower-third). collectRaw()
+    // merges these into the wire body for EVERY discipline. The preview echo is textContent ONLY
+    // (mirrors the freestyle nomeEcho precedent) so a crafted <script> renders inert (T-18-02).
+    const identityBlock = el("div", { class: "identity-block" });
+    identityBlock.appendChild(el("legend", { class: "section-legend" }, "Identità"));
+    const caneInput = el("input", { id: "id-cane", type: "text", "data-field": "cane", class: "id-cane" });
+    identityBlock.appendChild(labelled("Cane", caneInput));
+    const conduttoreInput = el("input", {
+      id: "id-conduttore",
+      type: "text",
+      "data-field": "conduttore",
+      class: "id-conduttore",
+    });
+    identityBlock.appendChild(labelled("Conduttore", conduttoreInput));
+    const giudiciInput = el("input", {
+      id: "id-giudici",
+      type: "text",
+      "data-field": "giudici",
+      class: "id-giudici",
+    });
+    identityBlock.appendChild(labelled("Giudici", giudiciInput));
+    // Echo the (untrusted) competitor into a preview via textContent ONLY (XSS-safe, T-18-02).
+    const identityEcho = el("div", { class: "identity-echo hint" });
+    identityBlock.appendChild(identityEcho);
+    function updateIdentityEcho() {
+      const c = caneInput.value;
+      const h = conduttoreInput.value;
+      let text;
+      if (c && h) text = c + " / " + h;
+      else text = c || h || "";
+      // textContent in place — inert if it contains markup.
+      if (identityEcho.textContent !== text) identityEcho.textContent = text;
+    }
+    [caneInput, conduttoreInput, giudiciInput].forEach((inp) =>
+      inp.addEventListener("input", updateIdentityEcho)
+    );
+    root.appendChild(identityBlock);
+
     // --- field-set containers (.campi[data-disc]) show/hide toggle ----------
     const campiDiscTf = buildDiscTf();
     const campiFreestyle = buildFreestyle();
@@ -520,6 +561,11 @@
           out[field] = inp.type === "checkbox" ? inp.checked : inp.value;
         });
       }
+      // Universal identity (D-01) — merged for EVERY discipline regardless of `active`,
+      // copying each [data-field] value verbatim (cane/conduttore/giudici).
+      identityBlock.querySelectorAll("[data-field]").forEach((inp) => {
+        out[inp.getAttribute("data-field")] = inp.value;
+      });
       return out;
     }
 

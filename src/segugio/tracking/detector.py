@@ -39,7 +39,77 @@ from loguru import logger
 if TYPE_CHECKING:  # type-only — keeps heavy deps off the runtime import path
     import numpy as np
 
-__all__ = ["PerCameraTracker", "resolve_dog_index"]
+__all__ = ["PerCameraTracker", "ensure_native_feats", "resolve_dog_index"]
+
+
+def ensure_native_feats(model) -> None:
+    """Register the native-ReID FEATS-EXTRACTION hook on a shared detection model (Track-B).
+
+    This is the load-bearing batched-path fix. In the serial ``model.track()`` path Ultralytics'
+    ``on_predict_start`` callback registers a forward-pre-hook on the Detect head that captures the
+    feature pyramid into ``predictor._feats``; ``DetectionPredictor.postprocess`` then attaches one
+    per-detection feature vector to each ``result.feats`` (only when ``_feats`` is set). The native
+    BoT-SORT encoder (``lambda feats, s: [f.cpu().numpy() for f in feats]``) consumes exactly those
+    per-detection ``result.feats``.
+
+    The batched path runs ``model.predict([N frames])`` — which does NOT register that hook — so
+    ``result.feats`` is never attached, ``BOTSORT.update`` receives ``feats=None``, and the native
+    encoder is handed the raw BGR frame (numpy rows) → ``'numpy.ndarray' object has no attribute
+    'cpu'``. Re-using ``model.track()`` to register the hook is WORSE: it also registers
+    ``on_predict_postprocess_end`` (auto-tracking on the shared predictor, mixing IDs across the N
+    batched frames — #13107) which re-indexes ``predictor.results[i]`` and STRIPS the ``feats`` attr.
+
+    So this helper registers ONLY the feats hook — mirroring the native-ReID branch of Ultralytics'
+    ``on_predict_start`` WITHOUT the tracker construction and WITHOUT the postprocess auto-tracking.
+    A single ``model.predict(..., end2end=False)`` then populates ``result.feats``, and association
+    is dispatched manually to one BOTSORT per ``cam_id`` (built via :meth:`PerCameraTracker._build_botsort`).
+
+    Idempotent (guarded by ``model._segugio_feats_cb``) and called every tick before the batched
+    forward; a no-op on a model without ``add_callback`` (a headless fake) so the dispatch-shape
+    tests keep injecting plain fakes. The hook only engages when the in-graph Detect head is a real
+    ``nn.Module`` with ``end2end=False`` (the eager ``.pt`` native-ReID precondition); on an
+    engine-backed model the condition is False and no hook registers (cls-ReID fallback wants the
+    frame, so ``feats=None`` is correct there).
+
+    Args:
+        model: the shared ``ultralytics.YOLO`` that runs the single batched detection forward (in
+            production ``any_tracker.model``). A headless fake (no ``add_callback``) is a no-op.
+    """
+    if not hasattr(model, "add_callback"):
+        return  # headless fake model — nothing to hook (dispatch-shape tests inject plain fakes)
+    if getattr(model, "_segugio_feats_cb", False):
+        return  # already registered — idempotent across ticks
+    import torch  # lazy — heavy import inside the function (lazy-import boundary)
+    from ultralytics.nn.modules.head import Detect
+
+    def _on_predict_start(predictor, persist: bool = False) -> None:
+        # Reset + re-arm each predict so feats stay fresh and never leak across ticks. Mirrors
+        # Ultralytics' on_predict_start native-ReID branch (the hook half only).
+        predictor._feats = None
+        if getattr(predictor, "_hook", None) is not None:
+            try:
+                predictor._hook.remove()
+            except Exception:  # noqa: BLE001 — a stale handle must not crash the live loop
+                pass
+            predictor._hook = None
+        try:
+            inner = predictor.model.model  # AutoBackend.model → the torch DetectionModel
+            det = inner.model[-1]  # the Detect head (last module of the Sequential)
+        except (AttributeError, TypeError, IndexError):
+            return  # engine / non-standard backend → no in-graph Detect head, no native feats
+        if (
+            isinstance(inner, torch.nn.Module)
+            and isinstance(det, Detect)
+            and not getattr(det, "end2end", False)
+        ):
+
+            def _pre_hook(module, inp):
+                predictor._feats = list(inp[0])  # unroll to a new list (avoid forward mutation)
+
+            predictor._hook = det.register_forward_pre_hook(_pre_hook)
+
+    model.add_callback("on_predict_start", _on_predict_start)
+    model._segugio_feats_cb = True
 
 
 def _resolve_tracker_yaml(tracker_yaml) -> str:
@@ -238,55 +308,64 @@ class PerCameraTracker:
             return None
         return results[0]  # one Results for the single frame
 
-    def _ensure_persistent_tracker(self, frame: "np.ndarray") -> None:
-        """Build THIS camera's persistent BoT-SORT tracker for the Track-B batched ``update()``.
+    def _ensure_persistent_tracker(self, frame: "np.ndarray | None" = None) -> None:
+        """Build THIS camera's persistent BoT-SORT for the Track-B batched ``update()`` path.
 
-        The Track-B batched path bypasses ``model.track()`` (it runs ONE shared
-        ``model.predict()`` over all cameras), so the per-camera ``predictor.trackers`` are
-        never built. There are TWO warmup shapes depending on the backend:
+        The Track-B batched path bypasses ``model.track()`` (it runs ONE shared ``model.predict()``
+        over all cameras), so the per-camera ``predictor.trackers`` are never built — and must NOT
+        be: building them via a ``model.track()`` warmup also registers Ultralytics'
+        ``on_predict_postprocess_end`` callback, which then re-runs association on the shared
+        batched ``predict()`` (mixing IDs across the N frames, #13107) AND strips ``result.feats``
+        by re-indexing the result (the root-cause of the native-ReID encoder crash). So we build
+        the ``BOTSORT`` DIRECTLY (no warmup forward, no tracking callbacks) for BOTH backends:
 
-          * EAGER ``.pt`` (``is_engine`` False): run ONE warmup ``self.track(frame)`` — that
-            registers Ultralytics' Detect forward-pre-hook on the shared model graph (so the
-            subsequent batched ``predict()`` populates ``result.feats`` for native ReID) AND
-            constructs the persistent ``BOTSORT`` in ``predictor.trackers[0]``, which we cache.
+          * EAGER ``.pt`` (``is_engine`` False): register the feats-extraction hook on this
+            model via :func:`ensure_native_feats` (so the batched ``predict(..., end2end=False)``
+            populates ``result.feats``) and build the BOTSORT with the NATIVE config
+            (``model: auto`` → the zero-extra-weight native lambda encoder, fed the real
+            per-detection ``result.feats``).
 
-          * ENGINE (``is_engine`` True): a static ``batch=N`` TensorRT engine REJECTS a
-            single-frame ``track()`` (``input size (1,3,H,W) != max model size (N,3,H,W)``), so
-            the eager warmup cannot run. The native-ReID hook is structurally absent on an
-            engine anyway (Q1 Option (a) — AutoBackend exposes no in-graph Detect head), so the
-            warmup's ONLY remaining job is to BUILD the persistent ``BOTSORT``. We construct it
-            DIRECTLY — mirroring Ultralytics' ``on_predict_start`` (cls-ReID fallback, the
-            accepted Q1 (a) encoder) — without any single-frame forward. The batched
-            ``predict([N frames])`` (matching the engine's batch) drives detection; this tracker
-            handles association on each camera's slice.
+          * ENGINE (``is_engine`` True): the in-graph Detect head is structurally absent on an
+            AutoBackend engine (Q1 Option (a)), so native feats are impossible — build the BOTSORT
+            with the cls-ReID fallback (``yolo26n-cls.pt``), which takes the frame (``feats=None``)
+            and crops its own embeddings. No feats hook is registered (its precondition is False).
+
+        ``frame`` is accepted for call-site parity (the dispatcher passes this camera's frame) but
+        is unused — the direct build needs no single-frame warmup. One tracker per ``cam_id`` (#13107).
         """
         if self._bot is not None:
             return
         if self.is_engine:
-            self._bot = self._build_engine_botsort()
+            self._bot = self._build_botsort(native_reid=False)
             return
-        self.track(frame)  # eager warmup: registers the native-ReID hook + builds predictor.trackers
-        predictor = getattr(self.model, "predictor", None)
-        trackers = getattr(predictor, "trackers", None) if predictor is not None else None
-        if trackers:
-            self._bot = trackers[0]  # this camera's persistent BoT-SORT (one per cam_id)
+        # Eager native-ReID path: arm the feats hook on this model, then build the native BOTSORT.
+        ensure_native_feats(self.model)
+        self._bot = self._build_botsort(native_reid=True)
 
-    def _build_engine_botsort(self):
-        """Construct a per-camera ``BOTSORT`` DIRECTLY (engine path, no single-frame warmup).
+    def _build_botsort(self, native_reid: bool):
+        """Construct a per-camera ``BOTSORT`` DIRECTLY (no single-frame warmup, no callbacks).
 
         Mirrors Ultralytics' ``on_predict_start`` tracker construction: load the resolved
-        ``botsort_dog.yaml`` into the tracker cfg and build one ``BOTSORT``. On an engine-backed
-        model the in-graph Detect head is unavailable, so native-feature ReID cannot engage —
-        the cls-ReID fallback (``yolo26n-cls.pt``) is the accepted Q1 Option (a) encoder. We set
-        ``cfg.model = "yolo26n-cls.pt"`` explicitly so the BOTSORT builds that encoder (instead
-        of probing a missing in-graph Detect head). One tracker per ``cam_id`` (#13107).
+        ``botsort_dog.yaml`` into the tracker cfg and build one ``BOTSORT``.
+
+        When ``native_reid`` is True (eager ``.pt``) the cfg's ``model: auto`` is PRESERVED, so
+        ``BOTSORT.__init__`` wires the native lambda encoder (``lambda feats, s: [...]``) — the
+        zero-extra-weight path, fed the per-detection ``result.feats`` populated by the feats hook.
+
+        When ``native_reid`` is False (engine, Q1 Option (a)) the in-graph Detect head is
+        unavailable, so we force ``cfg.model = "yolo26n-cls.pt"`` and the BOTSORT builds the
+        cls-ReID encoder (which crops embeddings from the frame). One tracker per ``cam_id`` (#13107).
         """
         from ultralytics.trackers.track import TRACKER_MAP  # lazy heavy import inside the method
         from ultralytics.utils import IterableSimpleNamespace, YAML
         from ultralytics.utils.checks import check_yaml
 
         cfg = IterableSimpleNamespace(**YAML.load(check_yaml(self.tracker_yaml)))
-        if getattr(cfg, "tracker_type", None) == "botsort" and getattr(cfg, "with_reid", False):
+        if (
+            not native_reid
+            and getattr(cfg, "tracker_type", None) == "botsort"
+            and getattr(cfg, "with_reid", False)
+        ):
             # Engine reality (Q1 a): no in-graph Detect head → cls-ReID fallback encoder.
             cfg.model = "yolo26n-cls.pt"
         return TRACKER_MAP[cfg.tracker_type](args=cfg)

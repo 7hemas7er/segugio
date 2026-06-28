@@ -346,7 +346,7 @@ class Orchestrator:
             pass
         self._dog_idx_resolved.add(cam_id)
 
-    def _maybe_reid_gate(self, tracker, ran_inference: bool) -> None:
+    def _maybe_reid_gate(self, tracker, ran_inference: bool, bot=None) -> None:
         """Run the HARD TRK-02 ReID gate ONCE, after a warmup that ACTUALLY ran inference.
 
         Threads ``is_engine`` (``getattr(tracker, "is_engine", False)``) so the eager ``.pt`` /
@@ -354,13 +354,18 @@ class Orchestrator:
         warning (the gate's own engine-aware logic). Only fires for a real tracker (carrying
         ``.model``); the headless ``.update``-fake carries a ``.model`` too, so tests stub the
         gate.
+
+        ``bot`` (the batched Track-B path) is the directly-built per-camera ``BOTSORT`` to inspect
+        — the batched path never builds ``predictor.trackers``, so the gate inspects this encoder +
+        ``predictor._hook`` instead. ``None`` (the serial path) keeps the original
+        ``predictor.trackers[0]`` inspection.
         """
         if self._reid_checked or not ran_inference or not hasattr(tracker, "model"):
             return
         from ..tracking.reid_check import assert_native_reid_engaged
 
         is_engine = bool(getattr(tracker, "is_engine", False))
-        assert_native_reid_engaged(tracker.model, is_engine=is_engine)
+        assert_native_reid_engaged(tracker.model, is_engine=is_engine, bot=bot)
         self._reid_checked = True
 
     def _serial_inference(self, tick: int) -> "tuple[dict, dict]":
@@ -415,8 +420,17 @@ class Orchestrator:
         )
 
         # The HARD ReID gate ONCE, after a tick that ACTUALLY ran inference (any live result).
+        # The batched path builds one BOTSORT per cam_id DIRECTLY (no predictor.trackers), so we
+        # hand the gate a built ``_bot`` to inspect (any live camera built its own during the
+        # dispatch above). When no real tracker built a ``_bot`` (headless fakes override
+        # ``update`` without one), gate_bot stays None and the gate falls back to the
+        # ``predictor.trackers`` shape the fakes provide.
         ran_inference = any(r is not None for r in results_by_cam.values())
-        self._maybe_reid_gate(any_tracker, ran_inference=ran_inference)
+        gate_bot = next(
+            (b for b in (getattr(t, "_bot", None) for t in self.trackers.values()) if b is not None),
+            None,
+        )
+        self._maybe_reid_gate(any_tracker, ran_inference=ran_inference, bot=gate_bot)
         return results_by_cam, frames_by_cam
 
     # ----- per-tick orchestration ------------------------------------------- #

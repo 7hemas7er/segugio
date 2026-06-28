@@ -113,6 +113,17 @@ def batched_detect_dispatch(
     #    keeps the in-graph Detect head so native ReID stays engageable even at half=True;
     #    half=use_fp16 is the eager FP16 toggle (a predict kwarg, no engine — RESEARCH "Eager
     #    torch FP16").
+    #
+    #    Arm the native-feats hook on the shared model BEFORE the forward so this predict
+    #    populates ``result.feats`` (the per-detection ReID embeddings the native BoT-SORT
+    #    encoder consumes). Plain ``model.predict()`` does NOT register Ultralytics' Detect
+    #    forward-pre-hook the way ``model.track()`` does, so without this the encoder is handed
+    #    the raw frame → ``'numpy.ndarray' object has no attribute 'cpu'``. ``ensure_native_feats``
+    #    is idempotent and a no-op on a headless fake model (no ``add_callback``) — the
+    #    dispatch-shape tests keep injecting plain fakes. Lazy import keeps the heavy boundary.
+    from .detector import ensure_native_feats
+
+    ensure_native_feats(model)
     try:
         results = model.predict(
             batch_frames,

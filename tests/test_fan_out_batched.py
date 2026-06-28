@@ -215,8 +215,8 @@ def test_fan_out_reid_gate_runs_once_threading_is_engine(make_config, monkeypatc
 
     calls: list = []
 
-    def _fake_gate(m, is_engine=False):
-        calls.append({"model": m, "is_engine": is_engine})
+    def _fake_gate(m, is_engine=False, bot=None):
+        calls.append({"model": m, "is_engine": is_engine, "bot": bot})
 
     monkeypatch.setattr(
         "segugio.tracking.reid_check.assert_native_reid_engaged", _fake_gate

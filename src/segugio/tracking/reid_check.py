@@ -40,13 +40,22 @@ from loguru import logger
 __all__ = ["assert_native_reid_engaged"]
 
 
-def assert_native_reid_engaged(model, is_engine: bool = False) -> None:
+def assert_native_reid_engaged(model, is_engine: bool = False, bot=None) -> None:
     """Raise if BoT-SORT native-feature ReID did NOT engage (silent fallback detected).
 
-    Inspects the live tracker on ``model.predictor`` after the first ``.track()`` call:
-    the encoder must be the native lambda (NOT a ``ReID`` instance) and the Detect forward
-    hook must be registered. On an eager ``.pt`` model any deviation RAISES — this is a
-    correctness invariant, not a metric.
+    Inspects the live BoT-SORT encoder + the Detect forward-pre-hook on ``model.predictor``:
+    the encoder must be the native lambda (NOT a ``ReID`` instance) and the hook must be
+    registered. On an eager ``.pt`` model any deviation RAISES — a correctness invariant, not a metric.
+
+    Two tracker-discovery shapes (the encoder/hook checks are identical):
+
+      * SERIAL / ``model.track()`` path (``bot is None``): the BOTSORT lives on
+        ``predictor.trackers[0]`` (built by Ultralytics' ``on_predict_start``). This is the
+        original contract — every existing raise is preserved byte-for-byte.
+      * BATCHED Track-B path (``bot`` provided): there are no ``predictor.trackers`` (the batched
+        path runs ``model.predict()`` + builds one BOTSORT per ``cam_id`` DIRECTLY). The caller
+        passes that directly-built ``bot`` whose ``encoder`` is inspected, plus ``predictor._hook``
+        (armed by :func:`segugio.tracking.detector.ensure_native_feats`).
 
     Engine-aware downgrade (Open Q1 Option (a)): when ``is_engine`` is True, the would-be
     HARD raise on the cls-ReID fallback (encoder is a ``ReID`` instance) OR a missing forward
@@ -56,18 +65,23 @@ def assert_native_reid_engaged(model, is_engine: bool = False) -> None:
     ``is_engine=False`` default keeps EVERY existing raise verbatim (the eager TRK-02 gate).
 
     Args:
-        model: the ``ultralytics.YOLO`` instance that has already run ONE
-            ``track(..., end2end=False)`` warmup call (so ``predictor.trackers`` exists).
+        model: the ``ultralytics.YOLO`` instance that has already run inference (a serial
+            ``track(..., end2end=False)`` warmup so ``predictor.trackers`` exists, OR a batched
+            ``model.predict()`` so ``model.predictor`` + ``predictor._hook`` exist).
         is_engine: True when ``model`` is backed by a TensorRT ``.engine`` (AutoBackend) —
             downgrades the cls-fallback / missing-hook raise to a warning. Defaults to False
             (eager ``.pt`` HARD gate unchanged).
+        bot: the per-camera ``BOTSORT`` built directly on the batched Track-B path. When provided,
+            its ``encoder`` is inspected instead of ``predictor.trackers[0]`` (which the batched
+            path never builds). ``None`` (default) keeps the original serial ``predictor.trackers``
+            inspection so all existing callers/tests are unchanged.
 
     Raises:
-        RuntimeError: if no trackers exist or ``with_reid`` is off (always, both paths); and —
-            ONLY when ``is_engine=False`` — if native ReID fell back to ``yolo26n-cls.pt``
-            (encoder is a ``ReID``) or the forward hook is missing.
+        RuntimeError: if no tracker/encoder can be found or ``with_reid`` is off (always, both
+            paths); and — ONLY when ``is_engine=False`` — if native ReID fell back to
+            ``yolo26n-cls.pt`` (encoder is a ``ReID``) or the forward hook is missing.
     """
-    predictor = getattr(model, "predictor", None)  # exists only after a real .track() call
+    predictor = getattr(model, "predictor", None)  # exists after a real .track()/.predict() call
     if predictor is None:
         if is_engine:
             # Engine path (Q1 Option (a)): the batched Track-B path drives detection via
@@ -89,25 +103,28 @@ def assert_native_reid_engaged(model, is_engine: bool = False) -> None:
             "model.predictor is None — assert_native_reid_engaged was called before any real "
             ".track() inference ran (an empty/None warmup crop performs no inference)."
         )
-    trackers = getattr(predictor, "trackers", None)
-    if not trackers:
-        if is_engine:
-            # Engine path (Q1 Option (a)): the batched Track-B path runs ``model.predict()``
-            # (which sets ``model.predictor`` but builds NO ``predictor.trackers`` — those are
-            # detection-only forwards) and drives association via per-camera BOTSORTs built
-            # DIRECTLY on each ``PerCameraTracker._bot`` (a static batch=N engine rejects the
-            # single-frame ``track()`` warmup that would populate ``predictor.trackers``). So an
-            # empty ``predictor.trackers`` is EXPECTED on the engine; the cls-ReID encoder lives
-            # on the per-camera ``_bot``. WARN and accept the fallback rather than crash (RBT-04).
-            logger.warning(
-                "engine-backed model has empty predictor.trackers (detection-only batched "
-                "predict; association on per-camera BOTSORTs) — accepting cls-ReID fallback."
+    if bot is None:
+        # SERIAL / model.track() path: the BOTSORT lives on predictor.trackers[0].
+        trackers = getattr(predictor, "trackers", None)
+        if not trackers:
+            if is_engine:
+                # Engine path (Q1 Option (a)): the batched Track-B path runs ``model.predict()``
+                # (which sets ``model.predictor`` but builds NO ``predictor.trackers`` — those are
+                # detection-only forwards) and drives association via per-camera BOTSORTs built
+                # DIRECTLY on each ``PerCameraTracker._bot`` (a static batch=N engine rejects the
+                # single-frame ``track()`` warmup that would populate ``predictor.trackers``). So an
+                # empty ``predictor.trackers`` is EXPECTED on the engine; the cls-ReID encoder lives
+                # on the per-camera ``_bot``. WARN and accept the fallback rather than crash (RBT-04).
+                logger.warning(
+                    "engine-backed model has empty predictor.trackers (detection-only batched "
+                    "predict; association on per-camera BOTSORTs) — accepting cls-ReID fallback."
+                )
+                return
+            raise RuntimeError(
+                "no trackers on predictor — did .track() run with a botsort yaml?"
             )
-            return
-        raise RuntimeError(
-            "no trackers on predictor — did .track() run with a botsort yaml?"
-        )
-    bot = trackers[0]  # one BOTSORT per stream (per camera)
+        bot = trackers[0]  # one BOTSORT per stream (per camera)
+    # BATCHED Track-B path: ``bot`` is the directly-built per-camera BOTSORT (no predictor.trackers).
     enc = getattr(bot, "encoder", None)
     # Native path: encoder is a bare lambda(feats, s); fallback path: a ReID instance.
     from ultralytics.trackers.bot_sort import ReID  # lazy heavy import inside the function

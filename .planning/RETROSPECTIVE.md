@@ -86,6 +86,47 @@
 
 ---
 
+## Milestone: v1.3 — Gestione Punteggi Avanzata
+
+**Shipped:** 2026-06-28 (tag `v1.3`)
+**Phases:** 4 (15–18) | **Plans:** 9 | **Sessions:** ~5–6 (2026-06-21 → 2026-06-27, estimate)
+
+### What Was Built
+- A **pure-stdlib `score_calc` authority** — Decimal-exact `compute()` + per-field `validate()` for disc Toss&Fetch (best-5/cap-5/two-bonus), single-judge freestyle, and agility (count-up/deduct/elimination), driven by an injected `ScoringProfile` — built and proven *before* any UI consumed it, and added to the crash-isolation import gate (SCC-02/04, RBT-08).
+- **Config-driven scoring profiles**: a pydantic `ScoringProfile` sub-model on the CFG-03 union + a stdlib adapter, a pinned CSEN 2026 default (FIDASC `[ASSUMED]` stub, generic FCI agility), federation swap with no code change, fail-fast `SystemExit(2)` on a malformed profile (SCP-01/02).
+- A **server-authoritative `POST /score`**: the client POSTs raw inputs; Python validates (400 + write-nothing on invalid), Decimal-recomputes the totals, then atomic-writes `score.json`+`overlay.txt` with run-state preserved. The advisory `score-calc.js` is a byte-exact port pinned by a node-vs-Python drift-guard (SCC-01/03).
+- **ONE shared `score-entry.js` component** mounted on the dedicated `/score-entry` page AND in a native console `<dialog>` via ONE shared Jinja partial — rich per-discipline fields, live best-5-of-N advisory total, on-blur errors, reload-safe localStorage draft, two-step danger-styled publish (Enter never publishes); legacy `#form-score` retired (SCE-01..05, SCC-05).
+- An **additive rich data model**: structured `throws[].score`/`criteria{}`/`faults_breakdown{}` carried as `str(Decimal)` through the write path + `/overlay-json` beside preserved flat keys; the 6-key envelope + per-discipline legacy keys frozen by a golden snapshot; identity free-text wired XSS-inert via `createTextNode`/`textContent`; `overlay.txt` single-line + thin `/overlay` regression-verified (RBT-09).
+
+### What Worked
+- **Pure-first, gating-authority-first held again.** Phase 15 built and exhaustively unit-tested the scoring brain (Decimal-exact, stdlib-only, crash-isolated import surface) before any page or modal consumed it — so Phases 16–18 never relitigated the calc/validation contract.
+- **Server-authoritative recompute is a structural guarantee, not a policed one.** Because only Python writes what airs and it *ignores* any client-sent total, even a buggy or hostile client cannot put a wrong score on air — strictly stronger than the v1.1/v1.2 drift-guard mirror. The keystone E2E ("form total === `overlay.txt` === `/overlay-json`-rendered total") was proven end-to-end.
+- **One component + one Jinja partial across two hosts.** The v1.2 SCV-02 "one renderer" lesson generalized to an *interactive form*: share the JS module AND the markup partial, never iframe a form (focus/keyboard/submit cross the boundary badly), never hand-mirror — drift structurally impossible by construction.
+- **The pre-completion code-review gate earned its cost in 2 of 4 phases.** P15 review found 3 Criticals (string bonus-flag truthiness; missing `count_best_n`/`per_throw_cap` lower bounds); P16 found 2 BLOCKERs (a malformed body → HTTP 500 that *bypassed* the 400/write-nothing contract) — all fixed in-phase with regression tests, before sign-off, despite the phases' own suites being green.
+- **Adversarial per-threat secure-phase + a passing milestone audit.** Every phase SECURED with `threats_open: 0`; the audit surfaced two sub-`high` residuals (scoring-bound + echo-cap) and tracked them as todos rather than silently shipping over them.
+
+### What Was Inefficient
+- **The recurring three are now systemic.** SUMMARY `requirements_completed` frontmatter empty *again* (15-02, 17-02 — the exact v1.1 lesson, third milestone running); Nyquist VALIDATION PARTIAL (15/16/18) / MISSING (17) *again*; and gsd-tools-not-on-PATH → STATE/ROADMAP hand-edited with the `milestone.complete` "Last Activity Description not found" warning *again*. Each was absorbed at the audit, but they are no longer one-offs — they are an unfixed process gap.
+- **Quick-task status still never marked — and now compounding.** The pre-close audit flagged 4 executed quick tasks as `[unknown]`; two of them (`260615-sod`, `260615-tsi`) were *already* acknowledged-and-deferred at the v1.2 close and re-surfaced here because nothing ever sets the status flag. Deferred-but-unmarked items re-cost a manual inspection at *every* subsequent milestone close.
+- **A federation rule table shipped `[ASSUMED]`.** FIDASC scoring numbers were accepted as a stub for v1.3 (CSEN carries numeric correctness); honest and tracked, but it means the config-swap claim is structurally proven yet numerically unverified for one profile until a human pins the tables.
+
+### Patterns Established
+- **Server-authoritative single-writer:** the server recomputes and is the sole writer of what airs; the client value is advisory and never trusted. The structural form of "form and on-air cannot diverge."
+- **One module + one markup partial across hosts:** extend "delete the drift source" to interactive forms — share both the behavior (JS) and the structure (Jinja partial), never iframe or mirror a form.
+- **Additive data-model evolution frozen by a golden snapshot:** new structured subkeys ride beside preserved flat keys; a `==`-frozen envelope + subset-frozen legacy keys turn any rename/removal into a CI failure — additive growth stays safe.
+
+### Key Lessons
+1. The three recurring process gaps (SUMMARY frontmatter, Nyquist Wave-0, quick-task status flags) have now appeared across three consecutive milestones — they should be closed *in-workflow* (a phase-close checklist or a CLI that sets the flag), not re-discovered by each audit. The two v1.2-deferred quick tasks re-appearing at v1.3 close is the proof it compounds.
+2. When correctness must not depend on the client, make the server recompute and discard client-supplied results — it beats a drift-guard because no client bug can reach air, only diverge advisory display.
+3. Keep running the code-review gate before phase sign-off: it caught a 400/write-nothing *bypass* (HTTP 500) that the phase's green suite certified as working — the same "green but wrong" class as v1.1/v1.2, now at the HTTP-contract layer.
+
+### Cost Observations
+- Model mix: opus-leaning (config `model_profile: quality`); not finely instrumented.
+- Sessions: ~5–6 across 2026-06-21 → 2026-06-27.
+- Notable: the highest-value spend was again the in-phase code review (P15/P16) — it converted two phases that *looked* done (suites green) into ones that honor their own HTTP and numeric contracts before they could put inconsistent state on air.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -95,6 +136,7 @@
 | v1.0 MVP | ~6 (est.) | 6 | Established the GSD synthetic-first dependency chain: pure brains (scorer/FSM) unit-tested before YOLO is wired; integration phase closes the milestone |
 | v1.1 Console Regia | ~2–3 (est.) | 3 | Added adversarial multi-agent review + a formal milestone audit before close; "gate-the-boundary-first" for the one new cross-process boundary |
 | v1.2 Overlay Grafico Broadcast | ~3–4 (est.) | 5 | Per-criterion named gates + a pre-completion code-review gate that caught a broadcast-integrity blocker the gates false-passed; "delete the drift source over guarding it" (SCV unification); structural threat verification (9/9) |
+| v1.3 Gestione Punteggi Avanzata | ~5–6 (est.) | 4 | Server-authoritative single-writer keystone (client value never trusted) — strictly stronger than a drift-guard; "one module + one markup partial across hosts" extends drift-deletion to interactive forms; adversarial per-threat secure-phase (4/4 SECURED); in-phase code review caught HTTP-contract blockers (P15 3 Criticals, P16 2 BLOCKERs) |
 
 ### Cumulative Quality
 
@@ -103,9 +145,12 @@
 | v1.0 MVP | ~314 headless passed | high on pure modules (framing 99%, decision 100%) | transitions (light), Flask; native-ReID (no extra weights) |
 | v1.1 Console Regia | ~421 passed / 8 skipped | UI suite 76/76; crash-isolation import gate green | none new — reused opcomm atomic-file channel + render_overlay_text; Waitress optional |
 | v1.2 Overlay Grafico Broadcast | full headless/overlay suite green (3 pre-existing hardware-rig tests excepted: latency p95 + 2 NDI) | overlay degrade/fallback/poll-storm/HTML-sink + scene-template gates green; crash-isolation gate green | none new — client-side JS renderer only, no new Python runtime dependency |
+| v1.3 Gestione Punteggi Avanzata | full headless suite green (5 documented pre-existing env failures: 2 NDI, 1 node ESM, 2 cp1252) | authoritative round-trip (20/20) + node-vs-Python drift-guard (4/4) + crash-isolation (26/26) + D-05 golden-snapshot gates green | none new — pure-stdlib `score_calc` (decimal/re/dataclasses/enum) server-side, vanilla JS + native `<dialog>` client-side; pydantic already present |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. **Pure-first, then wire:** building and exhaustively unit-testing the pure logic (scorer, FSM in v1.0; the publish channel + sidecar in v1.1) before the heavy/edge integration keeps defects cheap and the lazy-import boundary honest.
-2. **Green tests can be confidently wrong:** v1.0's CR-01 (startup fault-sink) and v1.1's WHY-02 (`coasting`/`coast`) both passed their unit tests and were caught only by review/integration — adversarial and integration checks earn their cost.
-3. **Software-complete ≠ field-validated:** both milestones close with explicit hardware/field carry-forwards; tracking them as deferred items (not silent gaps) keeps the honesty of "shipped on synthetic data."
+2. **Green tests can be confidently wrong:** v1.0's CR-01 (startup fault-sink), v1.1's WHY-02 (`coasting`/`coast`), v1.2's CR-01 (one-way dead-hide), and v1.3's P16 BLOCKER (malformed body → HTTP 500 bypassing 400/write-nothing) all passed their own suites and were caught only by review/integration — the pre-completion code-review gate now earns its cost every milestone.
+3. **Software-complete ≠ field-validated:** every milestone closes with explicit hardware/field carry-forwards; tracking them as deferred items (not silent gaps) keeps the honesty of "shipped on synthetic data."
+4. **Make correctness structural, not policed:** the strongest guarantees deleted the failure mode rather than testing for it — SCV unification (one renderer, v1.2) and the server-authoritative single-writer (client value never trusted, v1.3). Prefer "can't drift / can't diverge by construction" over a drift-guard whenever the design allows it.
+5. **Unfixed process formality compounds:** SUMMARY `requirements_completed` frontmatter, Nyquist Wave-0 recording, and quick-task status flags have been audit-debt for three milestones running — v1.2-deferred quick tasks even re-surfaced at the v1.3 pre-close. Recurring bookkeeping gaps should be closed in-workflow, not re-discovered by each audit.

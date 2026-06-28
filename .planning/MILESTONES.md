@@ -1,5 +1,28 @@
 # Milestones
 
+## v1.3 Gestione Punteggi Avanzata (Shipped: 2026-06-28)
+
+**Phases completed:** 4 phases (15–18), 9 plans, 22 tasks · 107 commits since `v1.2`, +4,786 / −305 across 25 code files (172 files all-in incl. `.planning/`) (2026-06-21 → 2026-06-27, audited 2026-06-28)
+**Git range:** `feat(15-01)` → `feat(18-02)`
+**Delivered:** The score-entry became a RICH, SHARED component — the same UI on a dedicated `/score-entry` page and in a console `<dialog>` modal — with **server-authoritative** auto-calc/validation (the client POSTs raw inputs; Python validates, Decimal-recomputes, and atomic-writes what airs; the client calc is advisory, parity pinned by a drift-guard), config-driven scoring profiles, multi-throw/round progressive totals, and single-judge multi-criterion freestyle — publishing the single on-air score over the existing opcomm file channel, with the console still crash-isolated and the director never imported or touched.
+
+**Quality gates:** milestone audit **PASSED** (`milestones/v1.3-MILESTONE-AUDIT.md`) — 14/14 requirements satisfied (3-source cross-reference), 7/7 cross-phase links wired, the server-authoritative E2E keystone ("only Python writes what airs; form total === `overlay.txt` === `/overlay-json`-rendered total") holds end-to-end, all four phases verified + SECURED (`threats_open: 0`). Phase code reviews caught + fixed real blockers in-phase (P15: 3 Criticals; P16: 2 BLOCKERs — malformed body → HTTP 500 bypassing the 400/write-nothing contract). Crash-isolation invariant preserved: zero new runtime dependency, console import surface still `Flask + segugio.opcomm + score_calc`.
+
+**Known deferred items at close:** 6 (see STATE.md → Deferred Items) — all non-blocking: 4 already-executed quick-tasks flagged `unknown` (SUMMARYs present; v1.1/v1.2 docs/bugfix/layout work) + 2 accepted security-hardening residuals (scoring-validation bounds P15, `/overlay-json` echo length-cap P16; sub-`high`, accepted no-auth LAN, not broadcast-aired). Plus by-design carry-forwards: real-iPad rig UAT (P17, code-time tablet contract met) and the v1.x hardware/field UATs. Nyquist coverage PARTIAL/MISSING (process-formality only; strong actual test coverage). 5 pre-existing environmental test failures (2 NDI hardware, 1 node ESM, 2 cp1252) — not v1.3 regressions.
+
+**Key accomplishments:**
+
+- Pure-stdlib `score_calc` scoring authority — Decimal-exact `compute()` + per-field `validate()` for disc Toss&Fetch (best-5/cap-5/two-bonus), freestyle (4×0.01 sum minus adjustment), and agility (count_up/deduct/elimination), driven by an injected `ScoringProfile`.
+- `segugio.ui.score_calc` added to the heavy-deps-absent import surface and the console gate extended with an `import segugio.ui.score_calc` plus a `POST /score` round-trip that resolves with the entire heavy AI stack + numpy + cv2 forced absent — RBT-08 and SCC-02 are now executable gates.
+- POST /score is now the SOLE authority (validate RAW -> 400-write-nothing -> Decimal recompute -> atomic write), and score-calc.js is a BigInt-Decimal byte-exact advisory port pinned by a live node-vs-Python compute/validate drift-guard.
+- ONE re-mountable `mount(root, cfg)` `score-entry.js` (dual export) renders per-discipline rich fields from the server-injected decimal-string profile — disc-T&F repeatable throw list with a LIVE best-5-of-N advisory total, on-blur per-field errors, RAW-JSON POST to the authoritative route, and a persistent publish banner — proven on the thin Jinja `/score-entry` host.
+- Extracted the score-entry host markup into one shared Jinja partial the dedicated page now includes, and added reload-safe localStorage draft persistence + a two-step danger-styled publish confirm with Enter-never-publishes — all inside the single mount() closure, zero new assets, no innerHTML.
+- Wired the console as the in-the-flow score-entry surface: a read-only on-air readout polled from /overlay-json plus a native <dialog> that includes the SAME shared partial and mounts the SAME component as the dedicated page — and fully retired the legacy #form-score + the _is_legacy_score_post back-compat branch so the authoritative JSON path is the sole writer.
+- compute() now emits throws[].score / criteria{} / faults_breakdown{} as Decimal STRINGS additively beside byte-identical flat keys, cane/conduttore/giudici pass through verbatim on all disciplines, and a golden snapshot freezes the 6-key /overlay-json envelope plus the per-discipline legacy flat-key set.
+- renderIdentity now combines cane/conduttore (fallback nome) into the lower-third competitor line via createTextNode with giudici excluded; score-entry gains a universal identity block; and the XSS sink, overlay.txt single-line continuity, and thin /overlay invariants are all proven UNBROKEN after the 18-01 data-model enrichment.
+
+---
+
 ## v1.2 Overlay Grafico Broadcast (Shipped: 2026-06-20)
 
 **Phases completed:** 5 phases (10–14), 15 plans · ~99 commits, +13,635 / −485 across 98 files (2026-06-14 → 2026-06-20)

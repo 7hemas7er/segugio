@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
-status: complete
-stopped_at: Phase 18 complete — verification passed (4/4); milestone v1.3 complete
-last_updated: "2026-06-27T12:41:11.556Z"
-last_activity: 2026-06-27
+status: Awaiting next milestone
+stopped_at: Milestone v1.3 complete — archived & tagged (v1.3); awaiting /gsd-new-milestone
+last_updated: "2026-06-28T11:24:20.712Z"
+last_activity: 2026-06-28 — Milestone v1.3 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -18,17 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-21)
+See: .planning/PROJECT.md (updated 2026-06-28 after v1.3 milestone close)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** Milestone v1.3 "Gestione Punteggi Avanzata" complete (Phases 15–18) — ready to archive or start the next milestone.
+**Current focus:** v1.3 "Gestione Punteggi Avanzata" SHIPPED & archived (Phases 15–18, tag `v1.3`). Planning the next milestone — run `/gsd-new-milestone` (candidates: roster/classifica SCM-F2 + freestyle multi-giudice SCM-F1; PRED-01..04 prediction/disc features; the hardware/field milestone).
 
 ## Current Position
 
-Phase: 18 (complete — last phase of v1.3)
-Plan: 2/2 complete
-Status: Phase 18 verified (4/4 must-haves, 86/86 phase-target tests green); RBT-09 Complete. Milestone v1.3 software-complete. Next: /gsd-complete-milestone (archive v1.3) or /gsd-new-milestone.
-Last activity: 2026-06-27 — Phase 18 executed, verified, and signed off
+Phase: Milestone v1.3 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-28 — Milestone v1.3 completed and archived
 
 ## Performance Metrics
 
@@ -310,6 +310,17 @@ Items acknowledged and deferred at the **v1.2 milestone close (2026-06-20)**. Al
 | quick_task | 260615-sod-fix-obs-browser-source-overlay-live-upda (EXECUTED — SUMMARY.md present; CEF cache-buster shipped in overlay-render.js) | done (unmarked status) | 2026-06-20 |
 | quick_task | 260615-tsi-fix-overlay-run-timer-freeze-response-re (EXECUTED — SUMMARY.md present; response-recency watchdog shipped, the foundation Phase-14 isDead built on) | done (unmarked status) | 2026-06-20 |
 
+Items acknowledged and deferred at the **v1.3 milestone close (2026-06-28)**. The 4 quick tasks all have a SUMMARY.md (work shipped in v1.1/v1.2; only the frontmatter `status` flag is unset). The 2 todos are the accepted security-hardening residuals the v1.3 audit already documented (threats_open 0, sub-`high`, on the accepted no-auth LAN; not broadcast-aired). None is a code gap or blocker.
+
+| Category | Item | Status | Deferred At |
+|----------|------|--------|-------------|
+| quick_task | 260613-rjz-aggiungi-a-docs-run-md-una-sezione-phase (EXECUTED — SUMMARY.md present; docs/run.md Phase 8 console-multiview section shipped) | done (unmarked status) | 2026-06-28 |
+| quick_task | 260615-sod-fix-obs-browser-source-overlay-live-upda (EXECUTED — SUMMARY.md present; CEF cache-buster nonce shipped in overlay-render.js) | done (unmarked status) | 2026-06-28 |
+| quick_task | 260615-tsi-fix-overlay-run-timer-freeze-response-re (EXECUTED — SUMMARY.md present; response-recency freshness watchdog shipped) | done (unmarked status) | 2026-06-28 |
+| quick_task | 260621-jr2-riorganizza-layout-console-operatore-in- (EXECUTED — SUMMARY.md present; single-page console layout shipped, commit 33379b1) | done (unmarked status) | 2026-06-28 |
+| todo | harden-scoring-validation-bounds.md — bound freestyle adjustment sign/range + unbounded scoring-profile scalars (P15 accepted residual, threats_open 0) | pending (medium) | 2026-06-28 |
+| todo | harden-overlay-json-echo-length-cap.md — general echoed-value / request-body length cap on POST /score (P16 accepted residual, threats_open 0) | pending (low) | 2026-06-28 |
+
 ## Session Continuity
 
 Last session: 2026-06-27T12:20:03.413Z
@@ -318,4 +329,4 @@ Resume file: .planning/phases/18-rich-data-model-overlay-continuity-regression/1
 
 ## Operator Next Steps
 
-- Plan the first v1.3 phase with /gsd-plan-phase 15 (Pure Calc + Validation Core & Scoring Profiles). Pin the exact per-discipline/federation scoring rule tables in the Phase-15 REQ before coding (see Blockers/Concerns).
+- Start the next milestone with /gsd-new-milestone

@@ -5,113 +5,11 @@
 - ✅ **v1.0 MVP** — Phases 1–6 (shipped 2026-06-13) — operator-less multi-camera auto-director, software-complete on synthetic data
 - ✅ **v1.1 Console Regia** — Phases 7–9 (shipped 2026-06-14) — live-visibility operator console: see the cameras, understand *why*, override informed
 - ✅ **v1.2 Overlay Grafico Broadcast** — Phases 10–14 (shipped 2026-06-20) — animated graphical OBS browser-source score overlay served by the crash-isolated console, client-side run timer, curated OBS scene collection — director never touched
-- 🚧 **v1.3 Gestione Punteggi Avanzata** — Phases 15–18 (started 2026-06-21) — score-entry becomes a RICH, SHARED component (dedicated page + console modal) with server-authoritative auto-calc/validation, config-driven scoring profiles, multi-throw/round, single-judge multi-criteria freestyle — single on-air score only, console still crash-isolated, director never touched
+- ✅ **v1.3 Gestione Punteggi Avanzata** — Phases 15–18 (shipped 2026-06-28) — score-entry becomes a RICH, SHARED component (dedicated page + console modal) with server-authoritative auto-calc/validation, config-driven scoring profiles, multi-throw/round, single-judge multi-criteria freestyle — single on-air score only, console still crash-isolated, director never touched
 
-> Full phase detail for shipped milestones is archived in `.planning/milestones/` (`v1.1-ROADMAP.md` captures the Phase 1–9 history; `v1.2-ROADMAP.md` captures Phases 10–14).
+> Full phase detail for shipped milestones is archived in `.planning/milestones/` (`v1.1-ROADMAP.md` captures the Phase 1–9 history; `v1.2-ROADMAP.md` captures Phases 10–14; `v1.3-ROADMAP.md` captures Phases 15–18). Requirements per milestone are archived alongside (`v1.X-REQUIREMENTS.md`).
 
 ## Phases
-
-### v1.3 Gestione Punteggi Avanzata (Phases 15–18) — ACTIVE
-
-- [x] **Phase 15: Pure Calc + Validation Core & Scoring Profiles** — the stdlib-only `score_calc` authority (validate + compute for disc T&F / freestyle / agility) + config-driven scoring profiles, added to the crash-isolation import gate before any UI consumes it (completed 2026-06-22)
-- [x] **Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST** — the ONE vanilla-JS score-entry component proven on the dedicated `/score-entry` page, advisory client calc with a drift-guard, and `POST /score` made authoritative (validate→400 / recompute→atomic write) (completed 2026-06-23)
-- [x] **Phase 17: Console Modal, Multi-throw State & Tablet UX** — the same component mounted in a native `<dialog>` modal (single Jinja partial), multi-throw/round progressive total with reload-safe in-progress state, explicit publish action + offline-asset/≥16px/focus-trap tablet contract (completed 2026-06-27)
-- [x] **Phase 18: Rich Data Model & Overlay-Continuity Regression** — structured `fields` (throws[]/criteria{}/faults_breakdown{}) carried additively through the write path + `/overlay-json`, with `overlay.txt` / `/overlay` / OBS fallback and the XSS sink verified unchanged (completed 2026-06-27)
-
-## Phase Details
-
-### Phase 15: Pure Calc + Validation Core & Scoring Profiles
-
-**Goal**: The single authoritative scoring brain exists and is crash-isolation-safe — one pure stdlib module computes and validates every discipline's score, driven by config-driven profiles, before any UI can consume it.
-**Depends on**: Nothing (first v1.3 phase; builds on the shipped v1.2 console/opcomm surface)
-**Requirements**: SCC-02, SCC-04, SCP-01, SCP-02, RBT-08
-**Success Criteria** (what must be TRUE):
-
-  1. Given raw inputs for any of the three disciplines, the module returns a correctly auto-calculated total — disc T&F sums throws×zone (+ bonus), freestyle sums single-judge criteria, agility applies the configured model (count-up faults OR deduct-from-100) plus time-faults vs SCT (verifiable by unit tests against the pinned per-federation rule tables).
-  2. Given invalid inputs (out-of-range, missing required field, malformed `mm:ss` time), the module reports per-field validation errors rather than computing a result.
-  3. Swapping the active scoring profile (zones/points, fault table, freestyle criteria/scale, agility model) changes the computed result with NO code change; a malformed profile fails fast at config-load with a clear error.
-  4. The console import-smoke gate passes with the full heavy stack and numpy ABSENT while now also covering `score_calc` — i.e. the new module imports clean and a `POST /score` round-trip resolves with torch/cv2/ultralytics/numpy/cyndilib/obsws unavailable.
-
-**Plans**: 3 plans
-
-**Wave 1**
-
-  - [x] 15-01-PLAN.md — pure-stdlib score_calc.py (ScoringProfile + validate + compute for all 3 disciplines) + unit tests vs pinned CSEN tables — completed 2026-06-22 (11/11 tests green; Decimal-exact, stdlib-only import surface)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-  - [x] 15-02-PLAN.md — config-driven scoring-profile pydantic sub-model + pydantic→stdlib adapter + CSEN/FIDASC/FCI fixtures + swap/malformed tests — completed 2026-06-22 (SCP-01 swap + SCP-02 fail-fast green; FIDASC human-verify gate resolved as "stub accepted for v1.3", numbers stay [ASSUMED])
-  - [x] 15-03-PLAN.md — crash-isolation gate extension (score_calc → PHASE1_SURFACE + heavy-absent POST /score round-trip)
-
-### Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST
-
-**Goal**: An operator can enter a score on a dedicated full-screen page using ONE shared component with live advisory feedback, and the server is the sole authority that validates and recomputes what airs.
-**Depends on**: Phase 15
-**Requirements**: SCE-01, SCE-02, SCE-03, SCE-05, SCC-01, SCC-03
-**Success Criteria** (what must be TRUE):
-
-  1. The operator opens the dedicated `/score-entry` page, picks a discipline, and sees the rich per-discipline structured fields from the active scoring profile.
-  2. As the operator types, a running total updates live (advisory) and per-field validation errors appear before publishing.
-  3. Submitting POSTs RAW inputs only; the server validates (returns 400 and writes NOTHING on invalid input, leaving any previous on-air score untouched) and recomputes the total in Python before writing atomically.
-  4. For the same inputs, the form-displayed total equals the value the server writes — proven both by the round-trip acceptance test (form total === `overlay.txt` line === `/overlay-json`-rendered total) and by the JS↔Python drift-guard test (the advisory client calc never becomes a second authority).
-
-**Plans**: 2 plans
-**UI hint**: yes
-
-Plans:
-**Wave 1**
-
-- [x] 16-01-PLAN.md — Wave 1: authoritative `POST /score` (validate→400-write-nothing→Decimal recompute→atomic write) + byte-exact advisory `score-calc.js` + node drift-guard + legacy console-form back-compat (Open Q1) + all Wave 0 test scaffolds (SCC-01, SCC-03) — executed 2026-06-23 (pending phase verification)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 16-02-PLAN.md — Wave 2: the ONE shared `score-entry.js` `mount(root,cfg)` component on the dedicated `/score-entry` page — profile-injected rich fields, disc-T&F repeatable throw list + live best-5-of-N, on-blur errors, persistent publish banner; `GET /score-entry` + decimal-string profile blob (SCE-01/02/03/05)
-
-### Phase 17: Console Modal, Multi-throw State & Tablet UX
-
-**Goal**: The operator can enter and publish a score from inside the console via a popup that reuses the exact same component, accumulate multi-throw/round entries without losing them, and do it all reliably on the offline-rig tablet.
-**Depends on**: Phase 16
-**Requirements**: SCE-04, SCC-05
-**Success Criteria** (what must be TRUE):
-
-  1. The operator opens a console `<dialog>` modal and enters a score using the SAME component as the dedicated page — both hosts share one Jinja form partial and one JS module, so the page and the modal are byte-for-byte the same form (no duplicated calc/submit logic, no re-introduced mirror).
-  2. For multi-throw disc T&F the operator adds/edits throws across N rounds and sees a correct progressive running total; reloading the tablet mid-run restores the in-progress entry (no lost throws), and any persisted in-progress state is written atomically with a never-raise reader.
-  3. Publishing to air is a deliberate, visually distinct action — a casual tap or Enter cannot put a half-entered score on air.
-  4. The new page and modal load with ZERO external/CDN assets, all inputs are ≥16px (no iOS focus-zoom), and the modal traps focus and survives sleep/wake — code-time tablet contract met (real-iPad rig UAT deferred, non-blocking).
-
-**Plans**: 2 plans
-**Wave 1**
-
-  - [x] 17-01-PLAN.md — Wave 1: extract the shared Jinja form partial + dedicated page include; add localStorage reload-safe draft (SCC-05/D-01..D-04), two-step danger-styled publish confirm + Enter-suppression (SCE-04/D-05/D-06) inside the one score-entry.js module
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-  - [x] 17-02-PLAN.md — Wave 2: console read-only on-air readout (poll /overlay-json) + native <dialog> modal mounting the shared partial (D-07..D-10); retire legacy #form-score + _is_legacy_score_post branch (D-11); update crash-isolation POST gate
-
-**UI hint**: yes
-
-### Phase 18: Rich Data Model & Overlay-Continuity Regression
-
-**Goal**: The richer structured score rides through the publish path additively, and every shipped overlay contract — graphical `/overlay`, `/overlay-json`, the `overlay.txt` text fallback, and the HTML sink — is verified unbroken.
-**Depends on**: Phases 15–17
-**Requirements**: RBT-09
-**Success Criteria** (what must be TRUE):
-
-  1. After a rich `POST /score`, `score.json` and `/overlay-json` carry the structured subkeys (throws[]/criteria{}/faults_breakdown{}) ALONGSIDE all preserved flat summary keys; no legacy `/overlay-json` key is renamed or removed.
-  2. `overlay.txt` is still written on every publish as a single non-empty line (length-bounded per field), and the OBS read-from-file text fallback shows the current score — regression-verified, not assumed.
-  3. The `/overlay` graphical renderer still displays the score from the flat keys, and the host page bakes in NO score data (stays thin/poll-only).
-  4. New free-text fields (dog/handler name, judges) are HTML-escaped at the sink — no `innerHTML`, no `| safe`; a crafted `<script>` name renders as inert escaped text both on the overlay and in any form preview.
-
-**Plans**: 2 plansPlans:
-**Wave 1**
-
-- [x] 18-01-PLAN.md — Additive Decimal-string subkeys in compute() + free-text identity passthrough + D-05 golden snapshot + crash-isolation rich-POST (Wave 1)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 18-02-PLAN.md — Renderer/form identity wiring + D-07a/b XSS inertness proof + D-06 overlay.txt single-line & thin /overlay regression + D-08 rig checklist (Wave 2)
-
-**UI hint**: yes
 
 <details>
 <summary>✅ v1.0 MVP (Phases 1–6) — SHIPPED 2026-06-13</summary>
@@ -145,6 +43,16 @@ Plans:
 
 </details>
 
+<details>
+<summary>✅ v1.3 Gestione Punteggi Avanzata (Phases 15–18) — SHIPPED 2026-06-28</summary>
+
+- [x] **Phase 15: Pure Calc + Validation Core & Scoring Profiles** (3/3 plans) — completed 2026-06-22 — the gating authority: a stdlib-only `score_calc` (validate + Decimal-exact compute for disc T&F / freestyle / agility) + config-driven scoring profiles (pydantic `ScoringProfile` on the CFG-03 union, CSEN default, fail-fast on malformed), added to the crash-isolation import gate before any UI consumes it (SCC-02/04, SCP-01/02, RBT-08)
+- [x] **Phase 16: Shared Entry Component, Dedicated Page & Server-Authoritative POST** (2/2 plans) — completed 2026-06-23 — the ONE vanilla-JS `score-entry.js` component proven on the dedicated `/score-entry` page (rich per-discipline fields, live best-5-of-N advisory total, on-blur errors), the advisory `score-calc.js` pinned by a node-vs-Python drift-guard, and `POST /score` made authoritative (validate→400-write-nothing / Decimal-recompute→atomic write) (SCE-01/02/03/05, SCC-01/03)
+- [x] **Phase 17: Console Modal, Multi-throw State & Tablet UX** (2/2 plans) — completed 2026-06-27 — the same component mounted in a native console `<dialog>` via ONE shared Jinja partial (drift structurally impossible), reload-safe localStorage draft, two-step danger-styled publish (Enter never publishes), legacy `#form-score` path retired; code-time tablet contract (≥16px inputs, focus-trap, zero CDN assets) (SCE-04, SCC-05)
+- [x] **Phase 18: Rich Data Model & Overlay-Continuity Regression** (2/2 plans) — completed 2026-06-27 — structured `fields` (`throws[]`/`criteria{}`/`faults_breakdown{}`) carried additively as `str(Decimal)` through the write path + `/overlay-json` (6-key envelope + per-discipline legacy flat keys frozen by a golden snapshot), identity free-text wired XSS-inert via `createTextNode`/`textContent`, `overlay.txt` single-line + thin `/overlay` regression-verified (RBT-09)
+
+</details>
+
 ## Progress
 
 **Execution Order:** Phases executed in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18
@@ -165,7 +73,7 @@ Plans:
 | 12. SCV-01 Unification | v1.2 | 3/3 | Complete | 2026-06-16 |
 | 13. OBS Scene Collection & Setup Docs | v1.2 | 2/2 | Complete | 2026-06-16 |
 | 14. Fallback Coexistence & Degrade Hardening | v1.2 | 3/3 | Complete | 2026-06-20 |
-| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete    | 2026-06-22 |
-| 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete    | 2026-06-23 |
-| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete    | 2026-06-27 |
-| 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 2/2 | Complete    | 2026-06-27 |
+| 15. Pure Calc + Validation Core & Scoring Profiles | v1.3 | 3/3 | Complete | 2026-06-22 |
+| 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete | 2026-06-23 |
+| 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete | 2026-06-27 |
+| 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 2/2 | Complete | 2026-06-27 |

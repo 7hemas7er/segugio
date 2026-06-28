@@ -4,8 +4,8 @@ milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: Awaiting next milestone
 stopped_at: Milestone v1.3 complete — archived & tagged (v1.3); awaiting /gsd-new-milestone
-last_updated: "2026-06-28T11:24:20.712Z"
-last_activity: 2026-06-28 — Milestone v1.3 completed and archived
+last_updated: "2026-06-28T13:53:14.897Z"
+last_activity: 2026-06-28 — Quick task 260628-m2d: 4-camera NDI loop-test harness (no-phones OBS scene-switch test)
 progress:
   total_phases: 4
   completed_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-28 after v1.3 milestone close)
 Phase: Milestone v1.3 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-06-28 — Milestone v1.3 completed and archived
+Last activity: 2026-06-28 — Quick task 260628-m2d: 4-camera NDI loop-test harness (no-phones OBS scene-switch test)
 
 ## Performance Metrics
 
@@ -284,6 +284,7 @@ Recent decisions affecting current work:
 | 2026-06-21 | console-stato-live-accanto-onair | console.html: contenuto "Stato live" (#stato/#feeds/#freshness) spostato in linea accanto al titolo ON AIR (nuova `.onair-row` flex + `.onair-status`); rimossa la card Stato live dalla `.side-col` (resta Punteggio + Run+Rilascia). Ogni id presente UNA volta (no duplicati), `<script>` invariato, div 32/32 — /gsd-fast |
 | 2026-06-21 | console-fix-multiview-collassato-240px | console.html: fix live multiview collassata a 240px — rimosso `margin: 0 auto` da `.multiview` (auto-margin su un grid item disabilita `justify-self:stretch` → il grid scende al minimo `minmax(240px,1fr)`). Diagnosi+conferma con Playwright (canale Edge, viewport 1440×900): multiview 240→**1003px**, pagina entro il viewport (scrollH=900). Il tile resta nero senza feed NDI (cam morta = atteso, non è il bug). `<script>` invariato — /gsd-fast |
 | 2026-06-21 | console-emoji-to-tabler-icons | console.html: rimosse emoji/glifi (lock-emoji, ●, ◐, ▸, ··) e sostituiti con icone Tabler SVG INLINE (lock/broadcast/pause/circle-off/chevron) via helper `icon()` + map `ICONS`; badge e leaderboard usano `innerHTML`(SVG statico)+`append`(testo) → niente injection, CAM_LABEL resta `textContent`. `.ico` scala col font. Offline-safe (SVG inline, nessun CDN/font). Verificato con Playwright (Edge): icone renderizzano (lock su FORZATA, circle-off su lost), 0 glifi residui — /gsd-fast |
+| 2026-06-28 | 4-camera-ndi-loop-test-harness-to-verify | No-phones 4-cam NDI loop test for OBS scene switching. `tools/ndi_loop_sender.py` loops 4 Pexels CC0 clips as named NDI sources (one cyndilib Sender built ONCE per camera, paced, downscaled; strips the `MASTER (...)` host prefix to publish the bare stream). `config.looptest.yaml` (host-prefixed `ndi_source` + livelier thresholds min_dwell 1.0/cooldown 0.5/debounce 2/hysteresis 0.08), `obs/segugio-looptest-scene-collection.json` (MASTER-prefixed `ndi_source_name`), `docs/looptest.md` runbook. Prereq discovered this session: mDNS broken on this box (Tailscale) → needs NDI Discovery Server + ndi-config discovery=127.0.0.1 — quick 260628-m2d (commits 63bef9b, 4c58b4e, e486bf9, 5777bde) |
 
 ## Deferred Items
 

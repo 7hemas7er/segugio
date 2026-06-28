@@ -1,0 +1,147 @@
+# Segugio — NDI LOOP-TEST configuration (NO phones)
+#
+# This is the no-phones loop-test config: it drives the full pipeline
+# (NDI receive -> AI tracking -> OBS scene switching) from four LOOPING recorded
+# clips published as named NDI sources by `tools/ndi_loop_sender.py`, standing in
+# for the iPhone HX3 feeds. Loading it with segugio.config.load_config() yields a
+# typed, validated Config (same schema as config.example.yaml).
+#
+# HOST-PREFIX GOTCHA (read this before editing ndi_source below):
+#   A cyndilib `Sender("FOO")` is DISCOVERABLE on the network as "<HOST> (FOO)".
+#   "MASTER" is THIS box's NDI host name (socket.gethostname() == "Master", which
+#   NDI uppercases to "MASTER"). NdiFrameSource resolves the source by an EXACT
+#   name match, so each `ndi_source` below MUST be the host-prefixed "MASTER (...)"
+#   form. If YOUR `hostname` differs: run `hostname`, uppercase it, and replace
+#   every "MASTER" prefix below.
+#
+#   These `ndi_source` names MUST byte-match BOTH:
+#     - the streams published by tools/ndi_loop_sender.py (which host-prefixes them), AND
+#     - the `ndi_source_name` values in obs/segugio-looptest-scene-collection.json.
+#
+# Coordinate model (ARCHITECTURE.md Part 3, Option A): zones are rectangles in each
+# camera's OWN normalized image frame [0..1], origin top-left, as [x0, y0, x1, y1]
+# with x0<x1 and y0<y1. No field calibration / homography in v1.
+
+# ---- field / discipline profile -------------------------------------------- #
+# Swapping `sport` to `agility` (see config.agility.example.yaml) selects a
+# different overlay-field set + framing defaults with ZERO code edits (CFG-03).
+field:
+  sport: disc_dog            # disc_dog | agility
+  event: distance_accuracy   # distance_accuracy | freestyle | xtreme
+
+# ---- cameras --------------------------------------------------------------- #
+# 4-camera template (degrades cleanly to 3 by dropping cam_handler).
+# Every zone name referenced here MUST have a framing_weights[role] entry below.
+cameras:
+  - id: cam_wide
+    role: main_wide          # the SAFE fallback — always neutral weights
+    obs_scene: "CAM Wide"
+    is_safe: true            # at least one camera must be is_safe (SAFE fallback)
+    ndi_source: "MASTER (PHONE-WIDE (NDI HX3))"   # host-prefixed loop-test source (D-08)
+    zones:                   # depth bands: near (close) -> far (downfield)
+      - { name: near, rect: [0.0, 0.55, 1.0, 1.0] }
+      - { name: mid,  rect: [0.0, 0.30, 1.0, 0.55] }
+      - { name: far,  rect: [0.0, 0.0,  1.0, 0.30] }
+
+  - id: cam_long
+    role: long               # end-on telephoto down the throw axis
+    obs_scene: "CAM Long"
+    ndi_source: "MASTER (PHONE-LONG (NDI HX3))"
+    zones:                   # long-cam frame is dominated by far downfield action
+      - { name: far, rect: [0.0, 0.0,  1.0, 0.60] }
+      - { name: mid, rect: [0.0, 0.60, 1.0, 1.0] }
+
+  - id: cam_low
+    role: low                # ground-level hero angle, only useful near/airborne
+    obs_scene: "CAM Low"
+    ndi_source: "MASTER (PHONE-LOW (NDI HX3))"
+    zones:
+      - { name: near, rect: [0.0, 0.0, 1.0, 1.0] }
+
+  - id: cam_handler          # optional 4th — freestyle stage / handler side
+    role: handler_side
+    obs_scene: "CAM Handler"
+    ndi_source: "MASTER (PHONE-HANDLER (NDI HX3))"
+    zones:
+      - { name: stage, rect: [0.20, 0.25, 0.80, 1.0] }
+
+# ---- role x zone framing weights (the framing-scorer multiplier) ----------- #
+# Multiplies the base framing score per camera by the band the dog falls in.
+# >1 boosts, <1 suppresses. main_wide stays neutral (1.0) so SAFE never loses
+# on weighting; long dominates the far band; low only fires near.
+framing_weights:
+  main_wide:    { near: 1.00, mid: 1.00, far: 1.00, stage: 1.00 }
+  long:         { near: 0.60, mid: 1.10, far: 1.60 }
+  low:          { near: 1.40, mid: 0.70, far: 0.30 }
+  handler_side: { stage: 1.50, near: 1.20, mid: 0.80, far: 0.50 }
+
+# ---- switching thresholds (the FSM/scorer tuning seeds) -------------------- #
+# Loop-test demo values: min_dwell/cooldown/debounce_N/hysteresis_margin are
+# lowered from config.example.yaml for LIVELIER switching on the desk demo. Every
+# other threshold key (alpha, watchdog_timeout, track_buffer) is unchanged.
+thresholds:
+  alpha: 0.3                 # EMA smoothing factor per camera (0<alpha<=1)
+  hysteresis_margin: 0.08    # challenger must beat incumbent by this to switch
+  min_dwell: 1.0             # min seconds to hold a camera before switching away
+  debounce_N: 2              # consecutive ticks a challenger must lead
+  cooldown: 0.5              # seconds after a cut before another is allowed
+  watchdog_timeout: 0.8      # seconds without a new frame => feed considered dead
+  track_buffer: 60           # frames to keep a lost track alive (~2s @ 30Hz)
+
+# ---- framing-scorer tuning seeds (the per-camera scorer params) ------------ #
+# Values are starting points (tuned on real footage in later phases); the schema
+# and bounds are what's locked here. w_c+w_s+w_conf must sum to 1 (centeredness
+# dominant). This block is identical across disc_dog/agility configs — only
+# field.sport and framing_weights differ between the two.
+scoring:
+  sigma_c: 0.25              # Gaussian centeredness falloff (forgiveness)
+  ideal_size: 0.30          # ideal apparent scale sqrt(w*h) (~30% of frame)
+  sigma_s: 0.18             # size-band tolerance (non-monotonic peak at ideal_size)
+  w_c: 0.5                  # centeredness weight (dominant — framing correctness)
+  w_s: 0.3                  # size weight (secondary preference)
+  w_conf: 0.2               # normalized-confidence weight (low tiebreaker)
+  lead_max: 0.25            # clamp so a fast dog can't push the ideal off-frame
+  v_deadzone: 0.005         # below this speed → no lead (resting dog stays centered)
+  ttl_seconds: 0.4          # short blur-gap coast window (range 0.3–0.7)
+  beta: 0.05                # conf-norm EMA adaptation (slower than score alpha)
+  z_clip: 2.0               # clip the conf z-score to ±2σ
+  warmup: 10                # passthrough samples before normalizing confidence
+  conf_floor: 0.25          # plausibility confidence floor (recall gate)
+  min_area: 0.0004          # noise floor (keep LOW — distant dogs are small)
+  aspect_lo: 0.3            # implausible-aspect lower bound (shadow streak guard)
+  aspect_hi: 3.5            # implausible-aspect upper bound
+  out_of_bounds_factor: 0.15 # multiply (NOT zero) when the dog is outside all zones
+  vel_window: 3             # K-sample finite-difference velocity window
+  eps: 1e-6                 # sqrt(var + eps) divisor floor (never hardcoded)
+
+# ---- YOLO model (CFG-04) --------------------------------------------------- #
+# Defaults to yolo26s.pt / class 16 (COCO dog). Swap path/class here without code.
+model:
+  path: yolo26s.pt
+  class_index: 16
+  use_fp16: true          # canonical RBT-05 path: eager FP16 + batched detect (~256ms p95, ReID nativa). Spot-check dog recall on hard/distant clips (RESEARCH A5).
+  # engine_path: yolo26s.engine   # OPTIONAL higher-margin lever (~197ms p95): build per-rig via `python tools/build_engine.py` (GPU-specific, loses native ReID → cls fallback). Graceful eager fallback if absent/incompatible (RBT-04).
+
+# ---- overlay page (D-05 / D-06) -------------------------------------------- #
+# Config for the browser overlay page. Additive block: omit it entirely and the
+# defaults below apply (an existing config without `overlay:` still validates).
+# `freestyle_duration_s` is STATIC config (it is NOT in the /overlay-json poll
+# payload, D-07) — the Phase-11 freestyle timer counts down from it.
+overlay:
+  freestyle_duration_s: 120   # length of a freestyle round, seconds. Default 120
+                              # (2-minute routines); orgs running 90-second
+                              # freestyle rounds override to 90. Must be > 0.
+  # ---- branding (BRD-01 / BRD-02) ---------------------------------------- #
+  # All STATIC config (NOT in the /overlay-json poll payload, D-07): injected
+  # into the /overlay page as render args at the console entrypoint. Override
+  # them per event with ZERO code change. Omit any key to keep its default.
+  event_name: ""              # D-08 -- the persistent identity line's event half.
+                              # Empty -> the line hides gracefully. `nome` stays a
+                              # verbatim score field (BRD-02, no data-model change).
+  logo_path: ""               # D-07 -- optional path to the org's logo bug.
+                              # Empty/absent -> no logo rendered.
+  # D-06 -- CSS-var theme colors. Default = the console palette. Any CSS color
+  # token is accepted (hex, rgb(...), hsl(...), named) -- NOT validated as hex.
+  theme_accent: "#34D399"     # --accent (console green)
+  theme_plate: "#14161a"      # --plate  (console plate)
+  theme_text: "#E6E9EF"       # --text   (console text)

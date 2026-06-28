@@ -1,0 +1,163 @@
+{
+  "name": "Segugio",
+  "current_scene": "SAFE",
+  "current_program_scene": "SAFE",
+  "scene_order": [
+    { "name": "SAFE" },
+    { "name": "CAM Wide" },
+    { "name": "CAM Long" },
+    { "name": "CAM Low" },
+    { "name": "CAM Handler" },
+    { "name": "MULTIVIEW" },
+    { "name": "PIP" }
+  ],
+  "sources": [
+    {
+      "name": "SAFE",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "items": [
+          { "name": "NDI - MASTER (PHONE-WIDE (NDI HX3))", "visible": true },
+          { "name": "Score Text", "visible": false },
+          { "name": "Score Overlay", "visible": true }
+        ]
+      }
+    },
+    {
+      "name": "CAM Wide",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "items": [
+          { "name": "NDI - MASTER (PHONE-WIDE (NDI HX3))", "visible": true },
+          { "name": "Score Text", "visible": false },
+          { "name": "Score Overlay", "visible": true }
+        ]
+      }
+    },
+    {
+      "name": "CAM Long",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "items": [
+          { "name": "NDI - MASTER (PHONE-LONG (NDI HX3))", "visible": true },
+          { "name": "Score Text", "visible": false },
+          { "name": "Score Overlay", "visible": true }
+        ]
+      }
+    },
+    {
+      "name": "CAM Low",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "items": [
+          { "name": "NDI - MASTER (PHONE-LOW (NDI HX3))", "visible": true },
+          { "name": "Score Text", "visible": false },
+          { "name": "Score Overlay", "visible": true }
+        ]
+      }
+    },
+    {
+      "name": "CAM Handler",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "items": [
+          { "name": "NDI - MASTER (PHONE-HANDLER (NDI HX3))", "visible": true },
+          { "name": "Score Text", "visible": false },
+          { "name": "Score Overlay", "visible": true }
+        ]
+      }
+    },
+    {
+      "name": "MULTIVIEW",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "items": [
+          { "name": "NDI - MASTER (PHONE-WIDE (NDI HX3))", "visible": true },
+          { "name": "NDI - MASTER (PHONE-LONG (NDI HX3))", "visible": true },
+          { "name": "NDI - MASTER (PHONE-LOW (NDI HX3))", "visible": true },
+          { "name": "NDI - MASTER (PHONE-HANDLER (NDI HX3))", "visible": true },
+          { "name": "Score Text", "visible": false },
+          { "name": "Score Overlay", "visible": true }
+        ]
+      }
+    },
+    {
+      "name": "PIP",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "items": [
+          { "name": "NDI - MASTER (PHONE-WIDE (NDI HX3))", "visible": true },
+          { "name": "NDI - MASTER (PHONE-LONG (NDI HX3))", "visible": false },
+          { "name": "NDI - MASTER (PHONE-LOW (NDI HX3))", "visible": false },
+          { "name": "NDI - MASTER (PHONE-HANDLER (NDI HX3))", "visible": false },
+          { "name": "Score Text", "visible": false },
+          { "name": "Score Overlay", "visible": true }
+        ]
+      }
+    },
+    {
+      "name": "Score Text",
+      "id": "text_gdiplus_v2",
+      "versioned_id": "text_gdiplus_v2",
+      "settings": {
+        "read_from_file": true,
+        "file": "overlay.txt",
+        "text": ""
+      }
+    },
+    {
+      "name": "NDI - MASTER (PHONE-WIDE (NDI HX3))",
+      "id": "ndi_source",
+      "versioned_id": "ndi_source",
+      "settings": { "ndi_source_name": "MASTER (PHONE-WIDE (NDI HX3))" }
+    },
+    {
+      "name": "NDI - MASTER (PHONE-LONG (NDI HX3))",
+      "id": "ndi_source",
+      "versioned_id": "ndi_source",
+      "settings": { "ndi_source_name": "MASTER (PHONE-LONG (NDI HX3))" }
+    },
+    {
+      "name": "NDI - MASTER (PHONE-LOW (NDI HX3))",
+      "id": "ndi_source",
+      "versioned_id": "ndi_source",
+      "settings": { "ndi_source_name": "MASTER (PHONE-LOW (NDI HX3))" }
+    },
+    {
+      "name": "NDI - MASTER (PHONE-HANDLER (NDI HX3))",
+      "id": "ndi_source",
+      "versioned_id": "ndi_source",
+      "settings": { "ndi_source_name": "MASTER (PHONE-HANDLER (NDI HX3))" }
+    },
+    {
+      "name": "Score Overlay",
+      "id": "browser_source",
+      "versioned_id": "browser_source",
+      "settings": {
+        "url": "http://localhost:8080/overlay",
+        "width": 1920,
+        "height": 1080,
+        "fps_custom": true,
+        "fps": 30,
+        "shutdown": false,
+        "restart_when_active": false,
+        "reroute_audio": false,
+        "css": ""
+      }
+    }
+  ]
+}

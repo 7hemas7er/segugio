@@ -20,10 +20,17 @@ What is faked: only the video source (looping clips, not phones).
 
 ## Prerequisites
 
-- **NDI Discovery Server must be RUNNING.** Plain mDNS discovery is broken on this box
-  (Tailscale interferes with the multicast), so discovery is served from `127.0.0.1`.
-  Start it from:
+- **NDI Discovery Server must be RUNNING — and (re)started FRESH each session.** Plain
+  mDNS discovery is broken on this box (Tailscale interferes with the multicast), so
+  discovery is served from `127.0.0.1`. Start it from:
   `C:\Program Files\NDI\NDI 6 Tools\Discovery Service\NDI Discovery Service.exe`
+  **Gotcha:** a stale/previous instance can still be *listening* on `5959` yet fail to
+  register senders (you see **0 ESTABLISHED** connections to `5959` and the finder discovers
+  nothing). If discovery is empty, **kill and relaunch** the service before anything else:
+  ```powershell
+  Get-Process 'NDI Discovery Service' -ErrorAction SilentlyContinue | Stop-Process -Force
+  Start-Process 'C:\Program Files\NDI\NDI 6 Tools\Discovery Service\NDI Discovery Service.exe'
+  ```
 - **`%APPDATA%\NDI\ndi-config.v1.json` must point discovery at 127.0.0.1**, i.e. contain:
   ```json
   {"ndi":{"networks":{"discovery":"127.0.0.1"}}}
@@ -74,6 +81,37 @@ Long / CAM Low / CAM Handler** following the on-screen dog. Cross-check the opco
 `status.json` and the orchestrator logs to confirm the chosen camera matches what is on
 air.
 
+## Crops mode (1 clip → 4 crops) — camera-to-camera switch demo
+
+When you have ONE good clip instead of four, `--crops-from CLIP` publishes the SAME clip as
+four different crops (one per camera), so a different camera frames the dog best as it moves.
+Crops default by role (wide = full, long = upper/far band, low = lower/near band, handler =
+centre box); override any crop with `--crop CAMID=x0,y0,x1,y1` (normalized), and
+`--phase-shift` time-staggers the feeds.
+
+**Verified handoff demo** — base clip `cam_handler_32484430` has the widest horizontal sweep
+(the dog runs across the field), so split it into left / centre / right crops:
+
+```
+venv\Scripts\python tools\ndi_loop_sender.py --config config.looptest.yaml ^
+  --crops-from tests\fixtures\looptest\cam_handler_32484430.mp4 ^
+  --crop cam_low=0.10,0.45,0.50,1.0 ^
+  --crop cam_handler=0.35,0.45,0.72,1.0 ^
+  --crop cam_long=0.55,0.40,0.95,1.0
+```
+
+Run the orchestrator as in step (d) and start a run. Observed program sequence:
+`cam_long (right) → cam_handler (centre) → cam_low (left)` as the dog crosses — a clean
+camera-to-camera handoff following the dog.
+
+**These cuts are intentionally PACED, not rapid.** The core value is *stable framing, no
+flickering cuts* — `min_dwell` / hysteresis / EMA deliberately hold a camera until another is
+clearly and durably better. So expect a handful of well-timed handoffs as the dog traverses,
+NOT constant rotation. If one camera "wins" the whole time that is **correct**: with a single
+clip the dog is often best-framed by one crop. Continuous, organic switching is what real
+multi-angle phone feeds produce on the rig (the dog physically leaves one camera's good
+framing and enters another's).
+
 ## Clip provenance
 
 All four clips are from **Pexels** (Pexels License — CC0-like, commercial use OK, no
@@ -94,8 +132,16 @@ The sender matches them per camera by the `{cam.id}_*.<ext>` glob.
   config `ndi_source` must **byte-match** the sender's host-prefixed stream **and** the
   scene JSON `ndi_source_name`. Re-check the `MASTER` prefix on all three sides (run
   `hostname` and confirm it uppercases to `MASTER`).
-- **"Nothing discovered"** → the NDI Discovery Service is not running, or
+- **"Nothing discovered"** → the NDI Discovery Service is not running, is a **stale
+  instance** (listening on `5959` but not registering senders), or
   `%APPDATA%\NDI\ndi-config.v1.json` is missing / not pointing discovery at `127.0.0.1`.
+  Check registrations with `Get-NetTCPConnection -LocalPort 5959 -State Established` — if it
+  returns **0** while a sender is up, **kill and relaunch** the Discovery Service (see
+  Prerequisites), then restart the senders.
+- **"Program stays on one camera"** → usually NOT a bug. Stable cuts are by design
+  (`min_dwell` / hysteresis). With a single base clip one crop is often best-framed
+  throughout; use the crops handoff demo above, or expect organic switching only with real
+  multi-angle feeds.
 - **"Feed death blips / watchdog trips"** → the cyndilib `Sender` must be built **once**
   per camera, not re-created per loop iteration. `tools/ndi_loop_sender.py` builds it once
   in `publish_loop`; do not change that.

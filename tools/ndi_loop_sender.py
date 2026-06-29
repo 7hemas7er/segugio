@@ -29,10 +29,25 @@ MASTER host-prefix gotcha:
   the config ``ndi_source`` ``"MASTER (PHONE-WIDE (NDI HX3))"``. :func:`stream_name_from_ndi_source`
   strips the host prefix; :func:`expected_discoverable` re-applies it for the banner check.
 
+Two modes:
+  - DEFAULT (per-camera files): each camera gets its own ``cam_<id>_*.<ext>`` clip from
+    ``--clips-dir``.
+  - CROPS (``--crops-from CLIP``): ONE base clip is published as N different role-based
+    crops (one per camera) — wide / far-band / near-band / centre. As the dog moves through
+    the field, a different camera's crop frames it best, so the director switches continuously.
+    Override a crop with ``--crop CAMID=x0,y0,x1,y1`` (normalized); ``--phase-shift`` also
+    time-staggers the feeds for extra rotation.
+
 Usage::
 
+    # per-camera files
     venv/Scripts/python tools/ndi_loop_sender.py \\
         --config config.looptest.yaml --clips-dir tests/fixtures/looptest
+
+    # 1 clip -> 4 crops (continuous switching demo)
+    venv/Scripts/python tools/ndi_loop_sender.py \\
+        --config config.looptest.yaml \\
+        --crops-from tests/fixtures/looptest/cam_wide_9898282.mp4
 """
 
 from __future__ import annotations
@@ -157,6 +172,105 @@ def decode_clip(
     return frames, fps
 
 
+#: Default normalized crop rect [x0, y0, x1, y1] per camera ROLE (crops mode). Each role
+#: zooms into the region of the base clip its zone-weights reward, so the dog enters a
+#: different camera's "best framing" as it moves near<->far / side<->centre.
+ROLE_CROP_DEFAULTS = {
+    "main_wide": [0.0, 0.0, 1.0, 1.0],        # full frame — neutral SAFE anchor
+    "long": [0.32, 0.28, 0.98, 0.64],         # upper/far band (telephoto downfield)
+    "low": [0.32, 0.52, 1.0, 1.0],            # lower/near band (ground-level close)
+    "handler_side": [0.46, 0.40, 0.86, 0.86],  # centre/stage box
+}
+_FULL_RECT = [0.0, 0.0, 1.0, 1.0]
+
+
+def _parse_crop_overrides(items: "list[str] | None") -> "dict[str, list[float]]":
+    """Parse repeated ``--crop CAMID=x0,y0,x1,y1`` into ``{cam_id: [x0,y0,x1,y1]}``."""
+    out: dict[str, list[float]] = {}
+    for item in items or []:
+        if "=" not in item:
+            raise ValueError(f"--crop must be CAMID=x0,y0,x1,y1 (got {item!r})")
+        cam_id, rect_s = item.split("=", 1)
+        try:
+            parts = [float(p) for p in rect_s.split(",")]
+        except ValueError as exc:
+            raise ValueError(f"--crop rect needs 4 floats (got {item!r}): {exc}") from exc
+        if len(parts) != 4:
+            raise ValueError(f"--crop rect needs 4 comma-separated floats (got {item!r})")
+        x0, y0, x1, y1 = parts
+        if not (0.0 <= x0 < x1 <= 1.0 and 0.0 <= y0 < y1 <= 1.0):
+            raise ValueError(f"--crop rect must be normalized with x0<x1, y0<y1 (got {item!r})")
+        out[cam_id.strip()] = [x0, y0, x1, y1]
+    return out
+
+
+def crop_rect_for(cam, overrides: "dict[str, list[float]]") -> "list[float]":
+    """Resolve a camera's crop rect: ``--crop`` override wins, else role default, else full."""
+    if cam.id in overrides:
+        return overrides[cam.id]
+    role = getattr(cam, "role", None)
+    role = getattr(role, "value", role)  # pydantic enum -> str
+    return ROLE_CROP_DEFAULTS.get(role, _FULL_RECT)
+
+
+def decode_clip_crops(
+    path,
+    cam_rects: "dict[str, list[float]]",
+    max_width: int,
+    max_seconds: float,
+    fps_override: float,
+) -> "dict[str, tuple[list, float]]":
+    """Decode ONE base clip into a downscaled BGR crop list per camera (single pass, low RAM).
+
+    Each full-res frame is sliced into every camera's normalized crop rect, the crop is
+    downscaled to ``max_width`` (aspect-preserving), copied off the source buffer, and
+    appended to that camera's list; the full-res frame is then discarded. Cropping from the
+    FULL-res frame keeps the far/small-dog crops sharp while only the small per-camera crop
+    lists are retained. ``cv2`` is lazy-imported.
+
+    Args:
+        cam_rects: ``{cam_id: [x0,y0,x1,y1]}`` normalized crop rects.
+    Returns:
+        ``{cam_id: (frames, fps)}``.
+    """
+    import cv2  # lazy — light import boundary
+
+    cap = cv2.VideoCapture(str(path))
+    native_fps = float(cap.get(cv2.CAP_PROP_FPS))
+    if fps_override > 0:
+        fps = fps_override
+    elif native_fps and native_fps == native_fps and native_fps > 0:  # not 0/NaN
+        fps = native_fps
+    else:
+        fps = 30.0
+    max_frames = int(max_seconds * fps) if max_seconds > 0 else 0
+
+    out: dict[str, list] = {cam_id: [] for cam_id in cam_rects}
+    count = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        h, w = frame.shape[:2]
+        for cam_id, (x0, y0, x1, y1) in cam_rects.items():
+            cx0, cy0, cx1, cy1 = int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h)
+            crop = frame[cy0:cy1, cx0:cx1]
+            chh, cww = crop.shape[:2]
+            if cww > max_width:
+                scale = max_width / cww
+                crop = cv2.resize(
+                    crop, (int(cww * scale), int(chh * scale)), interpolation=cv2.INTER_AREA
+                )
+            else:
+                crop = crop.copy()  # detach the view so the full 4K frame can be freed
+            out[cam_id].append(crop)
+        count += 1
+        if max_frames and count >= max_frames:
+            break
+    cap.release()
+    return {cam_id: (frames, fps) for cam_id, frames in out.items()}
+
+
 def publish_loop(
     stream: str,
     frames: list,
@@ -215,29 +329,58 @@ def build(args: argparse.Namespace) -> list[threading.Thread]:
     # Stash on the namespace so main() can signal the same Event.
     args._stop = stop  # type: ignore[attr-defined]
 
-    threads: list[threading.Thread] = []
+    # CROPS MODE (one base clip -> one role-based crop per camera) vs the default per-camera
+    # file mode. Crops mode forces visible switching: as the dog moves through near/far/centre
+    # of the SAME clip, a different camera's crop frames it best.
+    crop_overrides = _parse_crop_overrides(getattr(args, "crop", None))
+    crops_mode = getattr(args, "crops_from", None) is not None
+    eligible = [cam for cam in config.cameras if cam.ndi_source]
     for cam in config.cameras:
         if not cam.ndi_source:
             logger.warning("camera {} has no ndi_source — skipped", cam.id)
-            continue
+
+    crops_by_cam: "dict[str, tuple[list, float]]" = {}
+    if crops_mode:
+        cam_rects = {cam.id: crop_rect_for(cam, crop_overrides) for cam in eligible}
+        logger.info(
+            "CROPS MODE: base clip {} -> {} role-based crops", args.crops_from, len(cam_rects)
+        )
+        crops_by_cam = decode_clip_crops(
+            args.crops_from, cam_rects, args.max_width, args.max_seconds, args.fps
+        )
+
+    threads: list[threading.Thread] = []
+    for index, cam in enumerate(eligible):
         stream = stream_name_from_ndi_source(cam.ndi_source)
-        clip = _find_clip(args.clips_dir, cam.id)
-        if clip is None:
-            logger.warning(
-                "no clip matching {}_*.<ext> in {} — camera {} skipped",
-                cam.id,
-                args.clips_dir,
-                cam.id,
-            )
-            continue
-        frames, fps = decode_clip(clip, args.max_width, args.max_seconds, args.fps)
+        if crops_mode:
+            frames, fps = crops_by_cam.get(cam.id, ([], 0.0))
+            clip_label = f"{Path(args.crops_from).name} crop={crop_rect_for(cam, crop_overrides)}"
+        else:
+            clip = _find_clip(args.clips_dir, cam.id)
+            if clip is None:
+                logger.warning(
+                    "no clip matching {}_*.<ext> in {} — camera {} skipped",
+                    cam.id,
+                    args.clips_dir,
+                    cam.id,
+                )
+                continue
+            frames, fps = decode_clip(clip, args.max_width, args.max_seconds, args.fps)
+            clip_label = clip.name
         if not frames:
-            logger.warning("clip {} decoded 0 frames — camera {} skipped", clip.name, cam.id)
+            logger.warning("camera {} decoded 0 frames ({}) — skipped", cam.id, clip_label)
             continue
+
+        # Optional time-stagger: rotate each feed so the dog sits at a different point in
+        # each camera at any instant (extra rotation insurance).
+        if getattr(args, "phase_shift", False) and len(eligible) > 1:
+            offset = (index * (len(frames) // len(eligible))) % len(frames)
+            if offset:
+                frames = frames[offset:] + frames[:offset]
 
         expected = expected_discoverable(stream, host)
         logger.info(
-            "camera {}: clip={} frames={} fps={:.2f}", cam.id, clip.name, len(frames), fps
+            "camera {}: {} frames={} fps={:.2f}", cam.id, clip_label, len(frames), fps
         )
         logger.info("  published stream : {!r}", stream)
         logger.info("  discoverable as  : {!r}", expected)
@@ -298,6 +441,28 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=0.0,
         help="Override publish fps (0 = each clip's native fps). Default 0.",
+    )
+    parser.add_argument(
+        "--crops-from",
+        type=Path,
+        default=None,
+        metavar="CLIP",
+        help=(
+            "CROPS MODE: publish ONE base clip as N role-based crops (one per camera), "
+            "ignoring --clips-dir / per-camera files. Forces continuous switching as the dog moves."
+        ),
+    )
+    parser.add_argument(
+        "--crop",
+        action="append",
+        default=None,
+        metavar="CAMID=x0,y0,x1,y1",
+        help="Override a camera's crop rect (normalized 0..1) in crops mode; repeatable.",
+    )
+    parser.add_argument(
+        "--phase-shift",
+        action="store_true",
+        help="Time-stagger feeds: offset each camera's frames by index*(len/N) for extra rotation.",
     )
     return parser.parse_args(argv)
 

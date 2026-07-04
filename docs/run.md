@@ -49,10 +49,14 @@ They must point at the **same opcomm directory** (see "Channel directory" below)
 - **OBS Studio** running with the DistroAV (NDI) plugin and the imported scene collection
   (one scene per camera + a SAFE scene). See [`docs/obs-setup.md`](obs-setup.md) for the scene
   collection, the obs-websocket v5 host/port/password, and the read-from-file overlay text source.
-- **obs-websocket v5** enabled. v1 uses the defaults `localhost:4455`, no password (the
-  orchestrator passes `host="localhost", port=4455, password=None` — `Config` has no `obs`
-  block yet). If your OBS uses a different host/port/password, that is a future config-model
-  change; for now run OBS with the defaults on the same box.
+- **obs-websocket v5** enabled. The orchestrator reads the OBS host/port/password from the
+  `SEGUGIO_OBS_HOST` / `SEGUGIO_OBS_PORT` / `SEGUGIO_OBS_PASSWORD` env vars (`build_orchestrator`
+  threads them into `ObsWsController(host, port, password)`). When unset they default to
+  `localhost` / `4455` / no password — so an all-defaults OBS on the same box needs no env at all.
+  If you set an obs-websocket **password** in OBS, you MUST export `SEGUGIO_OBS_PASSWORD` to the
+  same value (otherwise the controller connects unauthenticated and every scene cut fails). An
+  empty `SEGUGIO_OBS_PASSWORD` is treated as "no password". `Config` has no `obs` block
+  (`extra="forbid"`), so env is the wiring — not a YAML field.
 
 ---
 

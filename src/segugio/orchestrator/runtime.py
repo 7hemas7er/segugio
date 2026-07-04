@@ -20,9 +20,14 @@ It then returns ``Orchestrator.from_config(...)`` — it does NOT re-architect t
 change ``from_config``'s signature; it CALLS it.
 
 OBS credentials: ``Config`` has NO ``obs`` block and uses ``extra="forbid"`` (one cannot be added
-without a model change), so the factory passes the hardcoded defaults ``localhost`` / ``4455`` /
-``None`` — already identical to ``ObsWsController.__init__``'s own defaults. Sourcing OBS creds
-from YAML is a future Config-model change, deliberately out of scope for this thin-wiring plan.
+without a model change), so host/port/password are resolved from the ``SEGUGIO_OBS_HOST`` /
+``SEGUGIO_OBS_PORT`` / ``SEGUGIO_OBS_PASSWORD`` env vars (see ``_obs_credentials``) and threaded
+into ``obs_factory(host, port, password)``. Defaults (when the env is unset) are exactly
+``localhost`` / ``4455`` / ``None`` — identical to ``ObsWsController.__init__``'s own — so an
+operator who set an obs-websocket password now has it reach the controller instead of silently
+connecting unauthenticated (which failed every cut). Env over a ``config.obs`` schema change is
+Claude's-discretion: it is the minimal, docs-aligned wiring an operator already sets alongside
+``SEGUGIO_OPCOMM_DIR`` (a pydantic obs block would be a larger ``extra="forbid"`` change).
 
 INJECTABLE CONSTRUCTION SEAM (the headless-testability contract): the three ``*_factory`` params
 DEFAULT to the real builders below but can be overridden so a unit test passes fakes — exactly the
@@ -37,6 +42,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
+
+from loguru import logger
 
 from .loop import Orchestrator
 
@@ -55,11 +62,39 @@ _STATUS_FILE = "status.json"
 _SCORE_FILE = "score.json"
 _OVERLAY_FILE = "overlay.txt"
 
-# OBS defaults — Config carries no obs block (extra="forbid"); these match ObsWsController's own
-# defaults. Future: source from a config.obs model (out of scope for this thin-wiring plan).
+# OBS default fallbacks — Config carries no obs block (extra="forbid"); these match
+# ObsWsController's own defaults and are the values _obs_credentials() returns when the
+# SEGUGIO_OBS_* env is unset (so an unset env is byte-identical to today's behavior).
 _DEFAULT_OBS_HOST = "localhost"
 _DEFAULT_OBS_PORT = 4455
 _DEFAULT_OBS_PASSWORD: str | None = None
+
+
+def _obs_credentials() -> "tuple[str, int, str | None]":
+    """Resolve OBS ``(host, port, password)`` from the ``SEGUGIO_OBS_*`` env (docs-aligned).
+
+    Reads ``SEGUGIO_OBS_HOST`` (default ``localhost``), ``SEGUGIO_OBS_PORT`` (default ``4455``,
+    ``int``), ``SEGUGIO_OBS_PASSWORD`` (default ``None`` — an EMPTY string is treated as ``None``,
+    i.e. "no password"). Env over a ``config.obs`` pydantic block is deliberate: the Config model
+    uses ``extra="forbid"``, so env is the minimal, docs-aligned wiring (Claude's-discretion).
+
+    Defensive (RBT-04 "nessun crash ammesso"): a non-integer ``SEGUGIO_OBS_PORT`` coasts to the
+    default with a warning rather than crashing the director at launch.
+    """
+    host = os.environ.get("SEGUGIO_OBS_HOST", _DEFAULT_OBS_HOST) or _DEFAULT_OBS_HOST
+    raw_port = os.environ.get("SEGUGIO_OBS_PORT", "")
+    try:
+        port = int(raw_port) if raw_port.strip() else _DEFAULT_OBS_PORT
+    except ValueError:
+        logger.warning(
+            "SEGUGIO_OBS_PORT={!r} is not an integer — using default {}",
+            raw_port,
+            _DEFAULT_OBS_PORT,
+        )
+        port = _DEFAULT_OBS_PORT
+    # Empty string → None (an operator who exports SEGUGIO_OBS_PASSWORD= means "no password").
+    password = os.environ.get("SEGUGIO_OBS_PASSWORD") or _DEFAULT_OBS_PASSWORD
+    return host, port, password
 
 # The BoT-SORT override the tracker resolves to the repo trackers/ dir (detector.py).
 _TRACKER_YAML = "botsort_dog.yaml"
@@ -202,8 +237,11 @@ def build_orchestrator(
     # an ndi_source — never a frame list to one tracker, #13107 is handled per-camera below).
     source = source_factory(list(config.cameras))
 
-    # ONE ObsController with the hardcoded OBS defaults (Config has no obs block).
-    obs = obs_factory(_DEFAULT_OBS_HOST, _DEFAULT_OBS_PORT, _DEFAULT_OBS_PASSWORD)
+    # ONE ObsController with host/port/password resolved from SEGUGIO_OBS_* env (Config has no obs
+    # block — extra="forbid"). Defaults match ObsWsController's own, so an unset env is unchanged;
+    # a configured SEGUGIO_OBS_PASSWORD now reaches the controller (was silently dropped before).
+    obs_host, obs_port, obs_password = _obs_credentials()
+    obs = obs_factory(obs_host, obs_port, obs_password)
 
     # ONE PerCameraTracker per camera, seeded with config.model.path + class_index (resolved BY
     # NAME at first inference inside the loop — never hardcode 16, CFG-04).

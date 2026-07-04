@@ -14,9 +14,14 @@ template is OS-level state on the OBS box, not a code-migrated artifact.
    phone feeds appear under. Install the NDI runtime it depends on.
 3. **obs-websocket v5 enabled**: *Tools → WebSocket Server Settings* →
    - Enable WebSocket server (default port **4455**).
-   - Set a server password and inject it into the orchestrator via the controller
-     constructor (config/env on the box). **Never commit the password** — the
-     localhost / dedicated-LAN bind is the documented trust boundary (T-05-03-03).
+   - Set a server password and inject it into the orchestrator via the
+     **`SEGUGIO_OBS_PASSWORD`** env var (with `SEGUGIO_OBS_HOST` / `SEGUGIO_OBS_PORT`
+     siblings for a non-default host/port). `build_orchestrator` reads these and passes
+     them to `ObsWsController(host, port, password)`; an unset env defaults to
+     `localhost` / `4455` / no password. If you set an OBS password but do NOT export
+     `SEGUGIO_OBS_PASSWORD`, the controller connects unauthenticated and every cut fails.
+     **Never commit the password** — export it in the shell/service environment on the
+     box; the localhost / dedicated-LAN bind is the documented trust boundary (T-05-03-03).
 
 ## Import the scene collection
 

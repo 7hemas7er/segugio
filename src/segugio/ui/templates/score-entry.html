@@ -75,6 +75,10 @@
   <div class="page">
     <h1>Inserimento punteggio</h1>
 
+    <!-- Fix #7 (SECURITY): the dedicated page carries the shared secret for its own same-origin
+         POST /score (empty when unset → open mode). Inlined via | tojson (safe JS string). -->
+    <script>window.__CONSOLE_SECRET = {{ (console_secret or "") | tojson }};</script>
+
     <!-- The shared host markup (#score-cfg blob + #score-entry-root + #publish-banner + the
          score-calc.js/score-entry.js script tags) lives in ONE partial so this page and the
          Phase-17 console dialog are byte-for-byte identical (D-08, the anti-drift spine). -->

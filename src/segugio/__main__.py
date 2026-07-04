@@ -95,6 +95,22 @@ def main(argv=None) -> int:
     from .logging import configure_logging
 
     configure_logging(log_dir=args.opcomm_dir)
+
+    # Fix #7 (SECURITY, T-9l5-04): a LOUD degrade (never a crash — "nessun crash ammesso") when the
+    # console is secured but obs-websocket is left unauthenticated. A missing OBS password is not
+    # the same as OBS being down (the controller still connects), but on a secured rig it is a real
+    # gap — warn prominently so the operator sets SEGUGIO_OBS_PASSWORD too.
+    if os.environ.get("SEGUGIO_CONSOLE_SECRET") and not (
+        os.environ.get("SEGUGIO_OBS_PASSWORD") or ""
+    ).strip():
+        from loguru import logger
+
+        logger.warning(
+            "SEGUGIO_CONSOLE_SECRET is set (console secured) but SEGUGIO_OBS_PASSWORD is "
+            "empty/unset — obs-websocket is UNAUTHENTICATED. Set SEGUGIO_OBS_PASSWORD to secure "
+            "OBS control too (this is a loud degrade, not a crash)."
+        )
+
     config = load_config(args.config)  # fails fast with SystemExit(2) on a bad config
     try:
         orch = build_orchestrator(config, args.opcomm_dir)

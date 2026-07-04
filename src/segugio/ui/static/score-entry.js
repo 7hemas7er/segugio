@@ -648,9 +648,14 @@
       validateOnBlur();
       const raw = collectRaw();
       setBanner("", "");
+      // Fix #7 (SECURITY): attach the Bearer secret when the host page set it (open mode when unset).
+      const _headers = { "Content-Type": "application/json" };
+      if (typeof window !== "undefined" && window.__CONSOLE_SECRET) {
+        _headers["Authorization"] = "Bearer " + window.__CONSOLE_SECRET;
+      }
       fetch("/score", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: _headers,
         body: JSON.stringify(raw),
       })
         .then((resp) => {

@@ -314,10 +314,16 @@
   </dialog>
 
   <script>
+    // Fix #7 (SECURITY): the console carries the shared secret for its OWN same-origin POSTs. Empty
+    // when unset (open mode). Inlined via | tojson so it is a safe JS string literal (not raw HTML).
+    window.__CONSOLE_SECRET = {{ (console_secret or "") | tojson }};
+
     function post(url, data) {
       const body = new URLSearchParams(data);
-      return fetch(url, { method: "POST", body,
-        headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+      const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+      // Attach the Bearer secret when configured (the before_request gate requires it on POSTs).
+      if (window.__CONSOLE_SECRET) headers["Authorization"] = "Bearer " + window.__CONSOLE_SECRET;
+      return fetch(url, { method: "POST", body, headers });
     }
 
     // --- D-09/D-10 score-entry modal: open the native <dialog> + mount the SAME shared component

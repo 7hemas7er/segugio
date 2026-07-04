@@ -29,6 +29,7 @@ Security at the input boundary:
 
 from __future__ import annotations
 
+import hmac
 import os
 import threading
 import time
@@ -178,7 +179,23 @@ _OVERLAY_CFG_DEFAULTS = {
 }
 
 
-def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, sport="disc_dog"):
+def _bind_host() -> str:
+    """The console bind host — ``SEGUGIO_CONSOLE_HOST`` override, default ``0.0.0.0`` (Fix #7).
+
+    Default ``0.0.0.0`` keeps back-compat (tablet over the dedicated WiFi). An operator can bind to
+    a specific interface (e.g. ``127.0.0.1`` for a localhost-only run) via the env var.
+    """
+    return os.environ.get("SEGUGIO_CONSOLE_HOST", "0.0.0.0")
+
+
+def create_app(
+    channel_dir: str,
+    cam_ids=(),
+    overlay_cfg=None,
+    profile=None,
+    sport="disc_dog",
+    console_secret=None,
+):
     """Build the Flask operator console wired to ``channel_dir`` (the opcomm file directory).
 
     A factory (not a module-level ``app``) so tests inject a tmp_path dir via the Flask test
@@ -216,6 +233,13 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         request,
         send_file,
     )
+
+    # Fix #7 (SECURITY / T-9l5-01/02): resolve the OPT-IN console secret — the arg wins, else the
+    # SEGUGIO_CONSOLE_SECRET env. Falsy → the before_request gate below is a no-op (open,
+    # back-compat with the ~80 existing UI tests). Truthy → mutating POSTs require a Bearer secret
+    # + a same-Origin check.
+    if console_secret is None:
+        console_secret = os.environ.get("SEGUGIO_CONSOLE_SECRET")
 
     # Lazy/in-factory — score_calc is stdlib-only (no Flask, no config, no numpy), so this stays
     # inside the crash-isolation allowlist (RBT-08 / Pitfall 1). The authoritative POST /score
@@ -291,6 +315,33 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
 
     app = Flask(__name__)
 
+    @app.before_request
+    def _console_auth_gate():
+        # Fix #7 (SECURITY / T-9l5-01/02): gate the STATE-CHANGING routes (POST /score, /run,
+        # /command) behind a shared secret + a same-Origin (CSRF) check. OPT-IN: with no secret
+        # configured this is a no-op (open, back-compat). GET/read routes stay open by design — the
+        # accepted trusted-dedicated-LAN read posture (T-9l5-03 accept); only mutating actions are
+        # gated, plus CSRF. Returns None to fall through to the route; abort()s otherwise.
+        if not console_secret:
+            return None
+        if request.method != "POST":
+            return None  # reads (console load, /overlay, preview tiles) stay open
+        # Bearer secret — constant-time compare (never a plain ==, which leaks length via timing).
+        auth = request.headers.get("Authorization", "")
+        expected = "Bearer " + console_secret
+        if not hmac.compare_digest(auth.encode("utf-8"), expected.encode("utf-8")):
+            abort(401)
+        # CSRF: a same-origin console fetch sends a matching Origin; a cross-site forged POST sends
+        # a foreign one. Only checked WHEN present (a same-origin fetch may omit it) — a foreign
+        # Origin is rejected even with a (scraped) secret (defense-in-depth over the Bearer gate).
+        origin = request.headers.get("Origin")
+        if origin is not None:
+            from urllib.parse import urlparse
+
+            if urlparse(origin).netloc != request.host:
+                abort(403)
+        return None
+
     @app.get("/")
     def index():
         # One Italian operator console page (selector + 3 field sets + run + override + status).
@@ -301,7 +352,12 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         # <dialog>'s included shared partial resolves with NO per-host divergence (one markup source,
         # one component). Pure stdlib str(Decimal) injection — adds no heavy import (crash-isolation).
         return render_template(
-            "console.html", cam_ids=sorted(cam_ids), score_cfg=_score_cfg
+            "console.html",
+            cam_ids=sorted(cam_ids),
+            score_cfg=_score_cfg,
+            # Fix #7: the console carries the secret for its OWN same-origin POSTs (inlined as a JS
+            # constant). Empty when unset (the fetch then sends no Authorization header — open mode).
+            console_secret=console_secret or "",
         )
 
     @app.get("/score-entry")
@@ -312,7 +368,9 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         # NO <input>/calc logic of its own (the component builds every field from the injected
         # profile); the same mount(root, cfg) module is re-mounted in the P17 console modal so drift
         # is structurally impossible (the SCV-02 one-renderer-two-mounts lesson applied to a form).
-        return render_template("score-entry.html", score_cfg=_score_cfg)
+        return render_template(
+            "score-entry.html", score_cfg=_score_cfg, console_secret=console_secret or ""
+        )
 
     def _write_score_doc(doc) -> None:
         # The ONE write path: score.json (structured, for the UI) AND overlay.txt (rendered, for
@@ -588,11 +646,12 @@ def run_console() -> None:
         # entrypoint so the crash-isolation guard passes whether or not waitress is installed.
         from waitress import serve
 
-        serve(app, host="0.0.0.0", port=8080)
+        # Fix #7: bind host overridable via SEGUGIO_CONSOLE_HOST (default 0.0.0.0, back-compat).
+        serve(app, host=_bind_host(), port=8080)
     except ImportError:
         # threaded=True is the HARD UXT-02/D-08 safety control on the dev-server fallback: a
         # preview GET can never starve the lone WSGI worker so the /command override stalls.
-        app.run(host="0.0.0.0", port=8080, threaded=True)
+        app.run(host=_bind_host(), port=8080, threaded=True)
 
 
 if __name__ == "__main__":  # pragma: no cover - the production entrypoint

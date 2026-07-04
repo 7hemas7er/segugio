@@ -89,6 +89,29 @@ $env:SEGUGIO_OPCOMM_DIR = "D:\segugio\opcomm"
 python -m segugio.ui.app
 ```
 
+### Securing the console (Fix #7)
+
+By default the mutating routes (`/score`, `/run`, `/command`) are **open** on the dedicated LAN
+(back-compat). To lock them down set a shared secret before launching:
+
+```bash
+# Windows PowerShell
+$env:SEGUGIO_CONSOLE_SECRET = "a-long-random-string"
+# optional: bind to a specific interface instead of 0.0.0.0
+$env:SEGUGIO_CONSOLE_HOST = "127.0.0.1"
+python -m segugio.ui.app
+```
+
+With `SEGUGIO_CONSOLE_SECRET` set, every state-changing POST must carry
+`Authorization: Bearer <secret>` **and** pass a same-`Origin` (CSRF) check — a foreign `Origin`
+is rejected (403), a missing/wrong secret is rejected (401). The console page carries the secret
+for its own POSTs, so the operator tablet keeps working with no extra steps; only unauthenticated
+LAN devices and cross-site pages are blocked. GET/read routes stay open (the accepted trusted-LAN
+read posture). `SEGUGIO_CONSOLE_HOST` overrides the `0.0.0.0` bind (default unchanged).
+
+Production should ALSO set `SEGUGIO_OBS_PASSWORD` (see §2) — the orchestrator logs a loud warning
+if the console is secured but obs-websocket has no password.
+
 ---
 
 ## 2. Launch the orchestrator

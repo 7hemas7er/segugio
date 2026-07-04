@@ -4,8 +4,8 @@ milestone: v1.3
 milestone_name: Gestione Punteggi Avanzata
 status: Awaiting next milestone
 stopped_at: Milestone v1.3 complete — archived & tagged (v1.3); awaiting /gsd-new-milestone
-last_updated: "2026-06-28T13:53:14.897Z"
-last_activity: 2026-06-28 — Quick task 260628-m2d: 4-camera NDI loop-test harness (no-phones OBS scene-switch test)
+last_updated: "2026-07-04T05:35:00.000Z"
+last_activity: 2026-07-04 — Quick task 260704-9l5: item-1 pre-rig fixes (7 robustness & security fixes, --validate)
 progress:
   total_phases: 4
   completed_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-28 after v1.3 milestone close)
 Phase: Milestone v1.3 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-06-28 — Quick task 260628-m2d: 4-camera NDI loop-test harness (no-phones OBS scene-switch test)
+Last activity: 2026-07-04 — Quick task 260704-9l5: item-1 pre-rig fixes (7 robustness & security fixes, --validate)
 
 ## Performance Metrics
 
@@ -285,6 +285,7 @@ Recent decisions affecting current work:
 | 2026-06-21 | console-fix-multiview-collassato-240px | console.html: fix live multiview collassata a 240px — rimosso `margin: 0 auto` da `.multiview` (auto-margin su un grid item disabilita `justify-self:stretch` → il grid scende al minimo `minmax(240px,1fr)`). Diagnosi+conferma con Playwright (canale Edge, viewport 1440×900): multiview 240→**1003px**, pagina entro il viewport (scrollH=900). Il tile resta nero senza feed NDI (cam morta = atteso, non è il bug). `<script>` invariato — /gsd-fast |
 | 2026-06-21 | console-emoji-to-tabler-icons | console.html: rimosse emoji/glifi (lock-emoji, ●, ◐, ▸, ··) e sostituiti con icone Tabler SVG INLINE (lock/broadcast/pause/circle-off/chevron) via helper `icon()` + map `ICONS`; badge e leaderboard usano `innerHTML`(SVG statico)+`append`(testo) → niente injection, CAM_LABEL resta `textContent`. `.ico` scala col font. Offline-safe (SVG inline, nessun CDN/font). Verificato con Playwright (Edge): icone renderizzano (lock su FORZATA, circle-off su lost), 0 glifi residui — /gsd-fast |
 | 2026-06-28 | 4-camera-ndi-loop-test-harness-to-verify | No-phones 4-cam NDI loop test for OBS scene switching. `tools/ndi_loop_sender.py` loops 4 Pexels CC0 clips as named NDI sources (one cyndilib Sender built ONCE per camera, paced, downscaled; strips the `MASTER (...)` host prefix to publish the bare stream). `config.looptest.yaml` (host-prefixed `ndi_source` + livelier thresholds min_dwell 1.0/cooldown 0.5/debounce 2/hysteresis 0.08), `obs/segugio-looptest-scene-collection.json` (MASTER-prefixed `ndi_source_name`), `docs/looptest.md` runbook. Prereq discovered this session: mDNS broken on this box (Tailscale) → needs NDI Discovery Server + ndi-config discovery=127.0.0.1 — quick 260628-m2d (commits 63bef9b, 4c58b4e, e486bf9, 5777bde) |
+| 2026-07-04 | item1-pre-rig-fixes-7-robustness-and-sec | Item-1 pre-rig hardening (memory: prerig-fix-backlog, item 1) — 7 atomic robustness/security fixes before the hardware rig: (1) GPU latency gate now drives REAL looptest dog frames (was np.random → 0 detections, never timed the native-ReID cost) + p99/max tail gate + absolute-headroom preview check (measured p95 162ms @1080p, native ReID engaged, RTX 4000 Ada on AC); (2) NDI receiver survives a transient fault + tick-loop supervisor restarts a dead receiver; (3) SEGUGIO_OBS_HOST/PORT/PASSWORD wired into ObsWsController + docs reconciled; (4) configure_logging() called at both entry points + rotating segugio.log post-mortem sink; (5) obs_connected surfaced status.json→GET /status→console OBS-health badge; (6) startup NDI discovery doctor emits per-camera "ndi_source NOT FOUND"; (7) SECURITY: SEGUGIO_CONSOLE_SECRET Bearer + same-Origin/CSRF gate on /score,/run,/command + SEGUGIO_CONSOLE_HOST bind override + loud OBS-auth warning. Plan-checked; verified 8/8 must-haves; adversarial security review (auth gate confirmed sound, 0 critical) → 3 follow-up hardening fixes (WR-01 receiver-setup fault isolation, WR-02 persistent-fault backoff, IN-04 OBS-port range-check). Non-gpu suite 605 passed / 2 pre-existing failures / 27 skipped; GPU harness 2 passed. 8 commits bfc844e,3c5c3d8,5ee9ac9,acade95,d598b49,1483259,9928d52,575fd1b — quick 260704-9l5 (--validate). Remaining pre-rig: item 2 (detection eval + yolo26s fine-tune) + the hardware/field milestone |
 
 ## Deferred Items
 

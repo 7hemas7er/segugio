@@ -118,3 +118,15 @@ def test_non_integer_port_coasts_to_default(make_config, tmp_path, monkeypatch):
     _build(cfg, tmp_path, bucket)
 
     assert bucket["args"] == ("localhost", 4455, None)
+
+
+def test_out_of_range_port_coasts_to_default(make_config, tmp_path, monkeypatch):
+    """An integer-but-nonsensical port (0 / negative / >65535) coasts to the default (review IN-04)."""
+    monkeypatch.delenv("SEGUGIO_OBS_HOST", raising=False)
+    monkeypatch.delenv("SEGUGIO_OBS_PASSWORD", raising=False)
+    for bad in ("0", "-1", "70000"):
+        monkeypatch.setenv("SEGUGIO_OBS_PORT", bad)
+        cfg = make_config(overrides={"preview": {"enabled": False}})
+        bucket: dict = {}
+        _build(cfg, tmp_path, bucket)
+        assert bucket["args"] == ("localhost", 4455, None), f"port {bad!r} should coast to default"

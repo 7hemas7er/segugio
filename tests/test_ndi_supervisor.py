@@ -153,3 +153,92 @@ def test_supervisor_leaves_alive_receiver_untouched(monkeypatch):
 
     release.set()
     src.stop()
+
+
+class _AlwaysFaultyReceiver:
+    """Always-connected receiver whose capture_video() raises EVERY pass (a persistent fault)."""
+
+    def __init__(self) -> None:
+        self.frame_sync = self
+        self.passes = 0
+
+    def is_connected(self) -> bool:
+        return True
+
+    def capture_video(self) -> None:
+        self.passes += 1
+        raise RuntimeError("persistent connected-path fault")
+
+    def set_source(self, source) -> None:  # pragma: no cover - not hit on the connected path
+        pass
+
+
+def test_receiver_persistent_fault_backs_off(monkeypatch):
+    """WR-02: a PERSISTENT body fault backs off to the disconnected interval, not the 2ms poll pace.
+
+    A one-off transient re-attempts promptly (one poll interval); a stuck connected-path fault must
+    NOT churn ~500 exceptions/sec/camera on the box running the <300ms AI loop.
+    """
+    from segugio.ndi.ndi_source import _RECEIVER_DISCONNECTED_SLEEP_S
+
+    src = NdiFrameSource(cameras=[])
+
+    durations: list[float] = []
+
+    def _record_sleep(dt):
+        durations.append(dt)
+        # Bound: stop after 3 fault-coast sleeps so we can inspect the backoff schedule.
+        if len(durations) >= 3:
+            src._stop.set()
+
+    monkeypatch.setattr(ndi_source.time, "sleep", _record_sleep)
+
+    sink_id = logger.add(lambda msg: None, level="WARNING")  # quiet the throttled warning
+    try:
+        src._run_receiver(
+            "cam_wide", "PHONE-WIDE (NDI)", finder=None,
+            receiver=_AlwaysFaultyReceiver(), video_frame=_ZeroResFrame(), cv2=None,
+        )
+    finally:
+        logger.remove(sink_id)
+
+    # First fault (streak==1): prompt re-attempt at the poll pace. Every subsequent fault (streak>1):
+    # back off to the longer disconnected interval.
+    assert durations[0] == _RECEIVER_POLL_INTERVAL_S, "first transient fault re-attempts promptly"
+    assert durations[1] == _RECEIVER_DISCONNECTED_SLEEP_S, "a persistent fault backs off"
+    assert durations[2] == _RECEIVER_DISCONNECTED_SLEEP_S, "the backoff holds while the fault persists"
+
+
+def test_receiver_setup_fault_logs_and_exits_cleanly(monkeypatch):
+    """WR-01: a receiver SETUP fault is caught + logged through loguru (not a raw stderr traceback),
+    the thread exits cleanly, and the per-camera setup-fault streak increments (throttle across
+    the supervisor's ~1Hz respawns)."""
+    # Force the FIRST setup step to raise. It runs BEFORE the lazy cyndilib/cv2 imports, so the test
+    # stays headless (no cyndilib needed) and models the NDI base<->HX plugin pairing gotcha.
+    def _boom() -> None:
+        raise RuntimeError("NDI base<->HX plugin pairing failed")
+
+    monkeypatch.setattr(ndi_source, "_prefer_system_ndi_runtime", _boom)
+
+    src = NdiFrameSource(cameras=[])
+
+    captured: list[str] = []
+    sink_id = logger.add(lambda msg: captured.append(str(msg)), level="ERROR")
+    try:
+        # Must NOT raise: a raw traceback would kill the thread AND escape the loguru sink.
+        src._receiver_loop("cam_wide", "PHONE-WIDE (NDI)")
+    finally:
+        logger.remove(sink_id)
+
+    assert any("SETUP fault" in m for m in captured), (
+        f"a setup fault must be logged through loguru, got {captured}"
+    )
+    assert src._setup_faults["cam_wide"] == 1
+
+    # A second respawn attempt increments the streak (drives the cross-respawn throttle).
+    sink_id2 = logger.add(lambda msg: None, level="ERROR")
+    try:
+        src._receiver_loop("cam_wide", "PHONE-WIDE (NDI)")
+    finally:
+        logger.remove(sink_id2)
+    assert src._setup_faults["cam_wide"] == 2

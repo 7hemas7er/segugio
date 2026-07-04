@@ -78,8 +78,8 @@ def _obs_credentials() -> "tuple[str, int, str | None]":
     i.e. "no password"). Env over a ``config.obs`` pydantic block is deliberate: the Config model
     uses ``extra="forbid"``, so env is the minimal, docs-aligned wiring (Claude's-discretion).
 
-    Defensive (RBT-04 "nessun crash ammesso"): a non-integer ``SEGUGIO_OBS_PORT`` coasts to the
-    default with a warning rather than crashing the director at launch.
+    Defensive (RBT-04 "nessun crash ammesso"): a non-integer OR out-of-range ``SEGUGIO_OBS_PORT``
+    coasts to the default with a warning rather than crashing the director at launch.
     """
     host = os.environ.get("SEGUGIO_OBS_HOST", _DEFAULT_OBS_HOST) or _DEFAULT_OBS_HOST
     raw_port = os.environ.get("SEGUGIO_OBS_PORT", "")
@@ -88,6 +88,16 @@ def _obs_credentials() -> "tuple[str, int, str | None]":
     except ValueError:
         logger.warning(
             "SEGUGIO_OBS_PORT={!r} is not an integer — using default {}",
+            raw_port,
+            _DEFAULT_OBS_PORT,
+        )
+        port = _DEFAULT_OBS_PORT
+    # Range-check (review IN-04): a parseable-but-nonsensical port (0 / negative / >65535) would
+    # otherwise pass through and just silently fail to connect with no operator signal — coast to
+    # the default with a warning instead.
+    if not (1 <= port <= 65535):
+        logger.warning(
+            "SEGUGIO_OBS_PORT={!r} is out of range (1-65535) — using default {}",
             raw_port,
             _DEFAULT_OBS_PORT,
         )

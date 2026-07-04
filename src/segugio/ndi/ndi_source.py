@@ -243,6 +243,10 @@ class NdiFrameSource:
         self._lock = threading.Lock()
         self._latest: "dict[str, np.ndarray]" = {}
         self._ts: dict[str, float] = {}
+        # Per-camera SETUP-fault streak (WR-01): throttles the setup-fault log across the
+        # supervisor's ~1Hz respawns so a persistent setup failure (e.g. the NDI base<->HX plugin
+        # pairing gotcha) logs a heartbeat, not one raw traceback per respawn.
+        self._setup_faults: dict[str, int] = {}
 
     def start(self) -> None:
         """Launch (or restart) one supervised receiver thread per camera (RBT-04).
@@ -280,34 +284,80 @@ class NdiFrameSource:
         # base loaded here is reused for cyndilib's by-name DLL import. Silent no-op when the
         # system runtime is absent (then cyndilib uses its bundled runtime — full/mock NDI is
         # unaffected). See _prefer_system_ndi_runtime + debug/cyndilib-ndi-hx-no-decode.
-        _prefer_system_ndi_runtime()
-
-        import cv2
-        from cyndilib.finder import Finder
-        from cyndilib.receiver import Receiver
-        from cyndilib.video_frame import VideoFrameSync
-        from cyndilib.wrapper.ndi_recv import RecvBandwidth, RecvColorFormat
-
-        finder = Finder()
-        receiver = Receiver(
-            color_format=RecvColorFormat.RGBX_RGBA,
-            bandwidth=RecvBandwidth.highest,
-        )
-        video_frame = VideoFrameSync()
-        receiver.frame_sync.set_video_frame(video_frame)
-        finder.open()
+        finder = None
+        receiver = None
         try:
-            # Resolve the configured source name → a cyndilib Source, then connect.
-            source = self._resolve_source(finder, source_name)
-            if source is not None:
-                receiver.set_source(source)
+            # ── SETUP (WR-01 fault isolation) ──────────────────────────────────────────────────
+            # Pairing the system NDI 6.3.2 runtime, the lazy cyndilib/cv2 imports, and the
+            # Finder/Receiver construction below can all raise PERSISTENTLY — most notably the
+            # NDI base<->HX plugin pairing gotcha (debug/cyndilib-ndi-hx-no-decode) this team has
+            # already been bitten by. If any of that escaped _receiver_loop, the thread would die
+            # with a RAW, unthrottled stderr traceback that the loguru file sink (Fix #4) never
+            # captures, and the tick-loop supervisor (Fix #2) would respawn it ~1Hz forever. Isolate
+            # setup so a setup fault is logged THROUGH loguru (lands in segugio.log), throttled, and
+            # the thread exits cleanly — the supervisor still retries, now diagnosably.
+            _prefer_system_ndi_runtime()
+
+            import cv2
+            from cyndilib.finder import Finder
+            from cyndilib.receiver import Receiver
+            from cyndilib.video_frame import VideoFrameSync
+            from cyndilib.wrapper.ndi_recv import RecvBandwidth, RecvColorFormat
+
+            finder = Finder()
+            receiver = Receiver(
+                color_format=RecvColorFormat.RGBX_RGBA,
+                bandwidth=RecvBandwidth.highest,
+            )
+            video_frame = VideoFrameSync()
+            receiver.frame_sync.set_video_frame(video_frame)
+            finder.open()
+        except Exception as exc:  # noqa: BLE001 — WR-01: a setup fault must NOT dump a raw stderr traceback
+            n = self._setup_faults.get(cam_id, 0) + 1
+            self._setup_faults[cam_id] = n
+            if n == 1 or n % _RECEIVER_FAULT_LOG_EVERY == 0:
+                logger.error(
+                    "ndi receiver {} SETUP fault (thread exits; supervisor retries) [{} consecutive]: {}",
+                    cam_id,
+                    n,
+                    exc,
+                )
+            self._close_quietly(receiver, finder)
+            return
+
+        # Setup succeeded — clear this camera's setup-fault streak.
+        self._setup_faults[cam_id] = 0
+        try:
+            # Best-effort initial connect. _run_receiver re-resolves + reconnects in its disconnected
+            # branch, so a transient set_source hiccup here must not kill the thread (WR-01) — defer it.
+            try:
+                source = self._resolve_source(finder, source_name)
+                if source is not None:
+                    receiver.set_source(source)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "ndi receiver {} initial connect deferred to the loop: {}", cam_id, exc
+                )
             # The per-iteration loop body lives in _run_receiver, which takes every
             # collaborator (finder/receiver/video_frame/cv2) as a PARAMETER. This is the
             # headless seam: tests drive _run_receiver with pure fakes (no real cyndilib/cv2).
             self._run_receiver(cam_id, source_name, finder, receiver, video_frame, cv2)
         finally:
-            receiver.disconnect()
-            finder.close()
+            self._close_quietly(receiver, finder)
+
+    @staticmethod
+    def _close_quietly(receiver, finder) -> None:
+        """Best-effort teardown of a receiver/finder — never raises (WR-01 cleanup)."""
+        if receiver is not None:
+            try:
+                receiver.disconnect()
+            except Exception:  # pragma: no cover - defensive cleanup
+                pass
+        if finder is not None:
+            try:
+                finder.close()
+            except Exception:  # pragma: no cover - defensive cleanup
+                pass
 
     def _run_receiver(self, cam_id, source_name, finder, receiver, video_frame, cv2) -> None:
         """The supervised per-camera capture loop, driven by injected collaborators.
@@ -388,8 +438,13 @@ class NdiFrameSource:
                         fault_streak,
                         exc,
                     )
-                # Never re-raise, never tight-spin: coast one poll interval then re-attempt.
-                time.sleep(_RECEIVER_POLL_INTERVAL_S)
+                # Never re-raise, never tight-spin. On the FIRST fault, coast one poll interval so a
+                # one-off transient re-attempts promptly; on a PERSISTENT streak, back off to the
+                # longer disconnected interval so a stuck connected-path fault does not churn ~500
+                # exceptions/sec/camera on the box running the <300ms AI loop (review WR-02).
+                time.sleep(
+                    _RECEIVER_DISCONNECTED_SLEEP_S if fault_streak > 1 else _RECEIVER_POLL_INTERVAL_S
+                )
 
     @staticmethod
     def _resolve_source(finder, source_name: str):

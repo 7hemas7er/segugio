@@ -74,6 +74,14 @@ __all__ = ["Orchestrator"]
 # inference critical path (the dominant ~35-60ms tail is the websocket round-trip, not compute).
 _LATENCY_STAGES = ("ingest", "yolo", "score", "fsm", "obs")
 
+# Tick-loop source supervisor cadence (T-9l5-05 / RBT-04): every this many live ticks, re-invoke
+# the idempotent source.start() to restart any receiver thread that died from an unrecoverable
+# fault. ~30 ticks ≈ 1s at 30Hz — frequent enough to recover a lost camera within ~1s, rare enough
+# to add no measurable per-tick cost (start() skips still-alive threads). Live run() only — never
+# run_measured (the headless mock source's start() is a cheap idempotent no-op left untouched so
+# the latency numbers stay stable).
+_SOURCE_SUPERVISE_INTERVAL_TICKS = 30
+
 # Degradation ladder (RBT-05 / TECHNICAL-RESEARCH): if the measured total p95 exceeds the
 # budget on the Windows/RTX box, act on these trigger points IN ORDER. Recorded here (and
 # logged in run_measured) so the on-Windows run can apply them — this loop does not auto-tune.
@@ -652,6 +660,12 @@ class Orchestrator:
                 t_start = time.perf_counter()
                 self._tick_once(tick, now=time.monotonic())
                 tick += 1
+                # T-9l5-05 source supervisor: periodically re-invoke the idempotent source.start()
+                # to restart any receiver thread that died from an unrecoverable fault (start()
+                # skips still-alive threads, so this is a cheap no-op when every feed is healthy).
+                # Best-effort via _safe_startup — a supervise failure coasts, never crashes the loop.
+                if tick % _SOURCE_SUPERVISE_INTERVAL_TICKS == 0:
+                    self._safe_startup("source.supervise", self.source.start)
                 # Fixed-rate sleep (never negative).
                 elapsed = time.perf_counter() - t_start
                 if period > elapsed:

@@ -49,12 +49,20 @@ import threading
 import time
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 if TYPE_CHECKING:  # type-only — keeps numpy/cyndilib off the runtime import path
     import numpy as np
 
     from ..config.models import Camera
 
 __all__ = ["NdiFrameSource"]
+
+# Throttle for a persistently-faulting receiver body (RBT-04 / T-9l5-05): the loop keeps
+# retrying every iteration so the camera rejoins the instant the fault clears, but only the first
+# fault of a streak plus a periodic heartbeat are logged — never a per-iteration traceback that
+# would bury every other log line (mirrors ObsWsController's _OBS_FAIL_LOG_EVERY hygiene).
+_RECEIVER_FAULT_LOG_EVERY = 150  # ~a heartbeat every few seconds at the poll pace
 
 # Disconnected-branch sleep (CR-02): while the named source is absent / the receiver is not
 # connected, the loop sleeps this short interval instead of a bare ``continue``. A bare
@@ -300,43 +308,65 @@ class NdiFrameSource:
         repeated frame and lives in a different clock domain).
         """
         last_fingerprint: int | None = None
+        # RBT-04 / T-9l5-05 fault isolation: the per-iteration BODY is wrapped in a try/except so a
+        # single transient cyndilib/cv2 fault (a decode hiccup, a mid-reconnect finder call) is
+        # caught → logged (throttled) → coasted, and the daemon thread SURVIVES to re-attempt next
+        # iteration. Without this, one stray exception escapes _receiver_loop and KILLS the thread —
+        # the camera is lost for the whole event (no crash, but a silently dead feed). The
+        # ``while not self._stop.is_set()`` guard stays OUTSIDE the try so a genuine stop() still
+        # exits cleanly (the stop is never swallowed). ``fault_streak`` drives the log throttle.
+        fault_streak = 0
         while not self._stop.is_set():
-            if not receiver.is_connected():
-                # CR-02: no busy-spin — coast a short interval (no CPU pin) ...
-                time.sleep(_RECEIVER_DISCONNECTED_SLEEP_S)
-                # ... then re-resolve a (possibly late-appearing) named source and reconnect
-                # without a stop()/start() cycle (auto-reconnect).
-                source = self._resolve_source(finder, source_name)
-                if source is not None:
-                    receiver.set_source(source)
-                continue
-            receiver.frame_sync.capture_video()
-            # NDI-03: the first frames after set_source are often zero-resolution.
-            if min(video_frame.xres, video_frame.yres) != 0:
-                # RBT-01 NEW-frame substrate (debug:watchdog-hx-feed-death): liveness is gated on
-                # whether the DECODED CONTENT changed, NOT on the FrameSync timestamp. cyndilib
-                # FrameSync re-clocks (advances) get_timestamp_posix() even when it re-delivers
-                # the last frozen frame after the sender dies, so a dead HX feed used to look
-                # 'new' forever. A lossy HX sender never emits two bit-identical frames; a dead
-                # sender re-delivers byte-identical pixels — so a change in the content
-                # fingerprint is the genuine NEW-frame signal that STALLS on a dead feed.
-                arr = video_frame.get_array().reshape(
-                    video_frame.yres, video_frame.xres, 4
-                )
-                fingerprint = _frame_fingerprint(arr)
-                if fingerprint != last_fingerprint:
-                    bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
-                    # Stamp with time.monotonic() — the SAME clock the orchestrator's live run()
-                    # passes to FeedWatchdog as `now`, so (now - last_frame_ts) is a correct,
-                    # single-domain gap (the old get_timestamp_posix() was real POSIX, a different
-                    # clock than time.monotonic() → a meaningless gap). On a frozen feed the
-                    # fingerprint stops changing → last_frame_ts stops advancing → watchdog dead.
-                    self._publish(cam_id, bgr, time.monotonic())
-                    last_fingerprint = fingerprint
-            # Pace the NON-BLOCKING frame_sync poll (~500Hz) so the connected loop does not
-            # busy-spin a full CPU core per camera (see _RECEIVER_POLL_INTERVAL_S). The newest
-            # frame is always available on the next capture, so this adds no real pickup latency.
-            time.sleep(_RECEIVER_POLL_INTERVAL_S)
+            try:
+                if not receiver.is_connected():
+                    # CR-02: no busy-spin — coast a short interval (no CPU pin) ...
+                    time.sleep(_RECEIVER_DISCONNECTED_SLEEP_S)
+                    # ... then re-resolve a (possibly late-appearing) named source and reconnect
+                    # without a stop()/start() cycle (auto-reconnect).
+                    source = self._resolve_source(finder, source_name)
+                    if source is not None:
+                        receiver.set_source(source)
+                    fault_streak = 0  # a healthy disconnected coast clears the fault streak
+                    continue
+                receiver.frame_sync.capture_video()
+                # NDI-03: the first frames after set_source are often zero-resolution.
+                if min(video_frame.xres, video_frame.yres) != 0:
+                    # RBT-01 NEW-frame substrate (debug:watchdog-hx-feed-death): liveness is gated on
+                    # whether the DECODED CONTENT changed, NOT on the FrameSync timestamp. cyndilib
+                    # FrameSync re-clocks (advances) get_timestamp_posix() even when it re-delivers
+                    # the last frozen frame after the sender dies, so a dead HX feed used to look
+                    # 'new' forever. A lossy HX sender never emits two bit-identical frames; a dead
+                    # sender re-delivers byte-identical pixels — so a change in the content
+                    # fingerprint is the genuine NEW-frame signal that STALLS on a dead feed.
+                    arr = video_frame.get_array().reshape(
+                        video_frame.yres, video_frame.xres, 4
+                    )
+                    fingerprint = _frame_fingerprint(arr)
+                    if fingerprint != last_fingerprint:
+                        bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+                        # Stamp with time.monotonic() — the SAME clock the orchestrator's live run()
+                        # passes to FeedWatchdog as `now`, so (now - last_frame_ts) is a correct,
+                        # single-domain gap (the old get_timestamp_posix() was real POSIX, a different
+                        # clock than time.monotonic() → a meaningless gap). On a frozen feed the
+                        # fingerprint stops changing → last_frame_ts stops advancing → watchdog dead.
+                        self._publish(cam_id, bgr, time.monotonic())
+                        last_fingerprint = fingerprint
+                # Pace the NON-BLOCKING frame_sync poll (~500Hz) so the connected loop does not
+                # busy-spin a full CPU core per camera (see _RECEIVER_POLL_INTERVAL_S). The newest
+                # frame is always available on the next capture, so this adds no real pickup latency.
+                time.sleep(_RECEIVER_POLL_INTERVAL_S)
+                fault_streak = 0  # a healthy connected pass clears the fault streak
+            except Exception as exc:  # noqa: BLE001 — RBT-04: a transient fault must NOT kill the thread
+                fault_streak += 1
+                if fault_streak == 1 or fault_streak % _RECEIVER_FAULT_LOG_EVERY == 0:
+                    logger.warning(
+                        "ndi receiver {} body fault (coasting; thread survives) [{} consecutive]: {}",
+                        cam_id,
+                        fault_streak,
+                        exc,
+                    )
+                # Never re-raise, never tight-spin: coast one poll interval then re-attempt.
+                time.sleep(_RECEIVER_POLL_INTERVAL_S)
 
     @staticmethod
     def _resolve_source(finder, source_name: str):

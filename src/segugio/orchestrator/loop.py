@@ -662,6 +662,14 @@ class Orchestrator:
         period = 1.0 / rate_hz if rate_hz > 0 else 0.0
         self._stopping = False
         self._safe_startup("source.start", self.source.start)
+        # Fix #6 (T-9l5-07) startup NDI discovery doctor: if the source supports it, enumerate the
+        # live NDI sources and emit a per-camera "ndi_source NOT FOUND" operator error for any
+        # configured source absent from discovery (a drifted/near-miss name — the recurring
+        # "OBS sees it but the console is blank" gotcha) instead of silently coasting. Best-effort
+        # (never raises). Mock sources have no preflight → skipped; run_measured is untouched.
+        preflight = getattr(self.source, "preflight", None)
+        if callable(preflight):
+            self._safe_startup("source.preflight", preflight)
         self._safe_startup("obs.connect", self.obs.connect)
         if self._preview is not None:
             self._safe_startup("preview.start", self._preview.start)

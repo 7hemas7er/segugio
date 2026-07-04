@@ -201,6 +201,29 @@ def _frame_fingerprint(arr, stride: int = _FINGERPRINT_STRIDE) -> int:
             return 0
 
 
+def _diagnose_sources(configured: "dict[str, str]", discovered_names) -> dict:
+    """PURE, cyndilib-free NDI discovery diagnosis (Fix #6 / T-9l5-07) — the headless-testable core.
+
+    Splits the configured ``{cam_id: source_name}`` into ``found``/``missing`` by EXACT-match
+    membership against the Finder's advertised ``discovered_names`` — the SAME match
+    :meth:`NdiFrameSource._resolve_source` uses, so a drifted/near-miss name (the recurring
+    "OBS sees it but the console is blank" gotcha) is reported as missing.
+
+    Args:
+        configured: ``{cam_id: source_name}`` — the cameras' configured ``ndi_source`` names.
+        discovered_names: the list/iterable of source names the Finder currently advertises.
+
+    Returns:
+        ``{"found": {cam_id: name, ...}, "missing": {cam_id: name, ...}}``.
+    """
+    names = set(discovered_names or ())
+    found: dict[str, str] = {}
+    missing: dict[str, str] = {}
+    for cam_id, name in configured.items():
+        (found if name in names else missing)[cam_id] = name
+    return {"found": found, "missing": missing}
+
+
 class NdiFrameSource:
     """Real cyndilib ``FrameSource``: one supervised receiver thread per camera (NDI-01)."""
 
@@ -414,3 +437,67 @@ class NdiFrameSource:
         for t in self._threads.values():
             t.join(timeout=2.0)
         self._threads.clear()
+
+    def preflight(self, wait_s: float = 2.0, finder=None) -> dict:
+        """Startup NDI discovery doctor: enumerate live sources + emit a per-camera NOT-FOUND error.
+
+        ``_resolve_source`` does a literal ``source_name in names`` and silently coasts on any miss,
+        so a drifted/near-miss configured ``ndi_source`` never resolves and the operator gets no
+        signal (the "OBS sees it but the console is blank" gotcha). This doctor is called ONCE at
+        startup (from the orchestrator ``run()``): it enumerates the live NDI sources and emits a
+        clear, operator-facing ``ERROR`` for every configured source ABSENT from discovery, plus an
+        ``INFO`` summary of the found ones.
+
+        Best-effort (RBT-04 "nessun crash ammesso"): any discovery failure is logged and returns an
+        empty/partial report — it NEVER raises into startup.
+
+        Args:
+            wait_s: seconds to let the Finder populate before reading names (discovery is async).
+            finder: an injectable cyndilib-``Finder``-shaped collaborator (``get_source_names()``);
+                ``None`` builds + opens + closes the real ``Finder`` (lazy import, mirroring
+                ``_receiver_loop``'s boundary + the system-NDI-runtime preload). The seam lets a
+                headless test drive the doctor with a pure fake (no real cyndilib).
+
+        Returns:
+            ``{"found": {cam_id: name, ...}, "missing": {cam_id: name, ...}}`` (empty on failure).
+        """
+        own_finder = False
+        try:
+            if finder is None:
+                # Pair the system 6.3.2 NDI runtime BEFORE importing cyndilib (see _receiver_loop).
+                _prefer_system_ndi_runtime()
+                from cyndilib.finder import Finder  # lazy heavy import inside the method
+
+                finder = Finder()
+                finder.open()
+                own_finder = True
+            # Let discovery populate (async) before reading the advertised names.
+            time.sleep(wait_s)
+            try:
+                names = list(finder.get_source_names())
+            except Exception:  # pragma: no cover - finder API may differ across cyndilib builds
+                names = []
+            report = _diagnose_sources(self._sources, names)
+            for cam_id, name in report["missing"].items():
+                logger.error(
+                    "ndi_source '{}' (cam {}) NOT FOUND among discovered NDI sources: {}",
+                    name,
+                    cam_id,
+                    names,
+                )
+            if report["found"]:
+                logger.info(
+                    "ndi preflight: {} configured source(s) discovered: {}",
+                    len(report["found"]),
+                    report["found"],
+                )
+            return report
+        except Exception as exc:  # noqa: BLE001 — a discovery failure must NEVER crash startup
+            logger.warning("ndi preflight coasted (discovery failure): {}", exc)
+            return {"found": {}, "missing": {}}
+        finally:
+            if own_finder and finder is not None:
+                try:
+                    finder.close()
+                except Exception:  # pragma: no cover — teardown must never raise
+                    pass

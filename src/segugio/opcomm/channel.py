@@ -205,7 +205,12 @@ def write_status(path: str, status: DirectorStatus) -> None:
     """Write a ``DirectorStatus`` atomically to ``path`` (the panel polls it)."""
     atomic_write_json(
         path,
-        {"live_cam": status.live_cam, "reason": status.reason, "alive": status.alive},
+        {
+            "live_cam": status.live_cam,
+            "reason": status.reason,
+            "obs_connected": status.obs_connected,
+            "alive": status.alive,
+        },
     )
 
 
@@ -219,6 +224,9 @@ def read_status(path: str) -> DirectorStatus:
         return DirectorStatus(
             live_cam=data.get("live_cam", "SAFE"),
             reason=data.get("reason", "none"),
+            # Fix #5: default True so a legacy/absent field (a pre-fix status.json) reads as
+            # "OBS up" rather than flipping the badge to a false alarm.
+            obs_connected=bool(data.get("obs_connected", True)),
             alive=alive if isinstance(alive, dict) else {},
         )
     except (ValueError, TypeError) as exc:

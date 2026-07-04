@@ -503,9 +503,15 @@ class Orchestrator:
         else:
             # Steady state on a live camera (reason "none"/"hold") → auto.
             reason = "auto"
+        # Fix #5 (T-9l5 obs-health): surface OBS reachability so a down OBS (throttled no-op cuts)
+        # is visible to the operator, not silent. Cheap boolean read (never blocks); default True
+        # for fakes lacking the property so headless status tests are unchanged.
+        obs_connected = bool(getattr(self.obs, "connected", True))
         # live_cam is the camera id; a SAFE target passes the SAFE sentinel through (the panel
         # renders it as "SAFE"), which the existing status tests assert.
-        return DirectorStatus(live_cam=target, reason=reason, alive=dict(alive))
+        return DirectorStatus(
+            live_cam=target, reason=reason, obs_connected=obs_connected, alive=dict(alive)
+        )
 
     def _apply(self, decision, alive, tick: int = 0) -> None:
         """Cut OBS to the decision's scene + write the D-11 status on change (never raises here).
@@ -549,7 +555,12 @@ class Orchestrator:
             self.obs.cut(safe_scene)
         except Exception as exc:  # noqa: BLE001 — even a failed SAFE cut must not crash
             logger.warning("SAFE cut failed (coasting): {}", exc)
-        status = DirectorStatus(live_cam=SAFE_TARGET, reason=reason, alive=dict(alive))
+        # Fix #5: carry OBS reachability into the SAFE status too (a SAFE coast is often BECAUSE
+        # OBS is down — the operator must see that). Cheap boolean; default True for fakes.
+        obs_connected = bool(getattr(self.obs, "connected", True))
+        status = DirectorStatus(
+            live_cam=SAFE_TARGET, reason=reason, obs_connected=obs_connected, alive=dict(alive)
+        )
         if status != self._last_status:
             try:
                 write_status(self._status_path, status)

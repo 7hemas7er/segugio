@@ -132,6 +132,18 @@ class ObsWsController:
         self._teardown_clients()
         self._connected = False
 
+    @property
+    def connected(self) -> bool:
+        """True only when the last connect succeeded AND there is no active failure streak (Fix #5).
+
+        A persistently-down OBS drives ``_consec_failures`` up in ``_safe_call`` (each throttled
+        no-op cut) while ``_connected`` may still be True from the initial connect — so gating on
+        BOTH is what makes this reflect real reachability. Surfaced end-to-end into
+        ``DirectorStatus.obs_connected`` so the operator sees a down OBS instead of a silent
+        throttled no-op (T-9l5 obs-health).
+        """
+        return bool(self._connected and self._consec_failures == 0)
+
     def _teardown_clients(self) -> None:
         for client in (self._req, self._evt):
             disconnect = getattr(client, "disconnect", None)

@@ -411,7 +411,14 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
         # (SAFE) on an absent/malformed file, never raising (RBT-04 boundary).
         status = read_status(_path(_STATUS_FILE))
         return jsonify(
-            {"live_cam": status.live_cam, "reason": status.reason, "alive": status.alive}
+            {
+                "live_cam": status.live_cam,
+                "reason": status.reason,
+                # Fix #5 (T-9l5): expose OBS reachability so the console renders an OBS-health badge
+                # (a down OBS = throttled no-op cuts, otherwise invisible to the operator).
+                "obs_connected": status.obs_connected,
+                "alive": status.alive,
+            }
         )
 
     @app.get("/overlay-json")

@@ -236,7 +236,10 @@
   <div class="onair-row">
     <div class="onair" id="onair">ON AIR: <span id="onair-cam">—</span></div>
     <div class="onair-status">
-      <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span></div>
+      <div id="stato">Live: <span id="live-cam">—</span> — <span id="live-reason">—</span>
+        <!-- Fix #5 (T-9l5): OBS connection health. Text/class set from /status s.obs_connected via
+             textContent (XSS-safe — never innerHTML). Warns loudly when OBS is down (cuts are no-ops). -->
+        <span id="obs-health" class="pill">OBS: —</span></div>
       <div id="feeds"></div>
       <!-- UXT-03 freshness stamp: "agg. {n}s fa" / "frame non aggiornato" (never "LIVE" stale). -->
       <div class="freshness" id="freshness">agg. 0s fa</div>
@@ -751,6 +754,15 @@
         lastStatus = s;
         document.getElementById("live-cam").textContent = s.live_cam;
         document.getElementById("live-reason").textContent = s.reason;
+        // Fix #5 (T-9l5): OBS-health badge. A down OBS makes every cut a throttled no-op, so surface
+        // it loudly. obs_connected defaults true (legacy status.json without the field). textContent
+        // only — never innerHTML (the XSS-safe convention the surrounding render uses).
+        const obsHealth = document.getElementById("obs-health");
+        if (obsHealth) {
+          const obsUp = s.obs_connected !== false;   // absent/true → connected; only explicit false warns
+          obsHealth.textContent = obsUp ? "OBS: connesso" : "OBS NON CONNESSO";
+          obsHealth.className = "pill " + (obsUp ? "feed-ok" : "feed-dead");
+        }
         // WHY-01: the sidebar #reason renders the plain-Italian copy (not the raw advisory tag).
         renderReason(s);
         const feeds = document.getElementById("feeds");

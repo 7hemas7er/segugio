@@ -144,13 +144,21 @@ class DirectorStatus:
     ``alive`` is stored as an immutable tuple of sorted ``(cam_id, bool)`` pairs internally so
     the frozen dataclass stays hashable/``==``-comparable (a plain dict is unhashable); the
     ``alive`` property re-exposes it as a dict for callers. The constructor accepts a dict.
+
+    ``obs_connected`` (Fix #5 / T-9l5) is the OBS reachability flag the operator panel renders:
+    ``False`` means OBS is down and cuts are throttled no-ops (nothing is actually switching).
+    Defaults to ``True`` so an absent-field reader / a fake OBS lacking the ``connected`` property
+    still behaves as before (the flip to ``False`` is what the console surfaces).
     """
 
     live_cam: str = "SAFE"
     reason: str = "none"
+    obs_connected: bool = True
     alive: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        # Coerce obs_connected to a strict bool at the frozen boundary (a read-back JSON value).
+        object.__setattr__(self, "obs_connected", bool(self.obs_connected))
         # Normalize the alive dict into a deterministic immutable representation so two
         # DirectorStatus with the same content compare equal regardless of dict insertion
         # order (the round-trip equality contract the channel + status tests rely on).

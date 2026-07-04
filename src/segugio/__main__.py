@@ -89,6 +89,12 @@ def main(argv=None) -> int:
         ``load_config`` raises ``SystemExit(2)`` on a bad config — deliberately NOT re-wrapped.
     """
     args = _parse_args(argv)
+    # Fix #4 (T-9l5-06): bootstrap logging FIRST so the orchestrator's rotating post-mortem log
+    # lands in the shared opcomm dir — a live event then leaves a diagnosable, rotated log instead
+    # of stderr-only output. Lazy in-body import keeps the module-top import surface light.
+    from .logging import configure_logging
+
+    configure_logging(log_dir=args.opcomm_dir)
     config = load_config(args.config)  # fails fast with SystemExit(2) on a bad config
     try:
         orch = build_orchestrator(config, args.opcomm_dir)

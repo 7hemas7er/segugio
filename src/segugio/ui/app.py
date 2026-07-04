@@ -55,7 +55,7 @@ from .score_render import render_overlay_text
 # The opcomm submodule's atomic text writer for the OBS read-from-file overlay (OBS-05).
 from ..opcomm.atomic import atomic_write_text
 
-__all__ = ["create_app"]
+__all__ = ["create_app", "run_console"]
 
 # The four operator↔system files (RESEARCH Pattern 3 — separate files, independent atomic
 # swaps). Filenames are CONSTANT server-side so a crafted POST can never steer the write path.
@@ -499,9 +499,21 @@ def create_app(channel_dir: str, cam_ids=(), overlay_cfg=None, profile=None, spo
     return app
 
 
-if __name__ == "__main__":  # pragma: no cover - the production entrypoint
+def run_console() -> None:
+    """The production console entrypoint: bootstrap logging, resolve config, serve the app.
+
+    Extracted from the ``if __name__ == "__main__"`` guard (Fix #4) so it is a call site tests can
+    drive. The rotating post-mortem log is bootstrapped BEFORE ``create_app`` via a LAZY in-body
+    ``configure_logging`` import — ``segugio.logging`` is a loguru+stdlib leaf (never heavy), so
+    create_app's crash-isolation import surface stays untouched (RBT-08 / D-03).
+    """
     # The channel dir defaults to ./opcomm next to the cwd; override via SEGUGIO_OPCOMM_DIR.
     _dir = os.environ.get("SEGUGIO_OPCOMM_DIR", os.path.join(os.getcwd(), "opcomm"))
+    # Fix #4 (T-9l5-06): bootstrap the rotating file log in the shared opcomm dir BEFORE anything
+    # else, so the console process also leaves a diagnosable post-mortem log (not stderr-only).
+    from ..logging import configure_logging
+
+    configure_logging(log_dir=_dir)
     # Resolve the cam-id whitelist HERE (inside the entrypoint) so no config import leaks to the
     # module top and the crash-isolation guard stays green. Prefer an explicit comma-separated env
     # (SEGUGIO_CAM_IDS); fall back to loading the config only if a path is given. If neither is
@@ -574,3 +586,7 @@ if __name__ == "__main__":  # pragma: no cover - the production entrypoint
         # threaded=True is the HARD UXT-02/D-08 safety control on the dev-server fallback: a
         # preview GET can never starve the lone WSGI worker so the /command override stalls.
         app.run(host="0.0.0.0", port=8080, threaded=True)
+
+
+if __name__ == "__main__":  # pragma: no cover - the production entrypoint
+    run_console()

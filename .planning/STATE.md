@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Gestione Punteggi Avanzata
-status: Awaiting next milestone
-stopped_at: Milestone v1.3 complete — archived & tagged (v1.3); awaiting /gsd-new-milestone
-last_updated: "2026-07-04T05:35:00.000Z"
-last_activity: 2026-07-04 — Quick task 260704-9l5: item-1 pre-rig fixes (7 robustness & security fixes, --validate)
+milestone: v1.4
+milestone_name: Validazione sul Campo
+status: planning
+last_updated: "2026-07-09T08:43:47.973Z"
+last_activity: 2026-07-09
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-28 after v1.3 milestone close)
 
 ## Current Position
 
-Phase: Milestone v1.3 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-04 — Quick task 260704-9l5: item-1 pre-rig fixes (7 robustness & security fixes, --validate)
+Status: Defining requirements
+Last activity: 2026-07-09 — Milestone v1.4 started
 
 ## Performance Metrics
 

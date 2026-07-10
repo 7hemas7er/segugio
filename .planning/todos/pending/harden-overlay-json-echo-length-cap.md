@@ -5,6 +5,7 @@ created: 2026-06-27
 source: .planning/phases/16-shared-entry-component-dedicated-page-server-authoritative-p/16-SECURITY.md
 priority: low
 tags: [security, hardening, overlay, input-validation]
+resolves_phase: 21
 ---
 
 # General echoed-value / request-body length cap on POST /score

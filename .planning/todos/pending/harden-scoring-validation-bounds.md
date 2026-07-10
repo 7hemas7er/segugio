@@ -5,6 +5,7 @@ created: 2026-06-27
 source: .planning/phases/15-pure-calc-validation-core-scoring-profiles/15-SECURITY.md
 priority: medium
 tags: [security, hardening, scoring, validation]
+resolves_phase: 21
 ---
 
 # Harden score_calc / scoring-profile validation bounds

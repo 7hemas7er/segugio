@@ -79,27 +79,27 @@ Quali fasi coprono quali requisiti. Popolato dal roadmapper.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DET-01 | TBD | Pending |
-| DET-02 | TBD | Pending |
-| DET-03 | TBD | Pending |
-| DET-04 | TBD | Pending |
-| CAL-01 | TBD | Pending |
-| CAL-02 | TBD | Pending |
-| RIG-01 | TBD | Pending |
-| RIG-02 | TBD | Pending |
-| RIG-03 | TBD | Pending |
-| RIG-04 | TBD | Pending |
-| UAT-01 | TBD | Pending |
-| UAT-02 | TBD | Pending |
-| UAT-03 | TBD | Pending |
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
+| DET-01 | Phase 19 | Pending |
+| DET-02 | Phase 19 | Pending |
+| DET-03 | Phase 19 | Pending |
+| DET-04 | Phase 19 | Pending |
+| CAL-01 | Phase 20 | Pending |
+| CAL-02 | Phase 20 | Pending |
+| SEC-01 | Phase 21 | Pending |
+| SEC-02 | Phase 21 | Pending |
+| RIG-01 | Phase 22 | Pending |
+| RIG-02 | Phase 22 | Pending |
+| RIG-03 | Phase 22 | Pending |
+| RIG-04 | Phase 22 | Pending |
+| UAT-01 | Phase 23 | Pending |
+| UAT-02 | Phase 23 | Pending |
+| UAT-03 | Phase 23 | Pending |
 
 **Coverage:**
 - v1 requirements: 15 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 15 ⚠️ (il roadmapper mappa e azzera questo)
+- Mapped to phases: 15 ✓ (Phase 19: DET-01..04 · Phase 20: CAL-01/02 · Phase 21: SEC-01/02 · Phase 22: RIG-01..04 · Phase 23: UAT-01..03)
+- Unmapped: 0 ✓ (no orphans, no duplicates)
 
 ---
 *Requirements defined: 2026-07-09*
-*Last updated: 2026-07-09 after milestone v1.4 definition*
+*Last updated: 2026-07-09 — roadmap mapped (Phases 19–23, numbering continued from v1.3); 15/15 requirements covered.*

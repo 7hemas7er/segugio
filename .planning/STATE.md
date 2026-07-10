@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Validazione sul Campo
 status: planning
-last_updated: "2026-07-09T08:43:47.973Z"
+last_updated: "2026-07-09T12:00:00.000Z"
 last_activity: 2026-07-09
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-28 after v1.3 milestone close)
 
 **Core value:** La camera giusta al momento giusto, in automatico — cane sempre ben inquadrato, cut fluidi, senza operatore.
-**Current focus:** v1.3 "Gestione Punteggi Avanzata" SHIPPED & archived (Phases 15–18, tag `v1.3`). Planning the next milestone — run `/gsd-new-milestone` (candidates: roster/classifica SCM-F2 + freestyle multi-giudice SCM-F1; PRED-01..04 prediction/disc features; the hardware/field milestone).
+**Current focus:** v1.4 "Validazione sul Campo (Field Readiness)" roadmap created — 5 phases (19–23, numbering continued from v1.3, no reset), 15/15 requirements mapped. A VALIDATION/HARDENING milestone (software is complete, tag `v1.3`): prove detection on real footage + decide the `yolo26s` fine-tune, calibrate framing/tracking on real clips, close the residual P15/P16 security hardening, bring up the physical NDI-HX3-phone rig on the deploy GPU, and sign off the deferred v1.1/v1.2 on-rig UATs. Desk work (DET/CAL/SEC) before hardware (RIG/UAT); no new user features; console stays crash-isolated. Next: `/gsd-plan-phase 19`.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Phase 19 — Detection Eval on Real Footage & Fine-tune Decision (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-09 — Milestone v1.4 started
+Status: Roadmap complete — ready to plan Phase 19
+Last activity: 2026-07-09 — Milestone v1.4 roadmap created (5 phases, 19–23)
 
 ## Performance Metrics
 
@@ -130,6 +130,12 @@ Last activity: 2026-07-09 — Milestone v1.4 started
 
 ### Roadmap Evolution
 
+- Milestone v1.4 "Validazione sul Campo (Field Readiness)" roadmap created (2026-07-09): 5 phases appended after the v1.3 Phases 15–18 (numbering continues at Phase 19, no reset). 15/15 v1.4 requirements mapped, no orphans, no duplicates. This is a VALIDATION/HARDENING milestone — the software is complete (tag `v1.3`); v1.4 proves it on real footage and real hardware and adds NO user features (roster SCM-F2, multi-giudice SCM-F1, PRED-01..04, POSE-01 stay v2). The shape is dependency- AND environment-forced: DESK WORK (DET/CAL/SEC) before HARDWARE (RIG/UAT), and detection-eval before calibration. Standing HARD constraint held throughout: console stays crash-isolated (`Flask + segugio.opcomm + score_calc`), director never redesigned, no new runtime dep, AP client-isolation an operational HARD requirement:
+  - **Phase 19 — Detection Eval on Real Footage & Fine-tune Decision** (DET-01..04): DESK WORK (real footage + dev-box CUDA GPU). Source & catalog a multi-venue corpus (disc + agility; distant/small dog, backlight, motion-blur, multi-dog, tunnel occlusion) via `tools/catalog_clips.py` (today = one `gara_full.mp4`), label a ground-truth subset, and measure recall AND precision on the SHIPPED FP16 batched path (NOT the eager FP32 serial `track()` of the P04 UAT) per condition — then a metrics-backed `yolo26s` fine-tune decision (drop-in via config `path` if yes, no code change). Gates Phase 20.
+  - **Phase 20 — Framing & Tracking Calibration on Real Clips** (CAL-01/02): DESK WORK, depends on Phase 19 (can’t seed framing/tracking until the eval reveals the detector’s real distant-dog recall). Re-seed framing (`ideal_size` 0.30 → the real 2-5% distant-dog scale, `motion_deadzone`, lead-room) and tracking (`track_buffer`, `max_displacement`, plausibility gate) on real occlusion/tunnel clips — config-only, no code change, no spurious ID-churn.
+  - **Phase 21 — Residual Security Hardening** (SEC-01/02): DESK WORK, independent (2 pre-specified pending todos, can run parallel to 19–20). Close the P15 scoring-validation bounds (freestyle `adjustment` sign/range + cap-after-adjust; negative profile scalars `freestyle_max`/`time_fault_rate`/`fault_value` → `SystemExit(2)`) under the 400 + write-nothing contract, and the P16 general echoed-value length-cap on `POST /score` → `/overlay-json`/`score.json`. Crash-isolation import gate stays green.
+  - **Phase 22 — Hardware Rig Bring-up & Deploy-GPU Validation** (RIG-01..04): REQUIRES THE PHYSICAL RIG. 3-4 real NDI HX3 phones on dedicated WiFi 6 + OBS/DistroAV (PROGRAM) + independent Python ingest (AI) on the DEPLOY GPU → end-to-end auto-switching without an operator; liveness via last-NEW-frame ts; p95 < 300ms confirmed on the deploy GPU under sustained load (TensorRT engine exported on-target if used); real-WiFi feed-drop → SAFE/live-camera degrade with no crash (Ethernet-tether mitigation documented). Runs the Phase 19 model config + the Phase 20 calibrated seeds; carries on-rig human verification — not closeable at the desk.
+  - **Phase 23 — On-Rig UAT Closure** (UAT-01..03): REQUIRES THE PHYSICAL RIG, depends on Phase 22. Sign off the deferred v1.2 overlay UATs (real-OBS console-death auto-hide, LAN-drop `gen` re-anchor, `overlay.txt` coexistence), the v1.1/P17 real-iPad tablet UX (multiview + tap-to-force + score-entry modal, flat memory, sleep/wake), and the preview-bandwidth false-death with real phones (`max_total_mbps` degrades before feeds look dead). UI hint flagged (overlay + tablet console surfaces exercised on real devices).
 - Milestone v1.3 "Gestione Punteggi Avanzata" roadmap created (2026-06-21): 4 phases appended after the v1.2 Phases 10–14 (numbering continues at Phase 15, no reset). 14/14 v1.3 requirements mapped, no orphans, no duplicates. The shape is dependency-forced (pure calc+profile authority → shared component + dedicated page + server-authoritative POST → console modal reusing the same component → rich data model + overlay-continuity regression) and is a *publish-and-render* extension of the v1.1/v1.2 channel — the console still imports ONLY `Flask + segugio.opcomm` + the NEW pure stdlib `score_calc`, the director is never touched, transport stays fetch-polling (no WebSocket/SSE/MJPEG), zero new runtime dep. Keystone = SERVER-AUTHORITATIVE calc+validation (client live-calc is advisory, parity by drift-guard test). Single on-air score only (no roster/standings; freestyle = single-judge multi-criteria):
   - **Phase 15 — Pure Calc + Validation Core & Scoring Profiles** (SCC-02/04, SCP-01/02, RBT-08): the gating authority. NEW stdlib-only `segugio/ui/score_calc.py` (`validate()` + `compute()` for disc T&F / freestyle / agility) is the single source of truth, built and proven BEFORE any UI consumes it. Config-driven scoring profiles (zone bands/points, fault tables, freestyle criteria/scale, agility count-up-vs-deduct model) extend the CFG-03 discriminated-union; a default profile ships, malformed profiles fail-fast at config-load. `score_calc` added to `PHASE1_SURFACE`; the heavy-absent import-smoke gate (`test_console_resolves_with_heavy_stack_and_numpy_absent`) extended to the new module + a `POST /score` round-trip — establishing the crash-isolation guard every later phase inherits (Pitfall 6). REQ blocker: pin the exact per-federation rule tables before coding.
   - **Phase 16 — Shared Entry Component, Dedicated Page & Server-Authoritative POST** (SCE-01/02/03/05, SCC-01/03): the spine. ONE vanilla-JS `score-entry.js` component (`mount(root, cfg)` factory, dual export, mounted FIRST on the simpler dedicated `/score-entry` page) shows per-discipline rich fields from the active profile, live advisory total + per-field validation errors. `score-calc.js` is a byte-exact ADVISORY port; a drift-guard test (node-vs-Python shared fixtures, `test_ui_overlay_render.py` precedent) keeps it from becoming a second authority. `POST /score` made AUTHORITATIVE: validate → 400 + write-nothing on invalid → recompute in Python → atomic `score.json`+`overlay.txt`, preserving `running`/`started_at` (WR-03). Locked here: the round-trip acceptance test (form total === `overlay.txt` === `/overlay-json`-rendered total). Avoids Pitfalls 1/2/3.

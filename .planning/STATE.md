@@ -3,8 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Validazione sul Campo
 status: planning
-last_updated: "2026-07-09T12:00:00.000Z"
-last_activity: 2026-07-09
+stopped_at: Phase 19 context gathered
+last_updated: "2026-07-13T22:33:38.461Z"
+last_activity: 2026-07-09 — Milestone v1.4 roadmap created (5 phases, 19–23)
 progress:
   total_phases: 5
   completed_phases: 0
@@ -330,9 +331,9 @@ Items acknowledged and deferred at the **v1.3 milestone close (2026-06-28)**. Th
 
 ## Session Continuity
 
-Last session: 2026-06-27T12:20:03.413Z
-Stopped at: Completed 18-01-PLAN.md
-Resume file: .planning/phases/18-rich-data-model-overlay-continuity-regression/18-CONTEXT.md
+Last session: 2026-07-13T22:33:38.437Z
+Stopped at: Phase 19 context gathered
+Resume file: .planning/phases/19-detection-eval-on-real-footage-fine-tune-decision/19-CONTEXT.md
 
 ## Operator Next Steps
 

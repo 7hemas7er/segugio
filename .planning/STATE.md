@@ -4,7 +4,7 @@ milestone: v1.4
 milestone_name: Validazione sul Campo
 status: planning
 stopped_at: Phase 19 context gathered
-last_updated: "2026-07-13T22:33:38.461Z"
+last_updated: "2026-07-13T23:34:38.251Z"
 last_activity: 2026-07-09 — Milestone v1.4 roadmap created (5 phases, 19–23)
 progress:
   total_phases: 5

@@ -67,62 +67,84 @@
 > Active milestone (v1.4) only. Shipped-milestone phase detail is archived in `.planning/milestones/v1.{1,2,3}-ROADMAP.md`.
 
 ### Phase 19: Detection Eval on Real Footage & Fine-tune Decision
+
 **Goal**: Know the SHIPPED detector's real recall AND precision on the hard field conditions (distant/small dog, backlight, motion-blur, multi-dog, tunnel occlusion) and make a motivated `yolo26s` fine-tune decision — measured on the FP16 batched path that actually ships, not on the `lock_held` proxy or the eager FP32 serial `track()` of the P04 UAT.
 **Depends on**: Nothing (first v1.4 phase). Desk work — real footage + the dev-box CUDA GPU (venv312); requires a real multi-venue corpus sourced first (today = one `gara_full.mp4`).
 **Requirements**: DET-01, DET-02, DET-03, DET-04
 **Success Criteria** (what must be TRUE):
+
   1. A multi-venue corpus covering BOTH disc dog and agility is cataloged via `tools/catalog_clips.py` with the condition checklist populated across all five hard cases (distant/small dog, backlight, motion-blur, multi-dog, tunnel occlusion) — no longer a single clip.
   2. A representative subset carries labeled ground-truth "in-competition" dog bboxes usable as the recall/precision reference.
   3. Recall AND precision are reported per condition — measured on the FP16 batched shipped path — including distant-dog recall and handler/shadow false-lock, not just the `lock_held` proxy.
   4. A written, metrics-backed fine-tune decision (fine-tune vs. ship COCO `dog` as-is) exists; if fine-tune, the produced weight loads drop-in via the config `path` key with zero code change.
-**Scope (v1.4)**: disc-only — the eval covers the owner's real disc footage; agility (and disc `tunnel_contact_occlusion`) is carried-forward/deferred until real agility footage with consent exists (D-01/D-02). DET-01/DET-03 are satisfied as disc across the hard conditions.
-**Plans**: 5 plans (3 waves)
+
+**Scope (v1.4)**: disc-only — the eval covers the owner's real disc footage; agility (and disc `tunnel_contact_occlusion`) is carried-forward/deferred until real agility footage with consent exists (D-01/D-02). DET-01/DET-03 are satisfied as disc across the hard conditions.**Plans**: 5 plans (3 waves)
+**Wave 1**
+
 - [ ] 19-01-PLAN.md — Pure detection-metrics core (iou/score_frame/aggregate) + GT sidecar parse/validate + CPU tests [wave 1]
 - [ ] 19-02-PLAN.md — Disc corpus scoping: new slices, re-catalogue, agility carry-forward + scope notes [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 19-03-PLAN.md — opencv GT labeling tool (cv2.selectROI, detector-independent) + labeled GT subset [wave 2]
 - [ ] 19-04-PLAN.md — FP16 batched recall/precision harness (run_detection_eval) + gpu test [wave 2]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 19-05-PLAN.md — Run the harness + write the metrics-backed fine-tune decision doc (19-DECISION.md) [wave 3]
 
 ### Phase 20: Framing & Tracking Calibration on Real Clips
+
 **Goal**: Retune the framing and tracking seeds to the REAL distant-dog scale so the camera actually holds the small dog and the same track survives real tunnels/occlusions — replacing the synthetic-clip defaults, config-only.
 **Depends on**: Phase 19 (you cannot calibrate framing/tracking seeds until the eval tells you the detector's real recall on the distant/small dog). Desk work — real clips + dev-box GPU.
 **Requirements**: CAL-01, CAL-02
 **Success Criteria** (what must be TRUE):
+
   1. Framing seeds (`ideal_size`, `motion_deadzone`, lead-room) are re-set to the real distant-dog scale (2-5% of frame, not 0.30) and demonstrably keep the dog in frame on real clips.
   2. Tracking seeds (`track_buffer`, `max_displacement`, plausibility gate) are tuned on real occlusion/tunnel clips so a dog that leaves and re-enters keeps the same track ID — no spurious ID-churn.
   3. The retuned seeds are captured entirely in config (no code change) — the recalibration is config-only.
+
 **Plans**: TBD
 
 ### Phase 21: Residual Security Hardening
+
 **Goal**: Close the two accepted P15/P16 security residuals so a crafted score input can neither air an out-of-federation total nor grow the `/overlay-json`/`score.json` payload unboundedly — without touching the console's crash-isolation.
 **Depends on**: Nothing (independent desk work; both fixes are pre-specified in `.planning/todos/pending/`). Can run in parallel with Phases 19–20.
 **Requirements**: SEC-01, SEC-02
 **Success Criteria** (what must be TRUE):
+
   1. Out-of-range scoring input (e.g. freestyle all-10 + `adjustment="-50"`) is rejected under the 400 + write-nothing contract or capped after adjustment, so the on-air score is never touched — pinned by a regression test.
   2. Negative/unbounded profile scalars (`freestyle_max`, `time_fault_rate`, `fault_value`) fail-fast at config load with `SystemExit(2)`, symmetric with the already-bounded sibling fields.
   3. Echoed field values on `POST /score` → `/overlay-json`/`score.json` are length-capped (a `>N`-char numeric or free-text value is rejected/truncated and never reaches the payload), fixed in one general place.
   4. Console crash-isolation is preserved — import surface still `Flask + segugio.opcomm + score_calc`, the heavy-deps-absent import gate stays green.
+
 **Plans**: TBD
 
 ### Phase 22: Hardware Rig Bring-up & Deploy-GPU Validation
+
 **Goal**: Prove the auto-director runs end-to-end on the real physical rig — 3-4 NDI HX3 phones on dedicated WiFi 6 + OBS/DistroAV + orchestrator on the deploy GPU — switching the right camera without an operator, within budget, without crashing under real network contention.
 **Depends on**: Phase 20 (runs the calibrated framing/tracking seeds) and Phase 19 (runs the decided model config). **REQUIRES THE PHYSICAL RIG** — 3-4 real phones, dedicated WiFi 6, OBS+DistroAV, the deploy GPU; carries on-rig human verification and CANNOT be closed at the dev desk.
 **Requirements**: RIG-01, RIG-02, RIG-03, RIG-04
 **Success Criteria** (what must be TRUE):
+
   1. The orchestrator decodes live NDI HX3 feeds from 3-4 real phones (NDICam iOS / NDI Camera Android, NDI 6.3.2 runtime), with liveness deduced from the last-NEW-frame timestamp — a stalled phone is detected as dead, never held "vivo".
   2. The full pipeline runs on the rig — phones → OBS+DistroAV (PROGRAM) + independent Python ingest (AI) → OBS scene switching via obs-websocket — auto-selecting the best camera with no operator.
   3. The decision-loop p95 is confirmed < 300ms on the deploy GPU under sustained load (no thermal throttle like the laptop); if the TensorRT engine is used it is exported on the target GPU.
   4. Under real WiFi contention with 3-4 competing feeds, dropping a feed degrades to SAFE / another live camera with no crash; the Ethernet-tether mitigation (USB-C/Lightning adapter) is documented.
+
 **Plans**: TBD
 
 ### Phase 23: On-Rig UAT Closure
+
 **Goal**: Close the deferred v1.1/v1.2 hardware-gated UATs on the real rig — the graphical overlay behaves correctly in real OBS, the console tablet-UX holds on a real iPad over a long session, and the preview-bandwidth cap protects real phone feeds.
 **Depends on**: Phase 22 (the rig must be up before these UATs can run on it). **REQUIRES THE PHYSICAL RIG** — real OBS, a real iPad, real phones; carries the human-UAT sign-offs deferred from v1.1/v1.2 and CANNOT be closed at the dev desk.
 **Requirements**: UAT-01, UAT-02, UAT-03
 **Success Criteria** (what must be TRUE):
+
   1. In real OBS the deferred v1.2 overlay UATs are signed off — console-death auto-hides the lower-third (no frozen score airs), a LAN-drop re-anchors the run timer via `gen` on recovery, and the `overlay.txt` text-source coexists as the fallback.
   2. On a real iPad over a prolonged session the v1.1/P17 tablet UX is confirmed — multiview, tap-to-force override, and the score-entry modal are usable, memory stays flat, and sleep/wake resume works.
   3. With real phones the preview-bandwidth false-death is validated — the `max_total_mbps` cap degrades the preview BEFORE the NDI feeds appear dead.
+
 **Plans**: TBD
 **UI hint**: yes
 

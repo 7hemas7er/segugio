@@ -75,7 +75,13 @@
   2. A representative subset carries labeled ground-truth "in-competition" dog bboxes usable as the recall/precision reference.
   3. Recall AND precision are reported per condition — measured on the FP16 batched shipped path — including distant-dog recall and handler/shadow false-lock, not just the `lock_held` proxy.
   4. A written, metrics-backed fine-tune decision (fine-tune vs. ship COCO `dog` as-is) exists; if fine-tune, the produced weight loads drop-in via the config `path` key with zero code change.
-**Plans**: TBD
+**Scope (v1.4)**: disc-only — the eval covers the owner's real disc footage; agility (and disc `tunnel_contact_occlusion`) is carried-forward/deferred until real agility footage with consent exists (D-01/D-02). DET-01/DET-03 are satisfied as disc across the hard conditions.
+**Plans**: 5 plans (3 waves)
+- [ ] 19-01-PLAN.md — Pure detection-metrics core (iou/score_frame/aggregate) + GT sidecar parse/validate + CPU tests [wave 1]
+- [ ] 19-02-PLAN.md — Disc corpus scoping: new slices, re-catalogue, agility carry-forward + scope notes [wave 1]
+- [ ] 19-03-PLAN.md — opencv GT labeling tool (cv2.selectROI, detector-independent) + labeled GT subset [wave 2]
+- [ ] 19-04-PLAN.md — FP16 batched recall/precision harness (run_detection_eval) + gpu test [wave 2]
+- [ ] 19-05-PLAN.md — Run the harness + write the metrics-backed fine-tune decision doc (19-DECISION.md) [wave 3]
 
 ### Phase 20: Framing & Tracking Calibration on Real Clips
 **Goal**: Retune the framing and tracking seeds to the REAL distant-dog scale so the camera actually holds the small dog and the same track survives real tunnels/occlusions — replacing the synthetic-clip defaults, config-only.
@@ -144,7 +150,7 @@
 | 16. Shared Entry Component, Dedicated Page & Server-Authoritative POST | v1.3 | 2/2 | Complete | 2026-06-23 |
 | 17. Console Modal, Multi-throw State & Tablet UX | v1.3 | 2/2 | Complete | 2026-06-27 |
 | 18. Rich Data Model & Overlay-Continuity Regression | v1.3 | 2/2 | Complete | 2026-06-27 |
-| 19. Detection Eval on Real Footage & Fine-tune Decision | v1.4 | 0/— | Not started | - |
+| 19. Detection Eval on Real Footage & Fine-tune Decision | v1.4 | 0/5 | Planned | - |
 | 20. Framing & Tracking Calibration on Real Clips | v1.4 | 0/— | Not started | - |
 | 21. Residual Security Hardening | v1.4 | 0/— | Not started | - |
 | 22. Hardware Rig Bring-up & Deploy-GPU Validation | v1.4 | 0/— | Not started | - |
